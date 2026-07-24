@@ -1,0 +1,244 @@
+<!DOCTYPE html><html class="dark" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Trak - Project Explorer</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "secondary-fixed": "#d8e2ff",
+                    "primary-fixed": "#72ff70",
+                    "surface-variant": "#32353c",
+                    "surface-container": "#1d2026",
+                    "on-secondary-container": "#00285c",
+                    "surface-container-highest": "#32353c",
+                    "on-error-container": "#ffdad6",
+                    "primary": "#ebffe2",
+                    "on-error": "#690005",
+                    "surface": "#10131a",
+                    "inverse-surface": "#e1e2eb",
+                    "on-surface-variant": "#b9ccb2",
+                    "on-secondary-fixed-variant": "#004493",
+                    "on-tertiary-fixed-variant": "#2f2ebe",
+                    "on-tertiary-fixed": "#07006c",
+                    "primary-container": "#00ff41",
+                    "tertiary-fixed-dim": "#c0c1ff",
+                    "tertiary-container": "#dad9ff",
+                    "surface-tint": "#00e639",
+                    "on-primary": "#003907",
+                    "primary-fixed-dim": "#00e639",
+                    "surface-container-low": "#191c22",
+                    "background": "#10131a",
+                    "on-tertiary-container": "#4b4dd9",
+                    "tertiary-fixed": "#e1e0ff",
+                    "secondary": "#adc6ff",
+                    "on-secondary-fixed": "#001a41",
+                    "on-surface": "#e1e2eb",
+                    "surface-container-high": "#272a31",
+                    "on-background": "#e1e2eb",
+                    "tertiary": "#fbf7ff",
+                    "outline-variant": "#3b4b37",
+                    "on-tertiary": "#1000a9",
+                    "inverse-on-surface": "#2e3037",
+                    "on-primary-fixed": "#002203",
+                    "error-container": "#93000a",
+                    "outline": "#84967e",
+                    "inverse-primary": "#006e16",
+                    "surface-bright": "#363940",
+                    "on-secondary": "#002e69",
+                    "on-primary-container": "#007117",
+                    "on-primary-fixed-variant": "#00530e",
+                    "surface-dim": "#10131a",
+                    "secondary-container": "#4b8eff",
+                    "surface-container-lowest": "#0b0e14",
+                    "error": "#ffb4ab",
+                    "secondary-fixed-dim": "#adc6ff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "base": "4px",
+                    "margin": "20px",
+                    "lg": "24px",
+                    "touch-target": "44px",
+                    "sm": "8px",
+                    "xs": "4px",
+                    "xl": "32px",
+                    "gutter": "16px",
+                    "md": "16px"
+            },
+            "fontFamily": {
+                    "mono-code": ["JetBrains Mono"],
+                    "body-md": ["Inter"],
+                    "headline-lg-mobile": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "mono-label": ["JetBrains Mono"],
+                    "body-sm": ["Inter"]
+            },
+            "fontSize": {
+                    "mono-code": ["12px", {"lineHeight": "18px", "fontWeight": "400"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "headline-lg-mobile": ["24px", {"lineHeight": "30px", "fontWeight": "700"}],
+                    "headline-md": ["20px", {"lineHeight": "26px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "headline-lg": ["28px", {"lineHeight": "34px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "mono-label": ["13px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                    "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #0b0e14;
+            color: #e1e2eb;
+            -webkit-font-smoothing: antialiased;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            background: rgba(22, 27, 34, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .terminal-cursor {
+            display: inline-block;
+            width: 8px;
+            height: 18px;
+            background-color: #72ff70;
+            animation: blink 1s step-end infinite;
+            vertical-align: middle;
+            margin-left: 4px;
+        }
+        @keyframes blink {
+            from, to { opacity: 1; }
+            50% { opacity: 0; }
+        }
+    </style>
+<style>
+            @keyframes loading {
+                0% { transform: translateX(-100%); }
+                100% { transform: translateX(300%); }
+            }
+        </style></head>
+<body class="bg-background font-body-md overflow-hidden">
+<!-- Top Navigation Anchor -->
+<header class="fixed top-0 w-full z-50 backdrop-blur-md border-b border-outline-variant/30 flex justify-between items-center px-margin h-14 bg-surface/80 dark:bg-surface/80">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-fixed" data-icon="terminal">terminal</span>
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile tracking-tighter text-primary-fixed dark:text-primary-fixed-dim">Trak</h1>
+</div>
+<button class="w-touch-target h-touch-target flex items-center justify-center hover:bg-surface-container-highest/50 transition-colors rounded-full text-on-surface-variant/50 active:scale-95 duration-150">
+<span class="material-symbols-outlined" data-icon="search">search</span>
+</button>
+</header>
+<!-- Main Canvas: Empty State -->
+<main class="relative min-h-screen w-full flex flex-col items-center justify-center px-margin">
+<!-- Atmospheric Background Layer -->
+<div class="absolute inset-0 z-0 opacity-20 pointer-events-none">
+
+</div>
+<!-- Central Content Container -->
+<div class="relative z-10 flex flex-col items-center text-center max-w-md w-full animate-in fade-in slide-in-from-bottom-4 duration-700">
+<!-- Technical Visual: Terminal Shell -->
+<div class="w-24 h-24 mb-xl glass-panel rounded-xl flex items-center justify-center relative group">
+<div class="absolute inset-0 bg-primary-fixed/5 rounded-xl blur-xl group-hover:bg-primary-fixed/10 transition-colors"></div>
+<div class="relative flex flex-col items-center">
+<span class="material-symbols-outlined text-primary-fixed text-5xl" data-icon="folder_off" style="font-variation-settings: 'wght' 200;">folder_off</span>
+<div class="mt-xs flex items-center justify-center">
+<div class="h-1 w-8 bg-outline-variant rounded-full overflow-hidden">
+<div class="h-full bg-primary-fixed w-1/3 animate-[loading_2s_infinite]"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Message Block -->
+<div class="space-y-sm">
+<h2 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">No projects yet</h2>
+<p class="font-body-md text-on-surface-variant/70 leading-relaxed">
+                    Start tracking your dev workflow today.
+                    <br>
+<span class="font-mono-code text-mono-code text-primary-fixed/80 mt-2 block opacity-60">
+                        ~/trak --init_workspace
+                        <span class="terminal-cursor"></span>
+</span>
+</p>
+</div>
+<!-- CTA Primary Action -->
+<button class="mt-xl group relative overflow-hidden bg-primary-fixed text-on-primary-fixed h-touch-target px-lg rounded-lg font-bold flex items-center gap-2 hover:brightness-110 active:scale-95 transition-all shadow-[0_0_20px_rgba(114,255,112,0.15)]">
+<span class="material-symbols-outlined text-[20px]" data-icon="add_circle" style="font-variation-settings: 'FILL' 1;">add_circle</span>
+<span class="">+ Create your first project</span>
+</button>
+<!-- Secondary Contextual Hint -->
+<div class="mt-lg flex gap-md">
+<button class="text-on-surface-variant/40 hover:text-on-surface transition-colors font-mono-label text-mono-label uppercase tracking-widest flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="help_outline">help_outline</span>
+                    Documentation
+                </button>
+<div class="w-px h-3 bg-outline-variant/30 self-center"></div>
+<button class="text-on-surface-variant/40 hover:text-on-surface transition-colors font-mono-label text-mono-label uppercase tracking-widest flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="terminal">terminal</span>
+                    CLI Tools
+                </button>
+</div>
+</div>
+</main>
+<!-- Bottom Navigation Shell -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center h-16 px-4 pb-safe bg-surface-container/80 dark:bg-surface-container/80 backdrop-blur-xl rounded-t-xl z-50 border-t border-outline-variant/20 shadow-2xl">
+<!-- Dashboard Tab (Active) -->
+<button class="flex flex-col items-center justify-center text-primary-fixed opacity-100 after:content-[''] after:w-1 after:h-1 after:bg-primary-fixed after:rounded-full after:mt-1 transform scale-110 duration-200">
+<span class="material-symbols-outlined" data-icon="dashboard" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+</button>
+<!-- Search Tab -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant opacity-50 hover:text-primary-fixed transition-all">
+<span class="material-symbols-outlined" data-icon="search">search</span>
+</button>
+<!-- Add Button (FAB-like prominence) -->
+<button class="flex items-center justify-center w-12 h-12 bg-primary-fixed/10 text-primary-fixed rounded-full hover:bg-primary-fixed/20 transition-all active:scale-90">
+<span class="material-symbols-outlined" data-icon="add_circle" style="font-variation-settings: 'FILL' 0;">add_circle</span>
+</button>
+<!-- Filter Tab -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant opacity-50 hover:text-primary-fixed transition-all">
+<span class="material-symbols-outlined" data-icon="filter_list">filter_list</span>
+</button>
+<!-- Profile Tab -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant opacity-50 hover:text-primary-fixed transition-all">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+</button><button class="flex flex-col items-center justify-center text-on-surface-variant opacity-50 hover:text-primary-fixed transition-all">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+</button>
+</nav>
+<script>
+        // Micro-interaction for the loading bar animation if CSS isn't enough
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes loading {
+                0% { transform: translateX(-100%); }
+                100% { transform: translateX(300%); }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Simple parallax or mouse-follow effect for the empty state
+        document.addEventListener('mousemove', (e) => {
+            const container = document.querySelector('main > div');
+            const x = (window.innerWidth / 2 - e.pageX) / 40;
+            const y = (window.innerHeight / 2 - e.pageY) / 40;
+            container.style.transform = `translate(${x}px, ${y}px)`;
+        });
+    </script>
+
+
+</body></html>

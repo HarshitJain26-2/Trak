@@ -1,0 +1,287 @@
+<!DOCTYPE html><html class="dark" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport">
+<title>Trak | Search &amp; Filter</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "secondary-fixed": "#d8e2ff",
+                    "primary-fixed": "#72ff70",
+                    "surface-variant": "#32353c",
+                    "surface-container": "#1d2026",
+                    "on-secondary-container": "#00285c",
+                    "surface-container-highest": "#32353c",
+                    "on-error-container": "#ffdad6",
+                    "primary": "#ebffe2",
+                    "on-error": "#690005",
+                    "surface": "#10131a",
+                    "inverse-surface": "#e1e2eb",
+                    "on-surface-variant": "#b9ccb2",
+                    "on-secondary-fixed-variant": "#004493",
+                    "on-tertiary-fixed-variant": "#2f2ebe",
+                    "on-tertiary-fixed": "#07006c",
+                    "primary-container": "#00ff41",
+                    "tertiary-fixed-dim": "#c0c1ff",
+                    "tertiary-container": "#dad9ff",
+                    "surface-tint": "#00e639",
+                    "on-primary": "#003907",
+                    "primary-fixed-dim": "#00e639",
+                    "surface-container-low": "#191c22",
+                    "background": "#10131a",
+                    "on-tertiary-container": "#4b4dd9",
+                    "tertiary-fixed": "#e1e0ff",
+                    "secondary": "#adc6ff",
+                    "on-secondary-fixed": "#001a41",
+                    "on-surface": "#e1e2eb",
+                    "surface-container-high": "#272a31",
+                    "on-background": "#e1e2eb",
+                    "tertiary": "#fbf7ff",
+                    "outline-variant": "#3b4b37",
+                    "on-tertiary": "#1000a9",
+                    "inverse-on-surface": "#2e3037",
+                    "on-primary-fixed": "#002203",
+                    "error-container": "#93000a",
+                    "outline": "#84967e",
+                    "inverse-primary": "#006e16",
+                    "surface-bright": "#363940",
+                    "on-secondary": "#002e69",
+                    "on-primary-container": "#007117",
+                    "on-primary-fixed-variant": "#00530e",
+                    "surface-dim": "#10131a",
+                    "secondary-container": "#4b8eff",
+                    "surface-container-lowest": "#0b0e14",
+                    "error": "#ffb4ab",
+                    "secondary-fixed-dim": "#adc6ff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "base": "4px",
+                    "margin": "20px",
+                    "lg": "24px",
+                    "touch-target": "44px",
+                    "sm": "8px",
+                    "xs": "4px",
+                    "xl": "32px",
+                    "gutter": "16px",
+                    "md": "16px"
+            },
+            "fontFamily": {
+                    "mono-code": ["JetBrains Mono"],
+                    "body-md": ["Inter"],
+                    "headline-lg-mobile": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "mono-label": ["JetBrains Mono"],
+                    "body-sm": ["Inter"]
+            },
+            "fontSize": {
+                    "mono-code": ["12px", {"lineHeight": "18px", "fontWeight": "400"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "headline-lg-mobile": ["24px", {"lineHeight": "30px", "fontWeight": "700"}],
+                    "headline-md": ["20px", {"lineHeight": "26px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "headline-lg": ["28px", {"lineHeight": "34px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "mono-label": ["13px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                    "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #0b0e14; /* surface-container-lowest */
+            color: #e1e2eb; /* on-surface */
+            -webkit-tap-highlight-color: transparent;
+        }
+        .glass-surface {
+            background: rgba(11, 14, 20, 0.8);
+            backdrop-filter: blur(30px);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        /* Custom scrollbar for technical aesthetic */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #10131a; }
+        ::-webkit-scrollbar-thumb { background: #32353c; border-radius: 2px; }
+    </style>
+</head>
+<body class="font-body-md text-body-md antialiased">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 backdrop-blur-md bg-surface/80 dark:bg-surface/80 border-b border-outline-variant/30 flex justify-between items-center px-margin h-14 w-full">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary-fixed">terminal</span>
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile tracking-tighter text-primary-fixed dark:text-primary-fixed-dim">Trak</h1>
+</div>
+<div class="flex items-center gap-md">
+<button class="p-2 rounded-full hover:bg-surface-container-highest/50 transition-colors active:scale-95 duration-150">
+<span class="material-symbols-outlined text-on-surface-variant/50">search</span>
+</button>
+</div>
+</header>
+<main class="pt-20 pb-32 px-margin max-w-3xl mx-auto">
+<!-- Search Input Section -->
+<section class="mb-lg">
+<div class="relative group">
+<div class="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-on-surface-variant/50 group-focus-within:text-primary-fixed transition-colors">search</span>
+</div>
+<input class="w-full h-12 bg-surface-container-lowest border border-outline-variant/30 rounded-xl pl-12 pr-4 text-on-surface focus:outline-none focus:border-primary-fixed/50 focus:ring-1 focus:ring-primary-fixed/50 transition-all font-mono-code placeholder:text-on-surface-variant/30" placeholder="Search projects..." type="text">
+</div>
+</section>
+<!-- Filter System -->
+<section class="mb-xl space-y-md">
+<!-- Filter Group: Status -->
+<div class="space-y-sm">
+<h3 class="font-mono-label text-mono-label text-on-surface-variant/50 flex items-center gap-xs uppercase tracking-widest">
+<span class="w-1 h-3 bg-primary-fixed rounded-full"></span> Status
+                </h3>
+<div class="flex flex-wrap gap-sm">
+<button class="px-4 py-2 rounded-lg bg-primary-fixed text-on-primary-fixed font-mono-label text-mono-label transition-all active:scale-95">Active</button>
+<button class="px-4 py-2 rounded-lg bg-surface-container border border-outline-variant/30 text-on-surface-variant font-mono-label text-mono-label hover:border-primary-fixed/30 transition-all">Blocked</button>
+<button class="px-4 py-2 rounded-lg bg-surface-container border border-outline-variant/30 text-on-surface-variant font-mono-label text-mono-label hover:border-primary-fixed/30 transition-all">Completed</button>
+</div>
+</div>
+<!-- Filter Group: Tech Stack -->
+<div class="space-y-sm">
+<h3 class="font-mono-label text-mono-label text-on-surface-variant/50 flex items-center gap-xs uppercase tracking-widest">
+<span class="w-1 h-3 bg-secondary-container rounded-full"></span> Tech Stack
+                </h3>
+<div class="flex flex-wrap gap-sm">
+<button class="px-3 py-1.5 rounded-full bg-surface-container border border-primary-fixed text-primary-fixed font-mono-label text-mono-label flex items-center gap-xs">
+                        React <span class="material-symbols-outlined text-[16px]">close</span>
+</button>
+<button class="px-3 py-1.5 rounded-full bg-surface-container border border-outline-variant/30 text-on-surface-variant font-mono-label text-mono-label hover:bg-surface-container-high transition-colors">Python</button>
+<button class="px-3 py-1.5 rounded-full bg-surface-container border border-outline-variant/30 text-on-surface-variant font-mono-label text-mono-label hover:bg-surface-container-high transition-colors">Go</button>
+<button class="px-3 py-1.5 rounded-full bg-surface-container border border-outline-variant/30 text-on-surface-variant font-mono-label text-mono-label hover:bg-surface-container-high transition-colors">Typescript</button>
+</div>
+</div>
+</section>
+<!-- Results Section -->
+<section class="space-y-gutter">
+<div class="flex justify-between items-end mb-sm">
+<span class="font-mono-label text-mono-label text-on-surface-variant/50">8 RESULTS FOUND</span>
+<button class="flex items-center gap-xs text-primary-fixed font-mono-label text-mono-label">
+<span class="material-symbols-outlined text-[18px]">sort</span> Relevance
+                </button>
+</div>
+<!-- Compact List Cards -->
+<div class="grid gap-sm">
+<!-- Card 1 -->
+<div class="flex items-center justify-between p-4 bg-surface-container-low border border-outline-variant/20 rounded-xl hover:bg-surface-container transition-all group">
+<div class="flex items-center gap-md">
+<div class="w-1.5 h-8 bg-primary-fixed rounded-full"></div>
+<div>
+<h4 class="font-headline-md text-headline-md text-on-surface group-hover:text-primary-fixed transition-colors">Nexus-7 Core Engine</h4>
+<div class="flex items-center gap-sm mt-1">
+<span class="px-2 py-0.5 rounded bg-surface-container-highest text-on-surface-variant font-mono-code text-[10px]">RE-042</span>
+<span class="flex items-center gap-xs font-mono-label text-mono-label text-on-surface-variant/60">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-fixed shadow-[0_0_8px_#72ff70]"></span> Active
+                                </span>
+</div>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant/30 group-hover:text-primary-fixed transition-colors">chevron_right</span>
+</div>
+<!-- Card 2 -->
+<div class="flex items-center justify-between p-4 bg-surface-container-low border border-outline-variant/20 rounded-xl hover:bg-surface-container transition-all group">
+<div class="flex items-center gap-md">
+<div class="w-1.5 h-8 bg-error rounded-full"></div>
+<div>
+<h4 class="font-headline-md text-headline-md text-on-surface">Data Pipeline Alpha</h4>
+<div class="flex items-center gap-sm mt-1">
+<span class="px-2 py-0.5 rounded bg-surface-container-highest text-on-surface-variant font-mono-code text-[10px]">DP-101</span>
+<span class="flex items-center gap-xs font-mono-label text-mono-label text-on-surface-variant/60">
+<span class="w-1.5 h-1.5 rounded-full bg-error shadow-[0_0_8px_#ffb4ab]"></span> Blocked
+                                </span>
+</div>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant/30 group-hover:text-primary-fixed transition-colors">chevron_right</span>
+</div>
+<!-- Card 3 -->
+<div class="flex items-center justify-between p-4 bg-surface-container-low border border-outline-variant/20 rounded-xl hover:bg-surface-container transition-all group">
+<div class="flex items-center gap-md">
+<div class="w-1.5 h-8 bg-primary-fixed rounded-full"></div>
+<div>
+<h4 class="font-headline-md text-headline-md text-on-surface">Spectra Auth Module</h4>
+<div class="flex items-center gap-sm mt-1">
+<span class="px-2 py-0.5 rounded bg-surface-container-highest text-on-surface-variant font-mono-code text-[10px]">SEC-09</span>
+<span class="flex items-center gap-xs font-mono-label text-mono-label text-on-surface-variant/60">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-fixed"></span> Active
+                                </span>
+</div>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant/30 group-hover:text-primary-fixed transition-colors">chevron_right</span>
+</div>
+<!-- Card 4 -->
+<div class="flex items-center justify-between p-4 bg-surface-container-low border border-outline-variant/20 rounded-xl hover:bg-surface-container transition-all group">
+<div class="flex items-center gap-md">
+<div class="w-1.5 h-8 bg-secondary-container rounded-full"></div>
+<div>
+<h4 class="font-headline-md text-headline-md text-on-surface">Legacy Sync Service</h4>
+<div class="flex items-center gap-sm mt-1">
+<span class="px-2 py-0.5 rounded bg-surface-container-highest text-on-surface-variant font-mono-code text-[10px]">LEG-55</span>
+<span class="flex items-center gap-xs font-mono-label text-mono-label text-on-surface-variant/60">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary-container"></span> Idle
+                                </span>
+</div>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant/30 group-hover:text-primary-fixed transition-colors">chevron_right</span>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center h-16 px-4 pb-safe bg-surface-container/80 dark:bg-surface-container/80 backdrop-blur-xl rounded-t-xl border-t border-outline-variant/20 shadow-2xl z-50">
+<a class="flex flex-col items-center justify-center text-on-surface-variant opacity-50 hover:text-primary-fixed transition-all" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+</a>
+<a class="flex flex-col items-center justify-center text-primary-fixed opacity-100 after:content-[''] after:w-1 after:h-1 after:bg-primary-fixed after:rounded-full after:mt-1 transform scale-110 duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">search</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant opacity-50 hover:text-primary-fixed transition-all" href="#">
+<span class="material-symbols-outlined">add_circle</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant opacity-50 hover:text-primary-fixed transition-all" href="#">
+<span class="material-symbols-outlined">filter_list</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant opacity-50 hover:text-primary-fixed transition-all" href="#">
+<span class="material-symbols-outlined">history</span>
+</a><a class="flex flex-col items-center justify-center text-on-surface-variant opacity-50 hover:text-primary-fixed transition-all" href="#">
+<span class="material-symbols-outlined">person</span>
+</a>
+</nav>
+<script>
+        // Micro-interaction for filter chips
+        document.querySelectorAll('button').forEach(button => {
+            button.addEventListener('click', function() {
+                if (this.classList.contains('bg-primary-fixed')) {
+                    // Toggle off (Simplified for demo)
+                    this.classList.replace('bg-primary-fixed', 'bg-surface-container');
+                    this.classList.replace('text-on-primary-fixed', 'text-on-surface-variant');
+                } else if (this.classList.contains('bg-surface-container')) {
+                    // Toggle on
+                    this.classList.replace('bg-surface-container', 'bg-primary-fixed');
+                    this.classList.replace('text-on-surface-variant', 'text-on-primary-fixed');
+                }
+            });
+        });
+    </script>
+
+
+</body></html>

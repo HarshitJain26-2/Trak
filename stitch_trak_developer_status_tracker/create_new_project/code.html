@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Trak - New Project</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "secondary-fixed": "#d8e2ff",
+                    "primary-fixed": "#72ff70",
+                    "surface-variant": "#32353c",
+                    "surface-container": "#1d2026",
+                    "on-secondary-container": "#00285c",
+                    "surface-container-highest": "#32353c",
+                    "on-error-container": "#ffdad6",
+                    "primary": "#ebffe2",
+                    "on-error": "#690005",
+                    "surface": "#10131a",
+                    "inverse-surface": "#e1e2eb",
+                    "on-surface-variant": "#b9ccb2",
+                    "on-secondary-fixed-variant": "#004493",
+                    "on-tertiary-fixed-variant": "#2f2ebe",
+                    "on-tertiary-fixed": "#07006c",
+                    "primary-container": "#00ff41",
+                    "tertiary-fixed-dim": "#c0c1ff",
+                    "tertiary-container": "#dad9ff",
+                    "surface-tint": "#00e639",
+                    "on-primary": "#003907",
+                    "primary-fixed-dim": "#00e639",
+                    "surface-container-low": "#191c22",
+                    "background": "#10131a",
+                    "on-tertiary-container": "#4b4dd9",
+                    "tertiary-fixed": "#e1e0ff",
+                    "secondary": "#adc6ff",
+                    "on-secondary-fixed": "#001a41",
+                    "on-surface": "#e1e2eb",
+                    "surface-container-high": "#272a31",
+                    "on-background": "#e1e2eb",
+                    "tertiary": "#fbf7ff",
+                    "outline-variant": "#3b4b37",
+                    "on-tertiary": "#1000a9",
+                    "inverse-on-surface": "#2e3037",
+                    "on-primary-fixed": "#002203",
+                    "error-container": "#93000a",
+                    "outline": "#84967e",
+                    "inverse-primary": "#006e16",
+                    "surface-bright": "#363940",
+                    "on-secondary": "#002e69",
+                    "on-primary-container": "#007117",
+                    "on-primary-fixed-variant": "#00530e",
+                    "surface-dim": "#10131a",
+                    "secondary-container": "#4b8eff",
+                    "surface-container-lowest": "#0b0e14",
+                    "error": "#ffb4ab",
+                    "secondary-fixed-dim": "#adc6ff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "base": "4px",
+                    "margin": "20px",
+                    "lg": "24px",
+                    "touch-target": "44px",
+                    "sm": "8px",
+                    "xs": "4px",
+                    "xl": "32px",
+                    "gutter": "16px",
+                    "md": "16px"
+            },
+            "fontFamily": {
+                    "mono-code": ["JetBrains Mono"],
+                    "body-md": ["Inter"],
+                    "headline-lg-mobile": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "mono-label": ["JetBrains Mono"],
+                    "body-sm": ["Inter"]
+            },
+            "fontSize": {
+                    "mono-code": ["12px", {"lineHeight": "18px", "fontWeight": "400"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "headline-lg-mobile": ["24px", {"lineHeight": "30px", "fontWeight": "700"}],
+                    "headline-md": ["20px", {"lineHeight": "26px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "headline-lg": ["28px", {"lineHeight": "34px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "mono-label": ["13px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                    "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #10131a;
+            color: #e1e2eb;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .sheet-handle {
+            width: 32px;
+            height: 4px;
+            background-color: rgba(185, 204, 178, 0.3);
+            border-radius: 2px;
+            margin: 8px auto 0;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #32353c;
+            border-radius: 10px;
+        }
+        .segmented-control input:checked + label {
+            background-color: #72ff70;
+            color: #002203;
+        }
+        .input-glow:focus-within {
+            box-shadow: 0 0 12px rgba(114, 255, 112, 0.15);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body-md text-body-md overflow-hidden">
+<!-- Backdrop -->
+<div class="fixed inset-0 bg-surface-container-lowest/80 backdrop-blur-sm z-[40]"></div>
+<!-- Bottom Sheet Modal -->
+<div class="fixed inset-x-0 bottom-0 top-12 z-[50] flex flex-col bg-surface-container-lowest rounded-t-xl border-t border-outline-variant/30 shadow-2xl overflow-hidden transition-transform duration-300 transform translate-y-0" id="projectSheet">
+<!-- Sheet Handle & Header -->
+<div class="flex-none bg-surface-container-lowest/80 backdrop-blur-md z-10">
+<div class="sheet-handle"></div>
+<div class="flex justify-between items-center px-margin h-16">
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-primary-fixed tracking-tighter">New Project</h1>
+<button class="w-touch-target h-touch-target flex items-center justify-center text-on-surface-variant hover:bg-surface-variant/50 rounded-full transition-colors active:scale-95 duration-150">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+</div>
+<!-- Scrollable Form Content -->
+<div class="flex-1 overflow-y-auto px-margin pb-32 custom-scrollbar">
+<form class="space-y-xl max-w-2xl mx-auto pt-sm">
+<!-- Project Name -->
+<div class="space-y-sm">
+<label class="font-mono-label text-mono-label text-on-surface-variant/70 uppercase tracking-widest">Project Name</label>
+<div class="input-glow flex items-center bg-surface-container rounded-lg border border-outline-variant/30 transition-all focus-within:border-primary-fixed/50">
+<span class="material-symbols-outlined ml-md text-on-surface-variant/50">label</span>
+<input class="w-full bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-on-surface-variant/30 py-3 px-md font-body-md" placeholder="e.g. Apollo Infrastructure" type="text"/>
+</div>
+</div>
+<!-- Description -->
+<div class="space-y-sm">
+<label class="font-mono-label text-mono-label text-on-surface-variant/70 uppercase tracking-widest">Description</label>
+<div class="input-glow bg-surface-container rounded-lg border border-outline-variant/30 transition-all focus-within:border-primary-fixed/50">
+<textarea class="w-full bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-on-surface-variant/30 p-md font-body-md resize-none" placeholder="Brief technical summary of the project scope..." rows="4"></textarea>
+</div>
+</div>
+<!-- Tech Stack Tag Picker -->
+<div class="space-y-sm">
+<label class="font-mono-label text-mono-label text-on-surface-variant/70 uppercase tracking-widest">Tech Stack</label>
+<div class="flex flex-wrap gap-sm p-base">
+<button class="px-md py-1.5 rounded-full bg-primary-fixed text-on-primary-fixed font-mono-code text-mono-code flex items-center gap-xs" type="button">
+                            TS <span class="material-symbols-outlined text-[14px]">close</span>
+</button>
+<button class="px-md py-1.5 rounded-full bg-surface-container-high border border-outline-variant/50 text-on-surface font-mono-code text-mono-code flex items-center gap-xs" type="button">
+                            Rust <span class="material-symbols-outlined text-[14px]">close</span>
+</button>
+<button class="px-md py-1.5 rounded-full bg-surface-container-high border border-outline-variant/50 text-on-surface font-mono-code text-mono-code flex items-center gap-xs" type="button">
+                            AWS <span class="material-symbols-outlined text-[14px]">close</span>
+</button>
+<button class="px-md py-1.5 rounded-full border border-primary-fixed/30 text-primary-fixed font-mono-code text-mono-code flex items-center gap-xs hover:bg-primary-fixed/10 transition-colors" type="button">
+<span class="material-symbols-outlined text-[14px]">add</span> Add Tag
+                        </button>
+</div>
+</div>
+<!-- Deadline & Repo Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-lg">
+<!-- Deadline -->
+<div class="space-y-sm">
+<label class="font-mono-label text-mono-label text-on-surface-variant/70 uppercase tracking-widest">Deadline</label>
+<div class="input-glow flex items-center bg-surface-container rounded-lg border border-outline-variant/30 transition-all focus-within:border-primary-fixed/50">
+<span class="material-symbols-outlined ml-md text-on-surface-variant/50">calendar_today</span>
+<input class="w-full bg-transparent border-none focus:ring-0 text-on-surface py-3 px-md font-mono-code text-mono-code appearance-none color-scheme-dark" type="date"/>
+</div>
+</div>
+<!-- Repo Link -->
+<div class="space-y-sm">
+<label class="font-mono-label text-mono-label text-on-surface-variant/70 uppercase tracking-widest">Repo Link</label>
+<div class="input-glow flex items-center bg-surface-container rounded-lg border border-outline-variant/30 transition-all focus-within:border-primary-fixed/50">
+<span class="material-symbols-outlined ml-md text-on-surface-variant/50">terminal</span>
+<input class="w-full bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-on-surface-variant/30 py-3 px-md font-mono-code text-mono-code" placeholder="github.com/org/repo" type="url"/>
+</div>
+</div>
+</div>
+<!-- Priority Segmented Control -->
+<div class="space-y-sm">
+<label class="font-mono-label text-mono-label text-on-surface-variant/70 uppercase tracking-widest">Priority Level</label>
+<div class="flex p-1 bg-surface-container rounded-xl border border-outline-variant/30 segmented-control">
+<input checked="" class="hidden" id="low" name="priority" type="radio"/>
+<label class="flex-1 text-center py-2 rounded-lg font-mono-label text-mono-label text-on-surface-variant transition-all cursor-pointer" for="low">Low</label>
+<input class="hidden" id="med" name="priority" type="radio"/>
+<label class="flex-1 text-center py-2 rounded-lg font-mono-label text-mono-label text-on-surface-variant transition-all cursor-pointer" for="med">Med</label>
+<input class="hidden" id="high" name="priority" type="radio"/>
+<label class="flex-1 text-center py-2 rounded-lg font-mono-label text-mono-label text-on-surface-variant transition-all cursor-pointer" for="high">High</label>
+</div>
+</div>
+<!-- Atmospheric Visual Anchor -->
+<div class="relative w-full h-32 rounded-xl overflow-hidden border border-outline-variant/20 mt-xl">
+<div class="absolute inset-0 bg-gradient-to-br from-surface-container-high to-surface-container opacity-50"></div>
+<div class="absolute top-4 left-4">
+<span class="font-mono-code text-mono-code text-primary-fixed opacity-40">System::READY</span>
+</div>
+<div class="absolute bottom-4 right-4 flex gap-xs">
+<div class="w-2 h-2 bg-primary-fixed rounded-full animate-pulse"></div>
+<div class="w-2 h-2 bg-on-surface-variant/20 rounded-full"></div>
+<div class="w-2 h-2 bg-on-surface-variant/20 rounded-full"></div>
+</div>
+<div class="absolute inset-0 flex items-center justify-center">
+<span class="material-symbols-outlined text-4xl text-on-surface-variant/10">deployed_code</span>
+</div>
+</div>
+</form>
+</div>
+<!-- Sticky Footer Action -->
+<div class="flex-none p-margin bg-surface-container-lowest/90 backdrop-blur-xl border-t border-outline-variant/30">
+<div class="max-w-2xl mx-auto flex gap-md">
+<button class="flex-1 bg-primary-fixed text-on-primary-fixed py-4 rounded-xl font-headline-md text-headline-md flex items-center justify-center gap-sm transition-all hover:brightness-110 active:scale-95 duration-150 shadow-lg shadow-primary-fixed/10">
+<span class="material-symbols-outlined">save</span>
+                    Save Project
+                </button>
+</div>
+</div>
+</div>
+<!-- Hidden Main Page Preview (Background) -->
+<div class="opacity-10 pointer-events-none p-margin">
+<header class="flex justify-between items-center mb-xl">
+<div class="text-headline-lg-mobile font-headline-lg-mobile text-primary-fixed tracking-tighter">Trak</div>
+<div class="material-symbols-outlined">menu</div>
+</header>
+<div class="grid grid-cols-2 gap-md">
+<div class="h-40 bg-surface-container rounded-xl border border-outline-variant/30"></div>
+<div class="h-40 bg-surface-container rounded-xl border border-outline-variant/30"></div>
+<div class="h-40 bg-surface-container rounded-xl border border-outline-variant/30"></div>
+<div class="h-40 bg-surface-container rounded-xl border border-outline-variant/30"></div>
+</div>
+</div>
+<script>
+        // Micro-interactions for form elements
+        document.querySelectorAll('input, textarea').forEach(el => {
+            el.addEventListener('focus', () => {
+                const parent = el.closest('.input-glow');
+                if (parent) {
+                    parent.classList.add('border-primary-fixed');
+                }
+            });
+            el.addEventListener('blur', () => {
+                const parent = el.closest('.input-glow');
+                if (parent) {
+                    parent.classList.remove('border-primary-fixed');
+                }
+            });
+        });
+
+        // Simple sheet drag "feel" (Visual only)
+        const sheet = document.getElementById('projectSheet');
+        let startY = 0;
+        sheet.addEventListener('touchstart', (e) => {
+            startY = e.touches[0].clientY;
+        });
+        sheet.addEventListener('touchmove', (e) => {
+            const currentY = e.touches[0].clientY;
+            const diff = currentY - startY;
+            if (diff > 0 && sheet.scrollTop <= 0) {
+                sheet.style.transform = `translateY(${diff}px)`;
+            }
+        });
+        sheet.addEventListener('touchend', (e) => {
+            sheet.style.transform = `translateY(0px)`;
+        });
+    </script>
+</body></html>

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Trak — Track What Matters</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "secondary-fixed": "#d8e2ff",
+                    "primary-fixed": "#72ff70",
+                    "surface-variant": "#32353c",
+                    "surface-container": "#1d2026",
+                    "on-secondary-container": "#00285c",
+                    "surface-container-highest": "#32353c",
+                    "on-error-container": "#ffdad6",
+                    "primary": "#ebffe2",
+                    "on-error": "#690005",
+                    "surface": "#10131a",
+                    "inverse-surface": "#e1e2eb",
+                    "on-surface-variant": "#b9ccb2",
+                    "on-secondary-fixed-variant": "#004493",
+                    "on-tertiary-fixed-variant": "#2f2ebe",
+                    "on-tertiary-fixed": "#07006c",
+                    "primary-container": "#00ff41",
+                    "tertiary-fixed-dim": "#c0c1ff",
+                    "tertiary-container": "#dad9ff",
+                    "surface-tint": "#00e639",
+                    "on-primary": "#003907",
+                    "primary-fixed-dim": "#00e639",
+                    "surface-container-low": "#191c22",
+                    "background": "#10131a",
+                    "on-tertiary-container": "#4b4dd9",
+                    "tertiary-fixed": "#e1e0ff",
+                    "secondary": "#adc6ff",
+                    "on-secondary-fixed": "#001a41",
+                    "on-surface": "#e1e2eb",
+                    "surface-container-high": "#272a31",
+                    "on-background": "#e1e2eb",
+                    "tertiary": "#fbf7ff",
+                    "outline-variant": "#3b4b37",
+                    "on-tertiary": "#1000a9",
+                    "inverse-on-surface": "#2e3037",
+                    "on-primary-fixed": "#002203",
+                    "error-container": "#93000a",
+                    "outline": "#84967e",
+                    "inverse-primary": "#006e16",
+                    "surface-bright": "#363940",
+                    "on-secondary": "#002e69",
+                    "on-primary-container": "#007117",
+                    "on-primary-fixed-variant": "#00530e",
+                    "surface-dim": "#10131a",
+                    "secondary-container": "#4b8eff",
+                    "surface-container-lowest": "#0b0e14",
+                    "error": "#ffb4ab",
+                    "secondary-fixed-dim": "#adc6ff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "base": "4px",
+                    "margin": "20px",
+                    "lg": "24px",
+                    "touch-target": "44px",
+                    "sm": "8px",
+                    "xs": "4px",
+                    "xl": "32px",
+                    "gutter": "16px",
+                    "md": "16px"
+            },
+            "fontFamily": {
+                    "mono-code": ["JetBrains Mono"],
+                    "body-md": ["Inter"],
+                    "headline-lg-mobile": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "mono-label": ["JetBrains Mono"],
+                    "body-sm": ["Inter"]
+            },
+            "fontSize": {
+                    "mono-code": ["12px", {"lineHeight": "18px", "fontWeight": "400"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "headline-lg-mobile": ["24px", {"lineHeight": "30px", "fontWeight": "700"}],
+                    "headline-md": ["20px", {"lineHeight": "26px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "headline-lg": ["28px", {"lineHeight": "34px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "mono-label": ["13px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                    "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #0b0e14; /* surface-container-lowest */
+            overflow: hidden;
+        }
+        .grid-pattern {
+            background-image: radial-gradient(rgba(114, 255, 112, 0.05) 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+        .glow-effect {
+            box-shadow: 0 0 40px rgba(114, 255, 112, 0.15);
+        }
+        @keyframes pulse-soft {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.7; }
+        }
+        .animate-pulse-soft {
+            animation: pulse-soft 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="antialiased text-on-surface">
+<!-- Background Pattern -->
+<div class="fixed inset-0 grid-pattern pointer-events-none opacity-40"></div>
+<!-- Atmospheric Ambient Light -->
+<div class="fixed -top-1/4 -left-1/4 w-full h-full bg-primary-fixed/5 blur-[120px] rounded-full pointer-events-none animate-pulse-soft"></div>
+<div class="fixed -bottom-1/4 -right-1/4 w-full h-full bg-secondary-container/5 blur-[120px] rounded-full pointer-events-none animate-pulse-soft" style="animation-delay: 2s;"></div>
+<main class="relative z-10 flex flex-col items-center justify-between min-h-screen px-margin py-xl">
+<!-- Header/Top Status (Implicit) -->
+<div class="w-full flex justify-end">
+<div class="flex items-center gap-xs text-primary-fixed/60 font-mono-code text-mono-code">
+<span class="w-2 h-2 bg-primary-fixed rounded-full animate-pulse"></span>
+                v1.0.4-stable
+            </div>
+</div>
+<!-- Center Content: Logo and Tagline -->
+<div class="flex flex-col items-center text-center space-y-lg">
+<!-- Logo Section -->
+<div class="relative group">
+<div class="absolute inset-0 bg-primary-fixed/20 blur-xl rounded-full scale-125 transition-transform duration-700 group-hover:scale-150"></div>
+<div class="relative w-20 h-20 bg-surface-container border border-outline-variant/30 rounded-xl flex items-center justify-center glow-effect">
+<span class="material-symbols-outlined text-primary-fixed !text-[40px]" data-weight="fill">terminal</span>
+</div>
+</div>
+<!-- Identity -->
+<div class="space-y-xs">
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface tracking-tighter">
+                    Trak
+                </h1>
+<p class="font-body-md text-body-md text-on-surface-variant/80 max-w-[280px]">
+                    Trak — track what matters
+                </p>
+</div>
+</div>
+<!-- Action / CTA Area -->
+<div class="w-full max-w-sm space-y-md">
+<!-- Feature Pills (Bento-lite) -->
+<div class="grid grid-cols-2 gap-sm mb-lg">
+<div class="bg-surface-container/50 border border-outline-variant/20 p-md rounded-lg flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary-fixed text-sm">speed</span>
+<span class="font-mono-label text-mono-label text-on-surface-variant">Real-time</span>
+</div>
+<div class="bg-surface-container/50 border border-outline-variant/20 p-md rounded-lg flex items-center gap-sm">
+<span class="material-symbols-outlined text-secondary text-sm">security</span>
+<span class="font-mono-label text-mono-label text-on-surface-variant">Encrypted</span>
+</div>
+</div>
+<!-- Primary CTA -->
+<button class="w-full h-touch-target bg-primary-fixed text-on-primary-fixed font-headline-md text-headline-md rounded-lg flex items-center justify-center gap-sm active:scale-95 transition-all duration-150 hover:bg-primary-container group" id="get-started">
+                Get Started
+                <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform">chevron_right</span>
+</button>
+<!-- Secondary/Legal -->
+<p class="text-center font-body-sm text-body-sm text-on-surface-variant/40 px-lg leading-relaxed">
+                By continuing, you agree to our <a class="underline hover:text-on-surface transition-colors" href="#">Terms of Service</a> and <a class="underline hover:text-on-surface transition-colors" href="#">Privacy Policy</a>.
+            </p>
+</div>
+</main>
+<!-- Footer Identity Bar -->
+<div class="fixed bottom-0 left-0 w-full h-1 bg-surface-container-highest/20 overflow-hidden">
+<div class="h-full bg-primary-fixed w-0 transition-all duration-[2000ms] ease-out" id="progress-bar"></div>
+</div>
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Simulated loading state for visual flair
+            const bar = document.getElementById('progress-bar');
+            setTimeout(() => {
+                bar.style.width = '100%';
+            }, 100);
+
+            // Button interaction
+            const cta = document.getElementById('get-started');
+            cta.addEventListener('click', () => {
+                // Flash effect
+                cta.style.backgroundColor = '#ffffff';
+                setTimeout(() => {
+                    cta.style.backgroundColor = '';
+                    console.log('Trak: Initiating session...');
+                }, 100);
+            });
+
+            // Gentle parallax movement for background elements
+            document.addEventListener('mousemove', (e) => {
+                const moveX = (e.clientX - window.innerWidth / 2) * 0.01;
+                const moveY = (e.clientY - window.innerHeight / 2) * 0.01;
+                const grid = document.querySelector('.grid-pattern');
+                grid.style.transform = `translate(${moveX}px, ${moveY}px)`;
+            });
+        });
+    </script>
+</body></html>
