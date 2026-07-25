@@ -46,6 +46,7 @@ export default function RootLayout() {
           }}
         >
           <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
+          <Stack.Screen name="new-project" options={{ presentation: 'transparentModal', animation: 'fade' }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         </Stack>
       </SafeAreaProvider>

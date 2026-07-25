@@ -12,7 +12,6 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors } from '../../constants/colors';
@@ -72,13 +71,8 @@ export default function NewProjectScreen() {
 
   return (
     <View style={styles.root}>
-      {/* Backdrop */}
-      <BlurView
-        intensity={20}
-        tint="dark"
-        style={StyleSheet.absoluteFill}
-      />
-      <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
+      {/* Backdrop - solid dark overlay (BlurView unreliable on Android) */}
+      <Pressable style={[StyleSheet.absoluteFill, styles.backdrop]} onPress={handleClose} />
 
       {/* Bottom Sheet */}
       <KeyboardAvoidingView
@@ -266,6 +260,10 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     justifyContent: 'flex-end',
+    backgroundColor: 'transparent',
+  },
+  backdrop: {
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
   },
   sheetWrapper: {
     justifyContent: 'flex-end',
@@ -276,12 +274,13 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 16,
     borderTopWidth: 1,
     borderColor: `${Colors.outlineVariant}4D`,
-    maxHeight: '92%',
+    maxHeight: '90%',
+    minHeight: '75%',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.5,
     shadowRadius: 20,
-    elevation: 20,
+    elevation: 24,
   },
   handle: {
     width: 32,

@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import { View, StyleSheet, Pressable, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import { useRouter } from 'expo-router';
 import { Colors } from '../../constants/colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -22,6 +23,8 @@ const TAB_ITEMS: { name: string; icon: keyof typeof Feather.glyphMap }[] = [
 function CustomTabBar({ state, navigation }: TabBarProps) {
   const insets = useSafeAreaInsets();
 
+  const router = useRouter();
+
   return (
     <BlurView
       intensity={80}
@@ -31,15 +34,20 @@ function CustomTabBar({ state, navigation }: TabBarProps) {
         { paddingBottom: insets.bottom + 4 },
       ]}
     >
-      {state.routes.map((route, index) => {
-        const isActive = state.index === index;
-        const tabItem = TAB_ITEMS[index];
-        if (!tabItem) return null;
+      {TAB_ITEMS.map((tabItem, index) => {
+        const route = state.routes.find(r => r.name === tabItem.name);
+        const isActive = route ? state.index === state.routes.indexOf(route) : false;
 
         return (
           <Pressable
-            key={route.key}
-            onPress={() => navigation.navigate(route.name)}
+            key={tabItem.name}
+            onPress={() => {
+              if (tabItem.name === 'new-project') {
+                router.push('/new-project');
+              } else {
+                navigation.navigate(tabItem.name);
+              }
+            }}
             style={styles.tabItem}
           >
             <View style={styles.tabIconWrapper}>
@@ -67,7 +75,6 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="index" />
       <Tabs.Screen name="search" />
-      <Tabs.Screen name="new-project" />
       <Tabs.Screen name="filter" />
       <Tabs.Screen name="history" />
     </Tabs>
