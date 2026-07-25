@@ -31,11 +31,7 @@
         {
           "fonts": []
         }
-      ],
-      "expo-status-bar",
-      "expo-head",
-      "expo-splash-screen",
-      "expo-web-browser"
+      ]
     ],
     "scheme": "trak",
     "experiments": {
