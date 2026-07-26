@@ -1,14 +1,6 @@
 import React, { useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  Pressable,
-  Animated,
-  Platform,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, FlatList, Pressable, Animated, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -20,13 +12,15 @@ import EmptyState from '../../components/EmptyState';
 export default function DashboardScreen() {
   const router = useRouter();
   const { projects } = useProjectStore();
+  const activeProjects = projects.filter((p) => !p.isCompleted);
+  const insets = useSafeAreaInsets();
   const fabScale = useRef(new Animated.Value(1)).current;
 
   const handleFabPressIn = () =>
     Animated.spring(fabScale, { toValue: 0.92, useNativeDriver: true, speed: 30 }).start();
   const handleFabPressOut = () =>
     Animated.spring(fabScale, { toValue: 1, useNativeDriver: true, speed: 30 }).start();
-  const handleFabPress = () => router.push('/(tabs)/new-project');
+  const handleFabPress = () => router.push('/new-project');
 
   const ListHeader = () => (
     <View style={styles.listHeader}>
@@ -46,7 +40,7 @@ export default function DashboardScreen() {
           Platform.OS === 'android' && { backgroundColor: `${Colors.surface}E6` },
         ]}
       >
-        <SafeAreaView edges={['top']} style={styles.appBarInner}>
+        <View style={[styles.appBarInner, { paddingTop: Math.max(insets.top, 24) + 12 }]}>
           <View style={styles.appBarLeft}>
             <Feather name="terminal" size={20} color={Colors.primaryFixed} />
             <Text style={styles.appBarTitle}>Trak</Text>
@@ -59,23 +53,16 @@ export default function DashboardScreen() {
             >
               <Feather name="search" size={20} color={`${Colors.onSurfaceVariant}80`} />
             </Pressable>
-            <Pressable
-              onPress={() => router.push('/(tabs)/filter')}
-              style={styles.iconBtn}
-              hitSlop={8}
-            >
-              <Feather name="sliders" size={20} color={`${Colors.onSurfaceVariant}80`} />
-            </Pressable>
           </View>
-        </SafeAreaView>
+        </View>
       </BlurView>
 
       {/* Project list */}
-      {projects.length === 0 ? (
-        <EmptyState onCreatePress={() => router.push('/(tabs)/new-project')} />
+      {activeProjects.length === 0 ? (
+        <EmptyState onCreatePress={() => router.push('/new-project')} />
       ) : (
         <FlatList
-          data={projects}
+          data={activeProjects}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => <ProjectCard project={item} />}
           ListHeaderComponent={<ListHeader />}
@@ -93,7 +80,7 @@ export default function DashboardScreen() {
           onPress={handleFabPress}
           style={styles.fab}
         >
-          <Feather name="plus" size={28} color={Colors.onPrimaryFixed} />
+          <Feather name="plus" size={32} color="#11141B" />
         </Pressable>
       </Animated.View>
     </View>
@@ -120,7 +107,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    height: 56,
+    paddingBottom: 16,
   },
   appBarLeft: {
     flexDirection: 'row',
@@ -143,9 +130,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   listContent: {
-    paddingTop: 110, // clears the fixed app bar (safe area + 56px)
+    paddingTop: 130, // clears the fixed app bar (safe area + 56px)
     paddingHorizontal: 20,
-    paddingBottom: 120, // clears the FAB + tab bar
+    paddingBottom: 140, // clears the FAB + tab bar
   },
   listHeader: {
     marginBottom: 24,
@@ -166,7 +153,7 @@ const styles = StyleSheet.create({
   },
   fabContainer: {
     position: 'absolute',
-    bottom: 88,
+    bottom: 110,
     right: 20,
     zIndex: 40,
   },

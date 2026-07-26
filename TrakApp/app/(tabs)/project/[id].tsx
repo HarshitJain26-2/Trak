@@ -13,7 +13,7 @@ import {
   Alert,
   KeyboardAvoidingView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -167,9 +167,10 @@ function TextInputModal({
 export default function ProjectDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { getProject, toggleMilestone, addMilestone, renameMilestone, deleteMilestone } =
+  const { getProject, toggleMilestone, addMilestone, renameMilestone, deleteMilestone, markCompleted } =
     useProjectStore();
   const project = getProject(id);
+  const insets = useSafeAreaInsets();
 
   const [notesExpanded, setNotesExpanded] = useState(false);
   const notesHeight = useRef(new Animated.Value(0)).current;
@@ -240,7 +241,9 @@ export default function ProjectDetailsScreen() {
     );
   }
 
-  const completedCount = project.milestones.filter((m) => m.completed).length;
+  const completedMilestones = project.milestones.filter((m) => m.completed);
+  const pendingMilestones = project.milestones.filter((m) => !m.completed);
+  const completedCount = completedMilestones.length;
   const totalCount = project.milestones.length;
 
   const STATUS_COLORS: Record<string, string> = {
@@ -302,7 +305,7 @@ export default function ProjectDetailsScreen() {
           Platform.OS === 'android' && { backgroundColor: `${Colors.surface}E6` },
         ]}
       >
-        <SafeAreaView edges={['top']} style={styles.appBarInner}>
+        <View style={[styles.appBarInner, { paddingTop: Math.max(insets.top, 24) + 12 }]}>
           <View style={styles.appBarLeft}>
             <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={8}>
               <Feather name="arrow-left" size={24} color={Colors.primaryFixed} />
@@ -326,7 +329,7 @@ export default function ProjectDetailsScreen() {
               </View>
             )}
           </View>
-        </SafeAreaView>
+        </View>
       </BlurView>
 
       <ScrollView
@@ -424,12 +427,17 @@ export default function ProjectDetailsScreen() {
             </Pressable>
           )}
 
-          {project.milestones.map((milestone, index) => (
+          {pendingMilestones.length > 0 && (
+            <View style={styles.subSectionHeader}>
+              <Text style={styles.subSectionTitle}>To be done</Text>
+            </View>
+          )}
+          {pendingMilestones.map((milestone, index) => (
             <Pressable
               key={milestone.id}
               style={[
                 styles.milestoneRow,
-                index < project.milestones.length - 1 && styles.milestoneRowBorder,
+                index < pendingMilestones.length - 1 && styles.milestoneRowBorder,
               ]}
               onPress={() => toggleMilestone(project.id, milestone.id)}
               onLongPress={() => handleMilestoneLongPress(milestone)}
@@ -446,22 +454,49 @@ export default function ProjectDetailsScreen() {
               >
                 {milestone.title}
               </Text>
-              {milestone.completed ? (
-                <Feather
-                  name="check-circle"
-                  size={16}
-                  color={Colors.primaryFixed}
-                  style={{ marginLeft: 'auto' }}
-                />
-              ) : (
-                <Pressable
-                  style={styles.editHint}
-                  onPress={() => handleMilestoneLongPress(milestone)}
-                  hitSlop={8}
-                >
-                  <Feather name="more-horizontal" size={16} color={`${Colors.onSurfaceVariant}50`} />
-                </Pressable>
-              )}
+              <Pressable
+                style={styles.editHint}
+                onPress={() => handleMilestoneLongPress(milestone)}
+                hitSlop={8}
+              >
+                <Feather name="more-horizontal" size={16} color={`${Colors.onSurfaceVariant}50`} />
+              </Pressable>
+            </Pressable>
+          ))}
+
+          {completedMilestones.length > 0 && (
+            <View style={styles.subSectionHeader}>
+              <Text style={styles.subSectionTitle}>Completed</Text>
+            </View>
+          )}
+          {completedMilestones.map((milestone, index) => (
+            <Pressable
+              key={milestone.id}
+              style={[
+                styles.milestoneRow,
+                index < completedMilestones.length - 1 && styles.milestoneRowBorder,
+              ]}
+              onPress={() => toggleMilestone(project.id, milestone.id)}
+              onLongPress={() => handleMilestoneLongPress(milestone)}
+              delayLongPress={400}
+            >
+              {/* Checkbox */}
+              <View style={[styles.checkbox, milestone.completed && styles.checkboxChecked]}>
+                {milestone.completed && (
+                  <Feather name="check" size={12} color={Colors.onPrimaryFixed} />
+                )}
+              </View>
+              <Text
+                style={[styles.milestoneText, milestone.completed && styles.milestoneTextDone]}
+              >
+                {milestone.title}
+              </Text>
+              <Feather
+                name="check-circle"
+                size={16}
+                color={Colors.primaryFixed}
+                style={{ marginLeft: 'auto' }}
+              />
             </Pressable>
           ))}
         </View>
@@ -503,6 +538,37 @@ export default function ProjectDetailsScreen() {
           </Animated.View>
         </View>
 
+        {/* Mark as Complete */}
+        {!project.isCompleted ? (
+          <Pressable
+            style={({ pressed }) => [styles.completeBtn, pressed && styles.completeBtnPressed]}
+            onPress={() => {
+              Alert.alert(
+                'Mark as Completed',
+                `Move "${project.name}" to Completed Projects?`,
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Complete',
+                    onPress: () => {
+                      markCompleted(project.id);
+                      router.back();
+                    },
+                  },
+                ]
+              );
+            }}
+          >
+            <Feather name="check-circle" size={18} color={Colors.primaryFixed} />
+            <Text style={styles.completeBtnText}>Mark as Completed</Text>
+          </Pressable>
+        ) : (
+          <View style={styles.alreadyCompleted}>
+            <Feather name="check-circle" size={16} color={Colors.primaryFixed} />
+            <Text style={styles.alreadyCompletedText}>Project Completed</Text>
+          </View>
+        )}
+
         <View style={{ height: 40 }} />
       </ScrollView>
     </View>
@@ -530,7 +596,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    height: 56,
+    paddingBottom: 16,
   },
   appBarLeft: {
     flexDirection: 'row',
@@ -739,6 +805,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.onSurfaceVariant,
   },
+  subSectionHeader: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(255,255,255,0.02)',
+    borderBottomWidth: 1,
+    borderBottomColor: `${Colors.outlineVariant}1A`,
+  },
+  subSectionTitle: {
+    fontFamily: 'JetBrainsMono_500Medium',
+    fontSize: 11,
+    color: `${Colors.onSurfaceVariant}80`,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
   addBtn: {
     width: 28,
     height: 28,
@@ -855,6 +935,41 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     fontSize: 16,
     color: Colors.onSurfaceVariant,
+  },
+  completeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: `${Colors.primaryFixed}1A`,
+    borderWidth: 1,
+    borderColor: `${Colors.primaryFixed}40`,
+  },
+  completeBtnPressed: {
+    backgroundColor: `${Colors.primaryFixed}30`,
+  },
+  completeBtnText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 15,
+    color: Colors.primaryFixed,
+  },
+  alreadyCompleted: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: `${Colors.primaryFixed}0D`,
+    borderWidth: 1,
+    borderColor: `${Colors.primaryFixed}20`,
+  },
+  alreadyCompletedText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    color: `${Colors.primaryFixed}80`,
   },
 });
 
@@ -986,3 +1101,4 @@ const inputStyles = StyleSheet.create({
     color: Colors.onPrimaryFixed,
   },
 });
+

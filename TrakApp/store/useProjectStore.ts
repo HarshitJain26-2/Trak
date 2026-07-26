@@ -23,6 +23,7 @@ export interface Project {
   lastUpdated: string;
   milestones: Milestone[];
   notes: string;
+  isCompleted?: boolean;
 }
 
 interface ProjectStore {
@@ -32,6 +33,8 @@ interface ProjectStore {
   addMilestone: (projectId: string, title: string) => void;
   renameMilestone: (projectId: string, milestoneId: string, newTitle: string) => void;
   deleteMilestone: (projectId: string, milestoneId: string) => void;
+  markCompleted: (projectId: string) => void;
+  unmarkCompleted: (projectId: string) => void;
   getProject: (id: string) => Project | undefined;
 }
 
@@ -112,6 +115,26 @@ const MOCK_PROJECTS: Project[] = [
     ],
     notes: '### Context\nEarly beta. Schema validation layer in progress.',
   },
+  {
+    id: '5',
+    name: 'Legacy API v1',
+    version: 'v1.0.0',
+    description: 'Original REST API — fully migrated to v2',
+    status: 'idle',
+    techStack: ['Node.js', 'Express', 'MySQL'],
+    deadline: 'DONE',
+    progress: 100,
+    repoUrl: 'github.com/trak-io/api-v1',
+    priority: 'low',
+    lastUpdated: '3mo ago',
+    milestones: [
+      { id: 'm1', title: 'Initial release', completed: true },
+      { id: 'm2', title: 'v2 migration', completed: true },
+      { id: 'm3', title: 'Deprecation notice', completed: true },
+    ],
+    notes: '### Context\nFully deprecated. Replaced by Auth Service v2.',
+    isCompleted: true,
+  },
 ];
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
@@ -150,6 +173,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         p.id === projectId
           ? {
               ...p,
+              // If this project was completed, adding a new feature reopens it
+              isCompleted: false,
               milestones: [
                 ...p.milestones,
                 { id: `m${Date.now()}`, title: title.trim(), completed: false },
@@ -184,6 +209,22 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
               milestones: p.milestones.filter((m) => m.id !== milestoneId),
             }
           : p
+      ),
+    }));
+  },
+
+  markCompleted: (projectId) => {
+    set((state) => ({
+      projects: state.projects.map((p) =>
+        p.id === projectId ? { ...p, isCompleted: true, progress: 100 } : p
+      ),
+    }));
+  },
+
+  unmarkCompleted: (projectId) => {
+    set((state) => ({
+      projects: state.projects.map((p) =>
+        p.id === projectId ? { ...p, isCompleted: false } : p
       ),
     }));
   },
