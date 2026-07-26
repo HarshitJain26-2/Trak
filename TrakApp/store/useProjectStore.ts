@@ -24,12 +24,15 @@ export interface Project {
   milestones: Milestone[];
   notes: string;
   isCompleted?: boolean;
+  isDeleted?: boolean;
 }
 
 interface ProjectStore {
   projects: Project[];
   addProject: (project: Omit<Project, 'id' | 'milestones' | 'notes' | 'lastUpdated' | 'progress'>) => void;
   deleteProject: (projectId: string) => void;
+  restoreProject: (projectId: string) => void;
+  permanentlyDeleteProject: (projectId: string) => void;
   toggleMilestone: (projectId: string, milestoneId: string) => void;
   addMilestone: (projectId: string, title: string) => void;
   renameMilestone: (projectId: string, milestoneId: string, newTitle: string) => void;
@@ -154,6 +157,22 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
 
   deleteProject: (projectId) => {
+    set((state) => ({
+      projects: state.projects.map((p) =>
+        p.id === projectId ? { ...p, isDeleted: true } : p
+      ),
+    }));
+  },
+
+  restoreProject: (projectId) => {
+    set((state) => ({
+      projects: state.projects.map((p) =>
+        p.id === projectId ? { ...p, isDeleted: false } : p
+      ),
+    }));
+  },
+
+  permanentlyDeleteProject: (projectId) => {
     set((state) => ({
       projects: state.projects.filter((p) => p.id !== projectId),
     }));

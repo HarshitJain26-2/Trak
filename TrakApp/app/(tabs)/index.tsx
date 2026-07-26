@@ -12,7 +12,7 @@ import EmptyState from '../../components/EmptyState';
 export default function DashboardScreen() {
   const router = useRouter();
   const { projects } = useProjectStore();
-  const activeProjects = projects.filter((p) => !p.isCompleted);
+  const activeProjects = projects.filter((p) => !p.isCompleted && !p.isDeleted);
   const insets = useSafeAreaInsets();
   const fabScale = useRef(new Animated.Value(1)).current;
 
@@ -47,11 +47,11 @@ export default function DashboardScreen() {
           </View>
           <View style={styles.appBarRight}>
             <Pressable
-              onPress={() => router.push('/(tabs)/search')}
+              onPress={() => router.push('/(tabs)/deleted')}
               style={styles.iconBtn}
               hitSlop={8}
             >
-              <Feather name="search" size={20} color={`${Colors.onSurfaceVariant}80`} />
+              <Feather name="trash-2" size={20} color={`${Colors.onSurfaceVariant}80`} />
             </Pressable>
           </View>
         </View>

@@ -17,15 +17,16 @@ import { Colors } from '../../constants/colors';
 import { useProjectStore, Project } from '../../store/useProjectStore';
 import { TechPill } from '../../components/TechPill';
 
-// ─── Completed Project Card ────────────────────────────────────────────────────
-function CompletedCard({
+// ─── Deleted Project Card ──────────────────────────────────────────────────────
+function DeletedCard({
   project,
-  onReactivate,
+  onRestore,
+  onPermanentDelete,
 }: {
   project: Project;
-  onReactivate: () => void;
+  onRestore: () => void;
+  onPermanentDelete: () => void;
 }) {
-  const router = useRouter();
   const scale = useRef(new Animated.Value(1)).current;
 
   const onPressIn = () =>
@@ -33,28 +34,18 @@ function CompletedCard({
   const onPressOut = () =>
     Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 30 }).start();
 
-  const completedCount = project.milestones.filter((m) => m.completed).length;
-  const totalCount = project.milestones.length;
-
   return (
-    <Pressable
-      onPressIn={onPressIn}
-      onPressOut={onPressOut}
-      onPress={() => router.push(`/project/${project.id}`)}
-    >
+    <Pressable onPressIn={onPressIn} onPressOut={onPressOut}>
       <Animated.View style={[styles.card, { transform: [{ scale }] }]}>
-        {/* Completed accent bar — always 100% width in green */}
-        <View style={styles.accentBar} />
-
         <View style={styles.cardContent}>
           {/* Header */}
           <View style={styles.cardHeader}>
             <View style={styles.cardTitleRow}>
-              <Feather name="check-circle" size={14} color={Colors.primaryFixed} />
+              <Feather name="trash-2" size={15} color={Colors.error} />
               <Text style={styles.cardName}>{project.name}</Text>
             </View>
-            <View style={styles.completedBadge}>
-              <Text style={styles.completedBadgeText}>DONE</Text>
+            <View style={styles.deletedBadge}>
+              <Text style={styles.deletedBadgeText}>DELETED</Text>
             </View>
           </View>
 
@@ -69,21 +60,16 @@ function CompletedCard({
             ))}
           </View>
 
-          {/* Footer */}
+          {/* Action buttons footer */}
           <View style={styles.cardFooter}>
-            <View style={styles.footerLeft}>
-              <Text style={styles.footerLabel}>MILESTONES</Text>
-              <Text style={styles.footerValue}>
-                {completedCount}/{totalCount}
-              </Text>
-            </View>
-            <View style={styles.footerLeft}>
-              <Text style={styles.footerLabel}>VERSION</Text>
-              <Text style={styles.footerValue}>{project.version}</Text>
-            </View>
-            <Pressable style={styles.reactivateBtn} onPress={onReactivate}>
-              <Feather name="refresh-cw" size={12} color={Colors.onSurfaceVariant} />
-              <Text style={styles.reactivateBtnText}>Reactivate</Text>
+            <Pressable style={styles.restoreBtn} onPress={onRestore}>
+              <Feather name="rotate-ccw" size={13} color={Colors.primaryFixed} />
+              <Text style={styles.restoreBtnText}>Restore</Text>
+            </Pressable>
+
+            <Pressable style={styles.permDeleteBtn} onPress={onPermanentDelete}>
+              <Feather name="trash-2" size={13} color={Colors.error} />
+              <Text style={styles.permDeleteBtnText}>Delete Permanently</Text>
             </Pressable>
           </View>
         </View>
@@ -93,36 +79,50 @@ function CompletedCard({
 }
 
 // ─── Empty State ───────────────────────────────────────────────────────────────
-function CompletedEmptyState() {
+function DeletedEmptyState() {
   return (
     <View style={styles.emptyContainer}>
       <View style={styles.emptyIconWrap}>
-        <Feather name="check-square" size={40} color={`${Colors.primaryFixed}40`} />
+        <Feather name="trash-2" size={40} color={`${Colors.onSurfaceVariant}40`} />
       </View>
-      <Text style={styles.emptyTitle}>No completed projects</Text>
+      <Text style={styles.emptyTitle}>Trash is empty</Text>
       <Text style={styles.emptySubtitle}>
-        Projects you mark as done will appear here.
+        Projects you delete will be moved here before permanent removal.
       </Text>
     </View>
   );
 }
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
-export default function CompletedScreen() {
-  const router = useRouter();
+export default function DeletedScreen() {
   const insets = useSafeAreaInsets();
-  const { projects, unmarkCompleted } = useProjectStore();
-  const completedProjects = projects.filter((p) => p.isCompleted && !p.isDeleted);
+  const { projects, restoreProject, permanentlyDeleteProject } = useProjectStore();
+  const deletedProjects = projects.filter((p) => p.isDeleted);
 
-  const handleReactivate = (project: Project) => {
+  const handleRestore = (project: Project) => {
     Alert.alert(
-      'Reactivate Project',
-      `Move "${project.name}" back to active deployments?`,
+      'Restore Project',
+      `Restore "${project.name}" back to active projects?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Reactivate',
-          onPress: () => unmarkCompleted(project.id),
+          text: 'Restore',
+          onPress: () => restoreProject(project.id),
+        },
+      ]
+    );
+  };
+
+  const handlePermanentDelete = (project: Project) => {
+    Alert.alert(
+      'Delete Permanently',
+      `Are you sure you want to permanently delete "${project.name}"? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Forever',
+          style: 'destructive',
+          onPress: () => permanentlyDeleteProject(project.id),
         },
       ]
     );
@@ -141,39 +141,40 @@ export default function CompletedScreen() {
       >
         <View style={[styles.appBarInner, { paddingTop: Math.max(insets.top, 24) + 12 }]}>
           <View style={styles.appBarLeft}>
-            <Feather name="check-square" size={18} color={Colors.primaryFixed} />
-            <Text style={styles.appBarTitle}>Completed</Text>
+            <Feather name="trash-2" size={18} color={Colors.error} />
+            <Text style={styles.appBarTitle}>Deleted Projects</Text>
           </View>
           <View style={styles.countBadge}>
-            <Text style={styles.countBadgeText}>{completedProjects.length}</Text>
+            <Text style={styles.countBadgeText}>{deletedProjects.length}</Text>
           </View>
         </View>
       </BlurView>
 
       {/* List */}
-      {completedProjects.length === 0 ? (
-        <CompletedEmptyState />
+      {deletedProjects.length === 0 ? (
+        <DeletedEmptyState />
       ) : (
         <FlatList
-          data={completedProjects}
+          data={deletedProjects}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <CompletedCard
+            <DeletedCard
               project={item}
-              onReactivate={() => handleReactivate(item)}
+              onRestore={() => handleRestore(item)}
+              onPermanentDelete={() => handlePermanentDelete(item)}
             />
           )}
           contentContainerStyle={[
             styles.listContent,
-            completedProjects.length === 0 && { flex: 1 },
+            deletedProjects.length === 0 && { flex: 1 },
           ]}
           showsVerticalScrollIndicator={false}
           ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
           ListHeaderComponent={
             <View style={styles.listHeader}>
-              <Text style={styles.listHeaderTitle}>Shipped Deployments</Text>
+              <Text style={styles.listHeaderTitle}>Recently Deleted</Text>
               <Text style={styles.listHeaderSub}>
-                {completedProjects.length} project{completedProjects.length !== 1 ? 's' : ''} completed
+                {deletedProjects.length} project{deletedProjects.length !== 1 ? 's' : ''} in trash
               </Text>
             </View>
           }
@@ -214,21 +215,21 @@ const styles = StyleSheet.create({
   appBarTitle: {
     fontFamily: 'Inter_700Bold',
     fontSize: 22,
-    color: Colors.primaryFixed,
+    color: Colors.onSurface,
     letterSpacing: -0.5,
   },
   countBadge: {
     paddingHorizontal: 10,
     paddingVertical: 3,
-    backgroundColor: `${Colors.primaryFixed}1A`,
+    backgroundColor: `${Colors.error}1A`,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: `${Colors.primaryFixed}33`,
+    borderColor: `${Colors.error}33`,
   },
   countBadgeText: {
     fontFamily: 'JetBrainsMono_500Medium',
     fontSize: 13,
-    color: Colors.primaryFixed,
+    color: Colors.error,
   },
   listContent: {
     paddingTop: 130,
@@ -257,22 +258,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: `${Colors.primaryFixed}20`,
+    borderColor: `${Colors.error}33`,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 4,
   },
-  accentBar: {
-    height: 2,
-    width: '100%',
-    backgroundColor: Colors.primaryFixed,
-    opacity: 0.5,
-  },
   cardContent: {
     padding: 16,
-    paddingTop: 14,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -292,18 +286,18 @@ const styles = StyleSheet.create({
     color: Colors.onSurface,
     letterSpacing: -0.2,
   },
-  completedBadge: {
+  deletedBadge: {
     paddingHorizontal: 6,
     paddingVertical: 2,
-    backgroundColor: `${Colors.primaryFixed}1A`,
+    backgroundColor: `${Colors.error}1A`,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: `${Colors.primaryFixed}33`,
+    borderColor: `${Colors.error}33`,
   },
-  completedBadgeText: {
+  deletedBadgeText: {
     fontFamily: 'JetBrainsMono_500Medium',
     fontSize: 10,
-    color: Colors.primaryFixed,
+    color: Colors.error,
     letterSpacing: 1,
   },
   cardDesc: {
@@ -317,44 +311,46 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 4,
-    marginBottom: 14,
+    marginBottom: 16,
   },
   cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 20,
+    gap: 12,
   },
-  footerLeft: {
-    gap: 2,
-  },
-  footerLabel: {
-    fontFamily: 'JetBrainsMono_500Medium',
-    fontSize: 9,
-    color: Colors.onSurfaceVariant,
-    opacity: 0.4,
-    letterSpacing: 1.5,
-  },
-  footerValue: {
-    fontFamily: 'JetBrainsMono_400Regular',
-    fontSize: 12,
-    color: Colors.onSurface,
-  },
-  reactivateBtn: {
+  restoreBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    marginLeft: 'auto',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    backgroundColor: Colors.surfaceContainerHigh,
-    borderRadius: 6,
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    backgroundColor: `${Colors.primaryFixed}1A`,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: `${Colors.outlineVariant}4D`,
+    borderColor: `${Colors.primaryFixed}40`,
   },
-  reactivateBtnText: {
-    fontFamily: 'Inter_400Regular',
-    fontSize: 12,
-    color: Colors.onSurfaceVariant,
+  restoreBtnText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 13,
+    color: Colors.primaryFixed,
+  },
+  permDeleteBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    backgroundColor: `${Colors.error}1A`,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: `${Colors.error}40`,
+  },
+  permDeleteBtnText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 13,
+    color: Colors.error,
   },
   // ── Empty state ──
   emptyContainer: {
@@ -368,9 +364,9 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: `${Colors.primaryFixed}0D`,
+    backgroundColor: `${Colors.onSurfaceVariant}10`,
     borderWidth: 1,
-    borderColor: `${Colors.primaryFixed}20`,
+    borderColor: `${Colors.onSurfaceVariant}20`,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
