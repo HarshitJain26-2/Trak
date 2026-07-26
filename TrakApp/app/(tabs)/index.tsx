@@ -1,5 +1,5 @@
-import React, { useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, Animated, Platform } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { View, Text, StyleSheet, FlatList, Pressable, Animated, Platform, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
@@ -12,7 +12,20 @@ import EmptyState from '../../components/EmptyState';
 export default function DashboardScreen() {
   const router = useRouter();
   const { projects } = useProjectStore();
-  const activeProjects = projects.filter((p) => !p.isCompleted && !p.isDeleted);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const activeProjects = projects.filter((p) => {
+    if (p.isCompleted || p.isDeleted) return false;
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      p.name.toLowerCase().includes(q) ||
+      p.description.toLowerCase().includes(q) ||
+      p.techStack.some((t) => t.toLowerCase().includes(q))
+    );
+  });
+
   const insets = useSafeAreaInsets();
   const fabScale = useRef(new Animated.Value(1)).current;
 
@@ -41,19 +54,46 @@ export default function DashboardScreen() {
         ]}
       >
         <View style={[styles.appBarInner, { paddingTop: Math.max(insets.top, 24) + 12 }]}>
-          <View style={styles.appBarLeft}>
-            <Feather name="terminal" size={20} color={Colors.primaryFixed} />
-            <Text style={styles.appBarTitle}>Trak</Text>
-          </View>
-          <View style={styles.appBarRight}>
-            <Pressable
-              onPress={() => router.push('/(tabs)/deleted')}
-              style={styles.iconBtn}
-              hitSlop={8}
-            >
-              <Feather name="trash-2" size={20} color={`${Colors.onSurfaceVariant}80`} />
-            </Pressable>
-          </View>
+          {isSearchOpen ? (
+            <View style={styles.searchBarContainer}>
+              <Feather name="search" size={18} color={Colors.primaryFixed} style={{ marginRight: 8 }} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search active projects..."
+                placeholderTextColor={`${Colors.onSurfaceVariant}70`}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoFocus
+                selectionColor={Colors.primaryFixed}
+              />
+              <Pressable
+                onPress={() => {
+                  setSearchQuery('');
+                  setIsSearchOpen(false);
+                }}
+                style={styles.iconBtn}
+                hitSlop={8}
+              >
+                <Feather name="x" size={20} color={Colors.onSurfaceVariant} />
+              </Pressable>
+            </View>
+          ) : (
+            <>
+              <View style={styles.appBarLeft}>
+                <Feather name="terminal" size={20} color={Colors.primaryFixed} />
+                <Text style={styles.appBarTitle}>Trak</Text>
+              </View>
+              <View style={styles.appBarRight}>
+                <Pressable
+                  onPress={() => setIsSearchOpen(true)}
+                  style={styles.iconBtn}
+                  hitSlop={8}
+                >
+                  <Feather name="search" size={20} color={`${Colors.onSurfaceVariant}80`} />
+                </Pressable>
+              </View>
+            </>
+          )}
         </View>
       </BlurView>
 
@@ -128,6 +168,24 @@ const styles = StyleSheet.create({
   iconBtn: {
     padding: 8,
     borderRadius: 999,
+  },
+  searchBarContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surfaceContainerHigh,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: `${Colors.primaryFixed}33`,
+  },
+  searchInput: {
+    flex: 1,
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    color: Colors.onSurface,
+    padding: 0,
   },
   listContent: {
     paddingTop: 130, // clears the fixed app bar (safe area + 56px)
