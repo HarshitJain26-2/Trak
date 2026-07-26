@@ -7,25 +7,179 @@ import {
   Pressable,
   Animated,
   Platform,
+  Modal,
+  TextInput,
+  TouchableWithoutFeedback,
+  Alert,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Colors } from '../../../constants/colors';
-import { useProjectStore } from '../../../store/useProjectStore';
+import { useProjectStore, Milestone } from '../../../store/useProjectStore';
 import { TechPill } from '../../../components/TechPill';
 import { StatusDot } from '../../../components/StatusDot';
 
+// ─── Milestone Action Modal ────────────────────────────────────────────────────
+interface MilestoneActionModalProps {
+  visible: boolean;
+  milestone: Milestone | null;
+  onClose: () => void;
+  onRename: (milestone: Milestone) => void;
+  onDelete: (milestone: Milestone) => void;
+}
+
+function MilestoneActionModal({
+  visible,
+  milestone,
+  onClose,
+  onRename,
+  onDelete,
+}: MilestoneActionModalProps) {
+  if (!milestone) return null;
+  return (
+    <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={actionStyles.overlay}>
+          <TouchableWithoutFeedback>
+            <View style={actionStyles.sheet}>
+              <View style={actionStyles.handle} />
+              <Text style={actionStyles.sheetTitle} numberOfLines={1}>
+                {milestone.title}
+              </Text>
+
+              <Pressable
+                style={({ pressed }) => [actionStyles.option, pressed && actionStyles.optionPressed]}
+                onPress={() => { onClose(); onRename(milestone); }}
+              >
+                <Feather name="edit-2" size={18} color={Colors.primaryFixed} />
+                <Text style={actionStyles.optionText}>Rename Feature</Text>
+              </Pressable>
+
+              <View style={actionStyles.divider} />
+
+              <Pressable
+                style={({ pressed }) => [actionStyles.option, pressed && actionStyles.optionPressed]}
+                onPress={() => { onClose(); onDelete(milestone); }}
+              >
+                <Feather name="trash-2" size={18} color={Colors.error} />
+                <Text style={[actionStyles.optionText, { color: Colors.error }]}>Delete Feature</Text>
+              </Pressable>
+            </View>
+          </TouchableWithoutFeedback>
+        </View>
+      </TouchableWithoutFeedback>
+    </Modal>
+  );
+}
+
+// ─── Text Input Modal ──────────────────────────────────────────────────────────
+interface TextInputModalProps {
+  visible: boolean;
+  title: string;
+  placeholder: string;
+  initialValue?: string;
+  confirmLabel?: string;
+  onClose: () => void;
+  onConfirm: (value: string) => void;
+}
+
+function TextInputModal({
+  visible,
+  title,
+  placeholder,
+  initialValue = '',
+  confirmLabel = 'Save',
+  onClose,
+  onConfirm,
+}: TextInputModalProps) {
+  const [value, setValue] = useState(initialValue);
+
+  // Reset when modal opens with a new initialValue
+  React.useEffect(() => {
+    if (visible) setValue(initialValue);
+  }, [visible, initialValue]);
+
+  const handleConfirm = () => {
+    if (value.trim().length === 0) return;
+    onConfirm(value.trim());
+    onClose();
+  };
+
+  return (
+    <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        <TouchableWithoutFeedback onPress={onClose}>
+          <View style={inputStyles.overlay}>
+            <TouchableWithoutFeedback>
+              <View style={inputStyles.card}>
+                <Text style={inputStyles.title}>{title}</Text>
+                <TextInput
+                  style={inputStyles.input}
+                  value={value}
+                  onChangeText={setValue}
+                  placeholder={placeholder}
+                  placeholderTextColor={`${Colors.onSurfaceVariant}60`}
+                  autoFocus
+                  returnKeyType="done"
+                  onSubmitEditing={handleConfirm}
+                  selectionColor={Colors.primaryFixed}
+                />
+                <View style={inputStyles.btnRow}>
+                  <Pressable
+                    style={({ pressed }) => [
+                      inputStyles.btn,
+                      inputStyles.btnCancel,
+                      pressed && inputStyles.btnPressed,
+                    ]}
+                    onPress={onClose}
+                  >
+                    <Text style={inputStyles.btnCancelText}>Cancel</Text>
+                  </Pressable>
+                  <Pressable
+                    style={({ pressed }) => [
+                      inputStyles.btn,
+                      inputStyles.btnConfirm,
+                      pressed && inputStyles.btnPressed,
+                      value.trim().length === 0 && inputStyles.btnDisabled,
+                    ]}
+                    onPress={handleConfirm}
+                    disabled={value.trim().length === 0}
+                  >
+                    <Text style={inputStyles.btnConfirmText}>{confirmLabel}</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+// ─── Main Screen ───────────────────────────────────────────────────────────────
 export default function ProjectDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { getProject, toggleMilestone } = useProjectStore();
+  const { getProject, toggleMilestone, addMilestone, renameMilestone, deleteMilestone } =
+    useProjectStore();
   const project = getProject(id);
 
   const [notesExpanded, setNotesExpanded] = useState(false);
   const notesHeight = useRef(new Animated.Value(0)).current;
   const chevronRotation = useRef(new Animated.Value(0)).current;
+
+  // Milestone management state
+  const [actionTarget, setActionTarget] = useState<Milestone | null>(null);
+  const [showActionSheet, setShowActionSheet] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showRenameModal, setShowRenameModal] = useState(false);
 
   const toggleNotes = () => {
     const toExpand = !notesExpanded;
@@ -42,6 +196,33 @@ export default function ProjectDetailsScreen() {
         useNativeDriver: true,
       }),
     ]).start();
+  };
+
+  const handleMilestoneLongPress = (milestone: Milestone) => {
+    setActionTarget(milestone);
+    setShowActionSheet(true);
+  };
+
+  const handleRequestRename = (milestone: Milestone) => {
+    setActionTarget(milestone);
+    setShowRenameModal(true);
+  };
+
+  const handleRequestDelete = (milestone: Milestone) => {
+    Alert.alert(
+      'Delete Feature',
+      `Remove "${milestone.title}" from this project?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            if (project) deleteMilestone(project.id, milestone.id);
+          },
+        },
+      ]
+    );
   };
 
   if (!project) {
@@ -81,6 +262,37 @@ export default function ProjectDetailsScreen() {
 
   return (
     <View style={styles.root}>
+      {/* Modals */}
+      <MilestoneActionModal
+        visible={showActionSheet}
+        milestone={actionTarget}
+        onClose={() => setShowActionSheet(false)}
+        onRename={handleRequestRename}
+        onDelete={handleRequestDelete}
+      />
+
+      <TextInputModal
+        visible={showAddModal}
+        title="Add Feature"
+        placeholder="e.g. API Integration"
+        initialValue=""
+        confirmLabel="Add"
+        onClose={() => setShowAddModal(false)}
+        onConfirm={(title) => addMilestone(project.id, title)}
+      />
+
+      <TextInputModal
+        visible={showRenameModal}
+        title="Rename Feature"
+        placeholder="Feature name"
+        initialValue={actionTarget?.title ?? ''}
+        confirmLabel="Save"
+        onClose={() => setShowRenameModal(false)}
+        onConfirm={(newTitle) => {
+          if (actionTarget) renameMilestone(project.id, actionTarget.id, newTitle);
+        }}
+      />
+
       {/* App Bar */}
       <BlurView
         intensity={60}
@@ -184,16 +396,34 @@ export default function ProjectDetailsScreen() {
           </View>
         </View>
 
-        {/* Milestones */}
+        {/* ── Features / Milestones ── */}
         <View style={styles.glassCardNoPad}>
           <View style={styles.milestonesHeader}>
-            <Text style={styles.milestonesTitle}>Milestones</Text>
-            <View style={styles.milestonesCount}>
-              <Text style={styles.milestonesCountText}>
-                {completedCount}/{totalCount}
-              </Text>
+            <Text style={styles.milestonesTitle}>Features</Text>
+            <View style={styles.milestonesHeaderRight}>
+              <View style={styles.milestonesCount}>
+                <Text style={styles.milestonesCountText}>
+                  {completedCount}/{totalCount}
+                </Text>
+              </View>
+              {/* Add milestone button */}
+              <Pressable
+                style={({ pressed }) => [styles.addBtn, pressed && styles.addBtnPressed]}
+                onPress={() => setShowAddModal(true)}
+                hitSlop={6}
+              >
+                <Feather name="plus" size={16} color={Colors.primaryFixed} />
+              </Pressable>
             </View>
           </View>
+
+          {totalCount === 0 && (
+            <Pressable style={styles.emptyMilestone} onPress={() => setShowAddModal(true)}>
+              <Feather name="flag" size={20} color={`${Colors.primaryFixed}60`} />
+              <Text style={styles.emptyMilestoneText}>No features yet — tap + to add one</Text>
+            </Pressable>
+          )}
+
           {project.milestones.map((milestone, index) => (
             <Pressable
               key={milestone.id}
@@ -202,6 +432,8 @@ export default function ProjectDetailsScreen() {
                 index < project.milestones.length - 1 && styles.milestoneRowBorder,
               ]}
               onPress={() => toggleMilestone(project.id, milestone.id)}
+              onLongPress={() => handleMilestoneLongPress(milestone)}
+              delayLongPress={400}
             >
               {/* Checkbox */}
               <View style={[styles.checkbox, milestone.completed && styles.checkboxChecked]}>
@@ -214,13 +446,21 @@ export default function ProjectDetailsScreen() {
               >
                 {milestone.title}
               </Text>
-              {milestone.completed && (
+              {milestone.completed ? (
                 <Feather
                   name="check-circle"
                   size={16}
                   color={Colors.primaryFixed}
                   style={{ marginLeft: 'auto' }}
                 />
+              ) : (
+                <Pressable
+                  style={styles.editHint}
+                  onPress={() => handleMilestoneLongPress(milestone)}
+                  hitSlop={8}
+                >
+                  <Feather name="more-horizontal" size={16} color={`${Colors.onSurfaceVariant}50`} />
+                </Pressable>
               )}
             </Pressable>
           ))}
@@ -249,14 +489,14 @@ export default function ProjectDetailsScreen() {
                     line.startsWith('-') && styles.notesBullet,
                   ]}
                 >
-                  {line.startsWith('-')
-                    ? (
-                      <Text>
-                        <Text style={{ color: Colors.primaryFixed }}>- </Text>
-                        {line.slice(2)}
-                      </Text>
-                    )
-                    : line.replace('### ', '')}
+                  {line.startsWith('-') ? (
+                    <Text>
+                      <Text style={{ color: Colors.primaryFixed }}>- </Text>
+                      {line.slice(2)}
+                    </Text>
+                  ) : (
+                    line.replace('### ', '')
+                  )}
                 </Text>
               ))}
             </View>
@@ -269,6 +509,7 @@ export default function ProjectDetailsScreen() {
   );
 }
 
+// ─── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   root: {
     flex: 1,
@@ -464,6 +705,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
   },
+  // ── Milestones / Features ──
   milestonesHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -479,6 +721,11 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: Colors.onSurface,
   },
+  milestonesHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   milestonesCount: {
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -491,6 +738,32 @@ const styles = StyleSheet.create({
     fontFamily: 'JetBrainsMono_500Medium',
     fontSize: 12,
     color: Colors.onSurfaceVariant,
+  },
+  addBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: `${Colors.primaryFixed}1A`,
+    borderWidth: 1,
+    borderColor: `${Colors.primaryFixed}33`,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addBtnPressed: {
+    backgroundColor: `${Colors.primaryFixed}30`,
+  },
+  emptyMilestone: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    justifyContent: 'center',
+  },
+  emptyMilestoneText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    color: `${Colors.onSurfaceVariant}60`,
   },
   milestoneRow: {
     flexDirection: 'row',
@@ -527,6 +800,11 @@ const styles = StyleSheet.create({
     textDecorationLine: 'line-through',
     opacity: 0.5,
   },
+  editHint: {
+    marginLeft: 'auto',
+    padding: 2,
+  },
+  // ── Notes ──
   notesToggle: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -577,5 +855,134 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     fontSize: 16,
     color: Colors.onSurfaceVariant,
+  },
+});
+
+// ─── Action Sheet Styles ───────────────────────────────────────────────────────
+const actionStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: '#1A1F2B',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 16,
+    borderTopWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  sheetTitle: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 15,
+    color: Colors.onSurfaceVariant,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  option: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  optionPressed: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  optionText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 16,
+    color: Colors.onSurface,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    marginHorizontal: 20,
+  },
+});
+
+// ─── Input Modal Styles ────────────────────────────────────────────────────────
+const inputStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  card: {
+    backgroundColor: '#1A1F2B',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 24,
+    elevation: 16,
+  },
+  title: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 18,
+    color: Colors.onSurface,
+    marginBottom: 16,
+  },
+  input: {
+    backgroundColor: Colors.surfaceContainerHigh,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontFamily: 'Inter_400Regular',
+    fontSize: 15,
+    color: Colors.onSurface,
+    borderWidth: 1,
+    borderColor: `${Colors.primaryFixed}33`,
+    marginBottom: 16,
+  },
+  btnRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  btn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  btnCancel: {
+    backgroundColor: Colors.surfaceContainerHigh,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  btnConfirm: {
+    backgroundColor: Colors.primaryFixed,
+  },
+  btnPressed: {
+    opacity: 0.75,
+  },
+  btnDisabled: {
+    opacity: 0.4,
+  },
+  btnCancelText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 15,
+    color: Colors.onSurfaceVariant,
+  },
+  btnConfirmText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 15,
+    color: Colors.onPrimaryFixed,
   },
 });

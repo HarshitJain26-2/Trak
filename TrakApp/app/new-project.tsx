@@ -14,8 +14,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Colors } from '../../constants/colors';
-import { useProjectStore, Priority, ProjectStatus } from '../../store/useProjectStore';
+import { Colors } from '../constants/colors';
+import { useProjectStore, Priority, ProjectStatus } from '../store/useProjectStore';
 
 const AVAILABLE_TAGS = ['TS', 'Rust', 'AWS', 'Go', 'Python', 'React', 'K8s', 'Node', 'Kafka', 'Redis'];
 
@@ -419,7 +419,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   visualAnchorGradient: {
-    ...StyleSheet.absoluteFill,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: Colors.surfaceContainerHigh,
     opacity: 0.5,
   },

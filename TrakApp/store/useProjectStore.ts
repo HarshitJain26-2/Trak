@@ -29,6 +29,9 @@ interface ProjectStore {
   projects: Project[];
   addProject: (project: Omit<Project, 'id' | 'milestones' | 'notes' | 'lastUpdated' | 'progress'>) => void;
   toggleMilestone: (projectId: string, milestoneId: string) => void;
+  addMilestone: (projectId: string, title: string) => void;
+  renameMilestone: (projectId: string, milestoneId: string, newTitle: string) => void;
+  deleteMilestone: (projectId: string, milestoneId: string) => void;
   getProject: (id: string) => Project | undefined;
 }
 
@@ -135,6 +138,50 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
               milestones: p.milestones.map((m) =>
                 m.id === milestoneId ? { ...m, completed: !m.completed } : m
               ),
+            }
+          : p
+      ),
+    }));
+  },
+
+  addMilestone: (projectId, title) => {
+    set((state) => ({
+      projects: state.projects.map((p) =>
+        p.id === projectId
+          ? {
+              ...p,
+              milestones: [
+                ...p.milestones,
+                { id: `m${Date.now()}`, title: title.trim(), completed: false },
+              ],
+            }
+          : p
+      ),
+    }));
+  },
+
+  renameMilestone: (projectId, milestoneId, newTitle) => {
+    set((state) => ({
+      projects: state.projects.map((p) =>
+        p.id === projectId
+          ? {
+              ...p,
+              milestones: p.milestones.map((m) =>
+                m.id === milestoneId ? { ...m, title: newTitle.trim() } : m
+              ),
+            }
+          : p
+      ),
+    }));
+  },
+
+  deleteMilestone: (projectId, milestoneId) => {
+    set((state) => ({
+      projects: state.projects.map((p) =>
+        p.id === projectId
+          ? {
+              ...p,
+              milestones: p.milestones.filter((m) => m.id !== milestoneId),
             }
           : p
       ),
