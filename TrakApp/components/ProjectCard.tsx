@@ -11,6 +11,12 @@ interface ProjectCardProps {
   project: Project;
 }
 
+const PRIORITY_ACCENT_COLORS: Record<string, string> = {
+  high: Colors.error,           // Red
+  medium: Colors.statusWarning, // Yellow
+  low: Colors.primaryFixed,     // Green
+};
+
 const STATUS_ACCENT_COLORS: Record<string, string> = {
   active: Colors.primaryFixed,
   warning: Colors.statusWarning,
@@ -18,17 +24,10 @@ const STATUS_ACCENT_COLORS: Record<string, string> = {
   idle: Colors.secondaryContainer,
 };
 
-const PROGRESS_WIDTHS: Record<string, string> = {
-  active: '75%',
-  warning: '50%',
-  blocked: '100%',
-  idle: '25%',
-};
-
 export const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
   const router = useRouter();
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
-  const accentColor = STATUS_ACCENT_COLORS[project.status] ?? Colors.primaryFixed;
+  const accentColor = PRIORITY_ACCENT_COLORS[project.priority] ?? STATUS_ACCENT_COLORS[project.status] ?? Colors.primaryFixed;
   
   const computedProgress = project.milestones && project.milestones.length > 0
     ? Math.round((project.milestones.filter((m) => m.completed).length / project.milestones.length) * 100)
