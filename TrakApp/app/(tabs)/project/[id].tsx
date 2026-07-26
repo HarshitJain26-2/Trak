@@ -167,7 +167,7 @@ function TextInputModal({
 export default function ProjectDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { getProject, toggleMilestone, addMilestone, renameMilestone, deleteMilestone, markCompleted } =
+  const { getProject, toggleMilestone, addMilestone, renameMilestone, deleteMilestone, markCompleted, deleteProject } =
     useProjectStore();
   const project = getProject(id);
   const insets = useSafeAreaInsets();
@@ -313,6 +313,30 @@ export default function ProjectDetailsScreen() {
             <Text style={styles.appBarTitle}>Trak</Text>
           </View>
           <View style={styles.appBarRight}>
+            {/* Delete button */}
+            <Pressable
+              hitSlop={8}
+              style={styles.deleteBtn}
+              onPress={() =>
+                Alert.alert(
+                  'Delete Project',
+                  `Permanently delete "${project.name}"? This cannot be undone.`,
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Delete',
+                      style: 'destructive',
+                      onPress: () => {
+                        deleteProject(project.id);
+                        router.back();
+                      },
+                    },
+                  ]
+                )
+              }
+            >
+              <Feather name="trash-2" size={18} color={`${Colors.error}CC`} />
+            </Pressable>
             {/* Status chip */}
             <View style={styles.statusChip}>
               <StatusDot status={project.status} size={6} />
@@ -617,6 +641,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  deleteBtn: {
+    padding: 8,
+    borderRadius: 999,
+    backgroundColor: `${Colors.error}1A`,
   },
   statusChip: {
     flexDirection: 'row',

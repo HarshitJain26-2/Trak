@@ -29,6 +29,7 @@ export interface Project {
 interface ProjectStore {
   projects: Project[];
   addProject: (project: Omit<Project, 'id' | 'milestones' | 'notes' | 'lastUpdated' | 'progress'>) => void;
+  deleteProject: (projectId: string) => void;
   toggleMilestone: (projectId: string, milestoneId: string) => void;
   addMilestone: (projectId: string, title: string) => void;
   renameMilestone: (projectId: string, milestoneId: string, newTitle: string) => void;
@@ -150,6 +151,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       notes: '',
     };
     set((state) => ({ projects: [newProject, ...state.projects] }));
+  },
+
+  deleteProject: (projectId) => {
+    set((state) => ({
+      projects: state.projects.filter((p) => p.id !== projectId),
+    }));
   },
 
   toggleMilestone: (projectId, milestoneId) => {
