@@ -26,6 +26,9 @@ interface ProfileStore {
   updateProfile: (updates: Partial<Profile>) => void;
   addSkill: (skill: string) => void;
   removeSkill: (skill: string) => void;
+  addLink: (link: Omit<SocialLink, 'id'>) => void;
+  updateLink: (id: string, updates: Partial<Omit<SocialLink, 'id'>>) => void;
+  removeLink: (id: string) => void;
 }
 
 const DEFAULT_PROFILE: Profile = {
@@ -66,6 +69,35 @@ export const useProfileStore = create<ProfileStore>((set) => ({
       profile: {
         ...state.profile,
         skills: state.profile.skills.filter((s) => s !== skill),
+      },
+    })),
+
+  addLink: (link) =>
+    set((state) => ({
+      profile: {
+        ...state.profile,
+        socialLinks: [
+          ...state.profile.socialLinks,
+          { ...link, id: `link_${Date.now()}` },
+        ],
+      },
+    })),
+
+  updateLink: (id, updates) =>
+    set((state) => ({
+      profile: {
+        ...state.profile,
+        socialLinks: state.profile.socialLinks.map((l) =>
+          l.id === id ? { ...l, ...updates } : l
+        ),
+      },
+    })),
+
+  removeLink: (id) =>
+    set((state) => ({
+      profile: {
+        ...state.profile,
+        socialLinks: state.profile.socialLinks.filter((l) => l.id !== id),
       },
     })),
 }));

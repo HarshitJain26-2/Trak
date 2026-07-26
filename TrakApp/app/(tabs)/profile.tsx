@@ -17,8 +17,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
-import { useProfileStore, Profile } from '../../store/useProfileStore';
+import { useProfileStore, Profile, SocialLink } from '../../store/useProfileStore';
 import { useProjectStore } from '../../store/useProjectStore';
+import * as ImagePicker from 'expo-image-picker';
 
 // ─── Platform icons ────────────────────────────────────────────────────────────
 const PLATFORM_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
@@ -221,6 +222,183 @@ function AddSkillModal({ visible, onClose, onAdd }: { visible: boolean; onClose:
   );
 }
 
+// ─── Link Modal (Add / Edit) ───────────────────────────────────────────────────
+const PLATFORM_OPTIONS: { value: SocialLink['platform']; label: string }[] = [
+  { value: 'github',   label: 'GitHub' },
+  { value: 'twitter',  label: 'Twitter / X' },
+  { value: 'linkedin', label: 'LinkedIn' },
+  { value: 'website',  label: 'Website' },
+  { value: 'email',    label: 'Email' },
+];
+
+interface LinkModalProps {
+  visible: boolean;
+  initial?: SocialLink | null;
+  onClose: () => void;
+  onSave: (data: Omit<SocialLink, 'id'>) => void;
+}
+
+function LinkModal({ visible, initial, onClose, onSave }: LinkModalProps) {
+  const [platform, setPlatform] = useState<SocialLink['platform']>('github');
+  const [label, setLabel]       = useState('');
+  const [url, setUrl]           = useState('');
+
+  React.useEffect(() => {
+    if (visible) {
+      setPlatform(initial?.platform ?? 'github');
+      setLabel(initial?.label ?? '');
+      setUrl(initial?.url ?? '');
+    }
+  }, [visible]);
+
+  const isValid = label.trim().length > 0 && url.trim().length > 0;
+
+  return (
+    <Modal transparent animationType="slide" visible={visible} onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <TouchableWithoutFeedback onPress={onClose}>
+          <View style={linkStyles.overlay}>
+            <TouchableWithoutFeedback>
+              <View style={linkStyles.sheet}>
+                {/* Handle */}
+                <View style={linkStyles.handle} />
+                <Text style={linkStyles.title}>{initial ? 'Edit Link' : 'Add Link'}</Text>
+
+                {/* Platform picker */}
+                <Text style={linkStyles.fieldLabel}>PLATFORM</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={{ marginBottom: 14 }}
+                  contentContainerStyle={{ gap: 8, paddingHorizontal: 0 }}
+                >
+                  {PLATFORM_OPTIONS.map((opt) => (
+                    <Pressable
+                      key={opt.value}
+                      style={[linkStyles.platformChip, platform === opt.value && linkStyles.platformChipActive]}
+                      onPress={() => setPlatform(opt.value)}
+                    >
+                      <Feather
+                        name={PLATFORM_ICONS[opt.value] ?? 'link'}
+                        size={13}
+                        color={platform === opt.value ? '#002203' : Colors.onSurfaceVariant}
+                      />
+                      <Text style={[linkStyles.platformChipText, platform === opt.value && linkStyles.platformChipTextActive]}>
+                        {opt.label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+
+                {/* Label */}
+                <Text style={linkStyles.fieldLabel}>LABEL</Text>
+                <TextInput
+                  style={linkStyles.input}
+                  value={label}
+                  onChangeText={setLabel}
+                  placeholder="e.g. My GitHub"
+                  placeholderTextColor={`${Colors.onSurfaceVariant}50`}
+                  selectionColor={Colors.primaryFixed}
+                  returnKeyType="next"
+                />
+
+                {/* URL */}
+                <Text style={linkStyles.fieldLabel}>URL / ADDRESS</Text>
+                <TextInput
+                  style={[linkStyles.input, { marginBottom: 20 }]}
+                  value={url}
+                  onChangeText={setUrl}
+                  placeholder={platform === 'email' ? 'you@example.com' : 'https://...'}
+                  placeholderTextColor={`${Colors.onSurfaceVariant}50`}
+                  selectionColor={Colors.primaryFixed}
+                  autoCapitalize="none"
+                  keyboardType={platform === 'email' ? 'email-address' : 'url'}
+                  returnKeyType="done"
+                  onSubmitEditing={() => { if (isValid) { onSave({ platform, label: label.trim(), url: url.trim() }); onClose(); } }}
+                />
+
+                <View style={editStyles.btnRow}>
+                  <Pressable style={[editStyles.btn, editStyles.btnCancel]} onPress={onClose}>
+                    <Text style={editStyles.btnCancelText}>Cancel</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[editStyles.btn, editStyles.btnSave, !isValid && editStyles.btnDisabled]}
+                    disabled={!isValid}
+                    onPress={() => { onSave({ platform, label: label.trim(), url: url.trim() }); onClose(); }}
+                  >
+                    <Text style={editStyles.btnSaveText}>{initial ? 'Save' : 'Add Link'}</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+const linkStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: '#1A1F2B',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: 36,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  handle: {
+    width: 36, height: 4, borderRadius: 2,
+    backgroundColor: `${Colors.onSurfaceVariant}40`,
+    alignSelf: 'center',
+    marginBottom: 18,
+  },
+  title: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 17,
+    color: Colors.onSurface,
+    marginBottom: 16,
+  },
+  fieldLabel: {
+    fontFamily: 'JetBrainsMono_400Regular',
+    fontSize: 10,
+    color: `${Colors.onSurfaceVariant}80`,
+    letterSpacing: 1.5,
+    marginBottom: 8,
+  },
+  platformChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 12, paddingVertical: 7,
+    backgroundColor: Colors.surfaceContainerHigh,
+    borderRadius: 999,
+    borderWidth: 1, borderColor: `${Colors.outlineVariant}33`,
+  },
+  platformChipActive: {
+    backgroundColor: Colors.primaryFixed,
+    borderColor: Colors.primaryFixed,
+  },
+  platformChipText: {
+    fontFamily: 'Inter_400Regular', fontSize: 13,
+    color: Colors.onSurfaceVariant,
+  },
+  platformChipTextActive: { color: '#002203', fontFamily: 'Inter_600SemiBold' },
+  input: {
+    backgroundColor: Colors.surfaceContainerHigh,
+    borderRadius: 8,
+    paddingHorizontal: 12, paddingVertical: 11,
+    fontFamily: 'Inter_400Regular', fontSize: 15,
+    color: Colors.onSurface,
+    borderWidth: 1, borderColor: `${Colors.primaryFixed}33`,
+    marginBottom: 14,
+  },
+});
+
 // ─── Row with edit button ──────────────────────────────────────────────────────
 function InfoRow({
   icon,
@@ -312,7 +490,7 @@ function SectionHeader({ title }: { title: string }) {
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const { profile, updateProfile, addSkill, removeSkill } = useProfileStore();
+  const { profile, updateProfile, addSkill, removeSkill, addLink, updateLink, removeLink } = useProfileStore();
   const { projects } = useProjectStore();
 
   const totalProjects = projects.length;
@@ -329,12 +507,78 @@ export default function ProfileScreen() {
 
   const [showAddSkill, setShowAddSkill] = useState(false);
 
+  // Link modal state
+  const [linkModal, setLinkModal] = useState<{
+    visible: boolean;
+    editing: SocialLink | null;
+  }>({ visible: false, editing: null });
+
   const openEdit = (field: keyof Profile, title: string, multiline = false) => {
     setEditModal({ visible: true, field, title, multiline });
   };
 
+  // Return only the first letter of the first name
   const getInitials = (name: string) =>
-    name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+    (name.trim().split(' ')[0]?.[0] ?? '?').toUpperCase();
+
+  // Pick from photo library
+  const pickFromLibrary = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please allow access to your photo library.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      updateProfile({ avatarUrl: result.assets[0].uri });
+    }
+  };
+
+  // Take a photo with the camera
+  const takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please allow camera access.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      updateProfile({ avatarUrl: result.assets[0].uri });
+    }
+  };
+
+  // Show action sheet when avatar is tapped
+  const handleAvatarPress = () => {
+    Alert.alert(
+      'Profile Photo',
+      'Choose how to update your photo',
+      [
+        { text: 'Photo Library', onPress: pickFromLibrary },
+        { text: 'Take Photo', onPress: takePhoto },
+        ...(profile.avatarUrl
+          ? [{ text: 'Remove Photo', style: 'destructive' as const, onPress: () => updateProfile({ avatarUrl: '' }) }]
+          : []),
+        { text: 'Cancel', style: 'cancel' as const },
+      ]
+    );
+  };
+
+  const handleSaveLink = (data: Omit<SocialLink, 'id'>) => {
+    if (linkModal.editing) {
+      updateLink(linkModal.editing.id, data);
+    } else {
+      addLink(data);
+    }
+  };
 
   return (
     <View style={styles.root}>
@@ -353,6 +597,13 @@ export default function ProfileScreen() {
         visible={showAddSkill}
         onClose={() => setShowAddSkill(false)}
         onAdd={addSkill}
+      />
+
+      <LinkModal
+        visible={linkModal.visible}
+        initial={linkModal.editing}
+        onClose={() => setLinkModal({ visible: false, editing: null })}
+        onSave={handleSaveLink}
       />
 
       {/* App Bar */}
@@ -377,7 +628,7 @@ export default function ProfileScreen() {
         {/* ── Avatar + Name Hero ── */}
         <View style={styles.heroCard}>
           {/* Avatar */}
-          <Pressable style={styles.avatarWrap} onPress={() => openEdit('avatarUrl', 'Avatar URL')}>
+          <Pressable style={styles.avatarWrap} onPress={handleAvatarPress}>
             {profile.avatarUrl ? (
               <Image source={{ uri: profile.avatarUrl }} style={styles.avatar} />
             ) : (
@@ -474,9 +725,11 @@ export default function ProfileScreen() {
           />
         </View>
 
-        {/* ── GitHub & Links ── */}
+        {/* ── Links ── */}
         <View style={styles.glassCard}>
           <SectionHeader title="Links" />
+
+          {/* GitHub is always first, non-removable */}
           <InfoRow
             icon="github"
             label="GitHub Profile"
@@ -485,34 +738,58 @@ export default function ProfileScreen() {
             mono
             placeholder="github.com/username"
           />
-          {profile.socialLinks.map((link, i) => (
+
+          {/* Social links — editable & removable */}
+          {profile.socialLinks.map((link) => (
             <React.Fragment key={link.id}>
               <View style={styles.divider} />
-              <Pressable style={infoRowStyles.row}>
+              <View style={infoRowStyles.row}>
                 <View style={infoRowStyles.iconWrap}>
                   <Feather name={PLATFORM_ICONS[link.platform] ?? 'link'} size={15} color={Colors.onSurfaceVariant} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={infoRowStyles.label}>{link.platform}</Text>
+                  <Text style={infoRowStyles.label}>{link.label}</Text>
                   <Text style={[infoRowStyles.value, infoRowStyles.mono]} numberOfLines={1}>{link.url}</Text>
                 </View>
-              </Pressable>
+                {/* Edit button */}
+                <Pressable
+                  hitSlop={8}
+                  style={linkRowStyles.iconBtn}
+                  onPress={() => setLinkModal({ visible: true, editing: link })}
+                >
+                  <Feather name="edit-2" size={14} color={`${Colors.onSurfaceVariant}60`} />
+                </Pressable>
+                {/* Delete button */}
+                <Pressable
+                  hitSlop={8}
+                  style={linkRowStyles.iconBtn}
+                  onPress={() =>
+                    Alert.alert('Remove Link', `Remove "${link.label}"?`, [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Remove', style: 'destructive', onPress: () => removeLink(link.id) },
+                    ])
+                  }
+                >
+                  <Feather name="trash-2" size={14} color={`${Colors.error}80`} />
+                </Pressable>
+              </View>
             </React.Fragment>
           ))}
+
+          {/* Add link button at bottom */}
+          <View style={styles.divider} />
+          <Pressable
+            style={linkRowStyles.addRow}
+            onPress={() => setLinkModal({ visible: true, editing: null })}
+          >
+            <Feather name="plus-circle" size={15} color={`${Colors.primaryFixed}80`} />
+            <Text style={linkRowStyles.addRowText}>Add a new link</Text>
+          </Pressable>
         </View>
 
         {/* ── Tech Skills ── */}
         <View style={styles.glassCard}>
-          <View style={styles.sectionHeaderRow}>
-            <SectionHeader title="Tech Stack & Skills" />
-            <Pressable
-              style={styles.addSkillBtn}
-              onPress={() => setShowAddSkill(true)}
-              hitSlop={8}
-            >
-              <Feather name="plus" size={14} color={Colors.primaryFixed} />
-            </Pressable>
-          </View>
+          <SectionHeader title="Tech Stack & Skills" />
           <View style={styles.skillsGrid}>
             {profile.skills.map((skill) => (
               <Pressable
@@ -534,28 +811,6 @@ export default function ProfileScreen() {
             </Pressable>
           </View>
           <Text style={styles.skillHint}>Long-press a skill to remove it</Text>
-        </View>
-
-        {/* ── GitHub Heatmap placeholder ── */}
-        <View style={styles.glassCard}>
-          <SectionHeader title="Activity" />
-          <View style={styles.heatmapWrap}>
-            {Array.from({ length: 7 }).map((_, row) => (
-              <View key={row} style={styles.heatmapRow}>
-                {Array.from({ length: 26 }).map((_, col) => {
-                  const intensity = Math.random();
-                  const opacity = intensity < 0.3 ? 0.05 : intensity < 0.6 ? 0.25 : intensity < 0.85 ? 0.55 : 1;
-                  return (
-                    <View
-                      key={col}
-                      style={[styles.heatmapCell, { backgroundColor: `${Colors.primaryFixed}` , opacity }]}
-                    />
-                  );
-                })}
-              </View>
-            ))}
-          </View>
-          <Text style={styles.heatmapLabel}>GitHub-style contribution activity</Text>
         </View>
 
         <View style={{ height: 40 }} />
@@ -735,5 +990,28 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: `${Colors.onSurfaceVariant}50`,
     textAlign: 'center',
+  },
+});
+
+const linkRowStyles = StyleSheet.create({
+  iconBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: Colors.surfaceContainerHigh,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 4,
+  },
+  addRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+  },
+  addRowText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    color: `${Colors.primaryFixed}80`,
   },
 });
