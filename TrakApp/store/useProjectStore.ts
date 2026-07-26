@@ -180,34 +180,32 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   toggleMilestone: (projectId, milestoneId) => {
     set((state) => ({
-      projects: state.projects.map((p) =>
-        p.id === projectId
-          ? {
-              ...p,
-              milestones: p.milestones.map((m) =>
-                m.id === milestoneId ? { ...m, completed: !m.completed } : m
-              ),
-            }
-          : p
-      ),
+      projects: state.projects.map((p) => {
+        if (p.id !== projectId) return p;
+        const updatedMilestones = p.milestones.map((m) =>
+          m.id === milestoneId ? { ...m, completed: !m.completed } : m
+        );
+        const progress = updatedMilestones.length > 0
+          ? Math.round((updatedMilestones.filter((m) => m.completed).length / updatedMilestones.length) * 100)
+          : 0;
+        return { ...p, milestones: updatedMilestones, progress };
+      }),
     }));
   },
 
   addMilestone: (projectId, title) => {
     set((state) => ({
-      projects: state.projects.map((p) =>
-        p.id === projectId
-          ? {
-              ...p,
-              // If this project was completed, adding a new feature reopens it
-              isCompleted: false,
-              milestones: [
-                ...p.milestones,
-                { id: `m${Date.now()}`, title: title.trim(), completed: false },
-              ],
-            }
-          : p
-      ),
+      projects: state.projects.map((p) => {
+        if (p.id !== projectId) return p;
+        const updatedMilestones = [
+          ...p.milestones,
+          { id: `m${Date.now()}`, title: title.trim(), completed: false },
+        ];
+        const progress = Math.round(
+          (updatedMilestones.filter((m) => m.completed).length / updatedMilestones.length) * 100
+        );
+        return { ...p, isCompleted: false, milestones: updatedMilestones, progress };
+      }),
     }));
   },
 
@@ -228,14 +226,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   deleteMilestone: (projectId, milestoneId) => {
     set((state) => ({
-      projects: state.projects.map((p) =>
-        p.id === projectId
-          ? {
-              ...p,
-              milestones: p.milestones.filter((m) => m.id !== milestoneId),
-            }
-          : p
-      ),
+      projects: state.projects.map((p) => {
+        if (p.id !== projectId) return p;
+        const updatedMilestones = p.milestones.filter((m) => m.id !== milestoneId);
+        const progress = updatedMilestones.length > 0
+          ? Math.round((updatedMilestones.filter((m) => m.completed).length / updatedMilestones.length) * 100)
+          : 0;
+        return { ...p, milestones: updatedMilestones, progress };
+      }),
     }));
   },
 

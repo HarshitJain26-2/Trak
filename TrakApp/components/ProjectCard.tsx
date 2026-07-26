@@ -29,7 +29,12 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
   const router = useRouter();
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
   const accentColor = STATUS_ACCENT_COLORS[project.status] ?? Colors.primaryFixed;
-  const progressWidth = `${project.progress}%` as any;
+  
+  const computedProgress = project.milestones && project.milestones.length > 0
+    ? Math.round((project.milestones.filter((m) => m.completed).length / project.milestones.length) * 100)
+    : project.progress;
+
+  const progressWidth = `${computedProgress}%` as any;
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, { toValue: 0.97, useNativeDriver: true, speed: 30 }).start();
