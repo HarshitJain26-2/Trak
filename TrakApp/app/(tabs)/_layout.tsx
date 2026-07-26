@@ -14,9 +14,9 @@ type TabBarProps = {
 
 const TAB_ITEMS: { name: string; icon: keyof typeof Feather.glyphMap }[] = [
   { name: 'index', icon: 'grid' },
-  { name: 'deleted', icon: 'trash-2' },
-  { name: 'new-project', icon: 'plus-circle' },
   { name: 'completed', icon: 'check-square' },
+  { name: 'new-project', icon: 'plus-circle' },
+  { name: 'deleted', icon: 'trash-2' },
   { name: 'profile', icon: 'user' },
 ];
 
@@ -74,8 +74,8 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="index" />
-      <Tabs.Screen name="deleted" />
       <Tabs.Screen name="completed" />
+      <Tabs.Screen name="deleted" />
       <Tabs.Screen name="profile" />
     </Tabs>
   );
