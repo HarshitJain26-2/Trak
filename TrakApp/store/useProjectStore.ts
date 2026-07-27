@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { supabase } from '../lib/supabase';
 
 export type ProjectStatus = 'active' | 'blocked' | 'idle' | 'warning';
 export type Priority = 'low' | 'medium' | 'high';
@@ -29,16 +30,18 @@ export interface Project {
 
 interface ProjectStore {
   projects: Project[];
-  addProject: (project: Omit<Project, 'id' | 'milestones' | 'notes' | 'lastUpdated' | 'progress'>) => void;
-  deleteProject: (projectId: string) => void;
-  restoreProject: (projectId: string) => void;
-  permanentlyDeleteProject: (projectId: string) => void;
-  toggleMilestone: (projectId: string, milestoneId: string) => void;
-  addMilestone: (projectId: string, title: string) => void;
-  renameMilestone: (projectId: string, milestoneId: string, newTitle: string) => void;
-  deleteMilestone: (projectId: string, milestoneId: string) => void;
-  markCompleted: (projectId: string) => void;
-  unmarkCompleted: (projectId: string) => void;
+  isLoading: boolean;
+  fetchProjects: () => Promise<void>;
+  addProject: (project: Omit<Project, 'id' | 'milestones' | 'notes' | 'lastUpdated' | 'progress'>) => Promise<void>;
+  deleteProject: (projectId: string) => Promise<void>;
+  restoreProject: (projectId: string) => Promise<void>;
+  permanentlyDeleteProject: (projectId: string) => Promise<void>;
+  toggleMilestone: (projectId: string, milestoneId: string) => Promise<void>;
+  addMilestone: (projectId: string, title: string) => Promise<void>;
+  renameMilestone: (projectId: string, milestoneId: string, newTitle: string) => Promise<void>;
+  deleteMilestone: (projectId: string, milestoneId: string) => Promise<void>;
+  markCompleted: (projectId: string) => Promise<void>;
+  unmarkCompleted: (projectId: string) => Promise<void>;
   getProject: (id: string) => Project | undefined;
 }
 
@@ -143,8 +146,61 @@ const MOCK_PROJECTS: Project[] = [
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
   projects: MOCK_PROJECTS,
+  isLoading: false,
 
-  addProject: (data) => {
+  fetchProjects: async () => {
+    set({ isLoading: true });
+    try {
+      const { data: dbProjects, error: pError } = await supabase
+        .from('projects')
+        .select('*');
+
+      if (pError || !dbProjects || dbProjects.length === 0) {
+        console.log('Supabase projects table empty or unavailable, using fallback state.');
+        set({ isLoading: false });
+        return;
+      }
+
+      const { data: dbMilestones } = await supabase
+        .from('milestones')
+        .select('*');
+
+      const formattedProjects: Project[] = dbProjects.map((row: any) => {
+        const projectMilestones = (dbMilestones || [])
+          .filter((m: any) => m.project_id === row.id)
+          .map((m: any) => ({
+            id: m.id,
+            title: m.title,
+            completed: m.completed ?? false,
+          }));
+
+        return {
+          id: row.id,
+          name: row.name,
+          version: row.version || '',
+          description: row.description || '',
+          status: row.status as ProjectStatus,
+          techStack: row.tech_stack || [],
+          deadline: row.deadline || '',
+          progress: row.progress ?? 0,
+          repoUrl: row.repo_url || '',
+          priority: row.priority as Priority,
+          lastUpdated: row.last_updated || 'recently',
+          notes: row.notes || '',
+          isCompleted: row.is_completed ?? false,
+          isDeleted: row.is_deleted ?? false,
+          milestones: projectMilestones,
+        };
+      });
+
+      set({ projects: formattedProjects, isLoading: false });
+    } catch (err) {
+      console.error('Error fetching projects from Supabase:', err);
+      set({ isLoading: false });
+    }
+  },
+
+  addProject: async (data) => {
     const newProject: Project = {
       ...data,
       id: Date.now().toString(),
@@ -153,105 +209,236 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       milestones: [],
       notes: '',
     };
+
     set((state) => ({ projects: [newProject, ...state.projects] }));
+
+    try {
+      await supabase.from('projects').insert({
+        id: newProject.id,
+        name: newProject.name,
+        version: newProject.version,
+        description: newProject.description,
+        status: newProject.status,
+        tech_stack: newProject.techStack,
+        deadline: newProject.deadline,
+        progress: newProject.progress,
+        repo_url: newProject.repoUrl,
+        priority: newProject.priority,
+        last_updated: newProject.lastUpdated,
+        notes: newProject.notes,
+        is_completed: false,
+        is_deleted: false,
+      });
+    } catch (err) {
+      console.error('Failed to sync addProject to Supabase:', err);
+    }
   },
 
-  deleteProject: (projectId) => {
+  deleteProject: async (projectId) => {
     set((state) => ({
       projects: state.projects.map((p) =>
         p.id === projectId ? { ...p, isDeleted: true } : p
       ),
     }));
+
+    try {
+      await supabase
+        .from('projects')
+        .update({ is_deleted: true })
+        .eq('id', projectId);
+    } catch (err) {
+      console.error('Failed to sync deleteProject to Supabase:', err);
+    }
   },
 
-  restoreProject: (projectId) => {
+  restoreProject: async (projectId) => {
     set((state) => ({
       projects: state.projects.map((p) =>
         p.id === projectId ? { ...p, isDeleted: false } : p
       ),
     }));
+
+    try {
+      await supabase
+        .from('projects')
+        .update({ is_deleted: false })
+        .eq('id', projectId);
+    } catch (err) {
+      console.error('Failed to sync restoreProject to Supabase:', err);
+    }
   },
 
-  permanentlyDeleteProject: (projectId) => {
+  permanentlyDeleteProject: async (projectId) => {
     set((state) => ({
       projects: state.projects.filter((p) => p.id !== projectId),
     }));
+
+    try {
+      await supabase.from('projects').delete().eq('id', projectId);
+    } catch (err) {
+      console.error('Failed to sync permanentlyDeleteProject to Supabase:', err);
+    }
   },
 
-  toggleMilestone: (projectId, milestoneId) => {
+  toggleMilestone: async (projectId, milestoneId) => {
+    let updatedCompleted = false;
+    let updatedProgress = 0;
+
     set((state) => ({
       projects: state.projects.map((p) => {
         if (p.id !== projectId) return p;
-        const updatedMilestones = p.milestones.map((m) =>
-          m.id === milestoneId ? { ...m, completed: !m.completed } : m
-        );
-        const progress = updatedMilestones.length > 0
+        const updatedMilestones = p.milestones.map((m) => {
+          if (m.id === milestoneId) {
+            updatedCompleted = !m.completed;
+            return { ...m, completed: !m.completed };
+          }
+          return m;
+        });
+        updatedProgress = updatedMilestones.length > 0
           ? Math.round((updatedMilestones.filter((m) => m.completed).length / updatedMilestones.length) * 100)
           : 0;
-        return { ...p, milestones: updatedMilestones, progress };
+        return { ...p, milestones: updatedMilestones, progress: updatedProgress };
       }),
     }));
+
+    try {
+      await supabase
+        .from('milestones')
+        .update({ completed: updatedCompleted })
+        .eq('id', milestoneId);
+
+      await supabase
+        .from('projects')
+        .update({ progress: updatedProgress })
+        .eq('id', projectId);
+    } catch (err) {
+      console.error('Failed to sync toggleMilestone to Supabase:', err);
+    }
   },
 
-  addMilestone: (projectId, title) => {
+  addMilestone: async (projectId, title) => {
+    const newMilestoneId = `m${Date.now()}`;
+    let updatedProgress = 0;
+
     set((state) => ({
       projects: state.projects.map((p) => {
         if (p.id !== projectId) return p;
         const updatedMilestones = [
           ...p.milestones,
-          { id: `m${Date.now()}`, title: title.trim(), completed: false },
+          { id: newMilestoneId, title: title.trim(), completed: false },
         ];
-        const progress = Math.round(
+        updatedProgress = Math.round(
           (updatedMilestones.filter((m) => m.completed).length / updatedMilestones.length) * 100
         );
-        return { ...p, isCompleted: false, milestones: updatedMilestones, progress };
+        return { ...p, isCompleted: false, milestones: updatedMilestones, progress: updatedProgress };
       }),
     }));
+
+    try {
+      await supabase.from('milestones').insert({
+        id: newMilestoneId,
+        project_id: projectId,
+        title: title.trim(),
+        completed: false,
+      });
+
+      await supabase
+        .from('projects')
+        .update({ progress: updatedProgress, is_completed: false })
+        .eq('id', projectId);
+    } catch (err) {
+      console.error('Failed to sync addMilestone to Supabase:', err);
+    }
   },
 
-  renameMilestone: (projectId, milestoneId, newTitle) => {
+  renameMilestone: async (projectId, milestoneId, newTitle) => {
+    const trimmedTitle = newTitle.trim();
+
     set((state) => ({
       projects: state.projects.map((p) =>
         p.id === projectId
           ? {
               ...p,
               milestones: p.milestones.map((m) =>
-                m.id === milestoneId ? { ...m, title: newTitle.trim() } : m
+                m.id === milestoneId ? { ...m, title: trimmedTitle } : m
               ),
             }
           : p
       ),
     }));
+
+    try {
+      await supabase
+        .from('milestones')
+        .update({ title: trimmedTitle })
+        .eq('id', milestoneId);
+    } catch (err) {
+      console.error('Failed to sync renameMilestone to Supabase:', err);
+    }
   },
 
-  deleteMilestone: (projectId, milestoneId) => {
+  deleteMilestone: async (projectId, milestoneId) => {
+    let updatedProgress = 0;
+
     set((state) => ({
       projects: state.projects.map((p) => {
         if (p.id !== projectId) return p;
         const updatedMilestones = p.milestones.filter((m) => m.id !== milestoneId);
-        const progress = updatedMilestones.length > 0
+        updatedProgress = updatedMilestones.length > 0
           ? Math.round((updatedMilestones.filter((m) => m.completed).length / updatedMilestones.length) * 100)
           : 0;
-        return { ...p, milestones: updatedMilestones, progress };
+        return { ...p, milestones: updatedMilestones, progress: updatedProgress };
       }),
     }));
+
+    try {
+      await supabase.from('milestones').delete().eq('id', milestoneId);
+
+      await supabase
+        .from('projects')
+        .update({ progress: updatedProgress })
+        .eq('id', projectId);
+    } catch (err) {
+      console.error('Failed to sync deleteMilestone to Supabase:', err);
+    }
   },
 
-  markCompleted: (projectId) => {
+  markCompleted: async (projectId) => {
     set((state) => ({
       projects: state.projects.map((p) =>
         p.id === projectId ? { ...p, isCompleted: true, progress: 100 } : p
       ),
     }));
+
+    try {
+      await supabase
+        .from('projects')
+        .update({ is_completed: true, progress: 100 })
+        .eq('id', projectId);
+    } catch (err) {
+      console.error('Failed to sync markCompleted to Supabase:', err);
+    }
   },
 
-  unmarkCompleted: (projectId) => {
+  unmarkCompleted: async (projectId) => {
     set((state) => ({
       projects: state.projects.map((p) =>
         p.id === projectId ? { ...p, isCompleted: false } : p
       ),
     }));
+
+    try {
+      await supabase
+        .from('projects')
+        .update({ is_completed: false })
+        .eq('id', projectId);
+    } catch (err) {
+      console.error('Failed to sync unmarkCompleted to Supabase:', err);
+    }
   },
 
   getProject: (id) => get().projects.find((p) => p.id === id),
 }));
+
+// Automatically attempt to fetch projects from Supabase on app startup
+useProjectStore.getState().fetchProjects();

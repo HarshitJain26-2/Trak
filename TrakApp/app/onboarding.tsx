@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceContainerLowest,
   },
   gridPattern: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     opacity: 0.4,
     // Grid pattern rendered via repeating background (web only workaround)
     // On native, we rely on the dark background + ambient blobs
