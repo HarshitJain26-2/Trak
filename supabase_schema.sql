@@ -46,10 +46,19 @@ CREATE TABLE IF NOT EXISTS public.milestones (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Disable Row Level Security for easy setup, or grant permissions
-ALTER TABLE public.profiles DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.projects DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.milestones DISABLE ROW LEVEL SECURITY;
+-- Enable RLS and add public permissions for development
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.milestones ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow public access to profiles" ON public.profiles;
+CREATE POLICY "Allow public access to profiles" ON public.profiles FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public access to projects" ON public.projects;
+CREATE POLICY "Allow public access to projects" ON public.projects FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public access to milestones" ON public.milestones;
+CREATE POLICY "Allow public access to milestones" ON public.milestones FOR ALL USING (true) WITH CHECK (true);
 
 -- SEED INITIAL PROFILE (If not exists)
 INSERT INTO public.profiles (id, name, username, bio, role, location, avatar_url, github_url, company, skills, social_links, joined_date)
