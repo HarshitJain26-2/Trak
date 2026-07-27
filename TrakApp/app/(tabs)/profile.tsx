@@ -20,6 +20,8 @@ import { Colors } from '../../constants/colors';
 import { useProfileStore, Profile, SocialLink } from '../../store/useProfileStore';
 import { useProjectStore } from '../../store/useProjectStore';
 import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
+import { supabase } from '../../lib/supabase';
 
 // ─── Platform icons ────────────────────────────────────────────────────────────
 const PLATFORM_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
@@ -489,9 +491,32 @@ function SectionHeader({ title }: { title: string }) {
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { profile, updateProfile, addSkill, removeSkill, addLink, updateLink, removeLink } = useProfileStore();
   const { projects } = useProjectStore();
+
+  const handleLogOut = () => {
+    Alert.alert(
+      'Log Out',
+      'Are you sure you want to log out of your session?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Log Out',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await supabase.auth.signOut();
+            } catch (e) {
+              console.error('Logout error:', e);
+            }
+            router.replace('/auth');
+          },
+        },
+      ]
+    );
+  };
 
   const totalProjects = projects.length;
   const activeProjects = projects.filter((p) => !p.isCompleted).length;
@@ -813,8 +838,17 @@ export default function ProfileScreen() {
           <Text style={styles.skillHint}>Long-press a skill to remove it</Text>
         </View>
 
+        {/* ── Account Actions (Log Out) ── */}
+        <View style={[styles.glassCard, styles.logoutCard]}>
+          <Pressable style={styles.logoutBtn} onPress={handleLogOut}>
+            <Feather name="log-out" size={16} color="#FF5252" style={{ marginRight: 8 }} />
+            <Text style={styles.logoutBtnText}>Log Out of Trak</Text>
+          </Pressable>
+        </View>
+
         <View style={{ height: 40 }} />
       </ScrollView>
+
     </View>
   );
 }
@@ -991,7 +1025,23 @@ const styles = StyleSheet.create({
     color: `${Colors.onSurfaceVariant}50`,
     textAlign: 'center',
   },
+  logoutCard: {
+    borderColor: 'rgba(255, 82, 82, 0.25)',
+    backgroundColor: 'rgba(255, 82, 82, 0.05)',
+  },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+  },
+  logoutBtnText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 15,
+    color: '#FF5252',
+  },
 });
+
 
 const linkRowStyles = StyleSheet.create({
   iconBtn: {
