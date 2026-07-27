@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { supabase } from '../lib/supabase';
 
 export interface SocialLink {
   id: string;
@@ -23,12 +24,14 @@ export interface Profile {
 
 interface ProfileStore {
   profile: Profile;
-  updateProfile: (updates: Partial<Profile>) => void;
-  addSkill: (skill: string) => void;
-  removeSkill: (skill: string) => void;
-  addLink: (link: Omit<SocialLink, 'id'>) => void;
-  updateLink: (id: string, updates: Partial<Omit<SocialLink, 'id'>>) => void;
-  removeLink: (id: string) => void;
+  isLoading: boolean;
+  fetchProfile: () => Promise<void>;
+  updateProfile: (updates: Partial<Profile>) => Promise<void>;
+  addSkill: (skill: string) => Promise<void>;
+  removeSkill: (skill: string) => Promise<void>;
+  addLink: (link: Omit<SocialLink, 'id'>) => Promise<void>;
+  updateLink: (id: string, updates: Partial<Omit<SocialLink, 'id'>>) => Promise<void>;
+  removeLink: (id: string) => Promise<void>;
 }
 
 const DEFAULT_PROFILE: Profile = {
@@ -48,42 +51,136 @@ const DEFAULT_PROFILE: Profile = {
   joinedDate: 'JUL 2024',
 };
 
-export const useProfileStore = create<ProfileStore>((set) => ({
+export const useProfileStore = create<ProfileStore>((set, get) => ({
   profile: DEFAULT_PROFILE,
+  isLoading: false,
 
-  updateProfile: (updates) =>
-    set((state) => ({ profile: { ...state.profile, ...updates } })),
+  fetchProfile: async () => {
+    set({ isLoading: true });
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', 'default_profile')
+        .single();
 
-  addSkill: (skill) =>
+      if (error || !data) {
+        console.log('Supabase profile unavailable or empty, using fallback state.');
+        set({ isLoading: false });
+        return;
+      }
+
+      set({
+        profile: {
+          name: data.name || DEFAULT_PROFILE.name,
+          username: data.username || DEFAULT_PROFILE.username,
+          bio: data.bio || DEFAULT_PROFILE.bio,
+          role: data.role || DEFAULT_PROFILE.role,
+          location: data.location || DEFAULT_PROFILE.location,
+          avatarUrl: data.avatar_url || '',
+          githubUrl: data.github_url || DEFAULT_PROFILE.githubUrl,
+          company: data.company || '',
+          skills: data.skills || DEFAULT_PROFILE.skills,
+          socialLinks: (data.social_links as SocialLink[]) || DEFAULT_PROFILE.socialLinks,
+          joinedDate: data.joined_date || DEFAULT_PROFILE.joinedDate,
+        },
+        isLoading: false,
+      });
+    } catch (err) {
+      console.error('Error fetching profile from Supabase:', err);
+      set({ isLoading: false });
+    }
+  },
+
+  updateProfile: async (updates) => {
+    set((state) => ({ profile: { ...state.profile, ...updates } }));
+
+    try {
+      const current = get().profile;
+      await supabase.from('profiles').upsert({
+        id: 'default_profile',
+        name: current.name,
+        username: current.username,
+        bio: current.bio,
+        role: current.role,
+        location: current.location,
+        avatar_url: current.avatarUrl,
+        github_url: current.githubUrl,
+        company: current.company,
+        skills: current.skills,
+        social_links: current.socialLinks,
+        joined_date: current.joinedDate,
+      });
+    } catch (err) {
+      console.error('Failed to sync updateProfile to Supabase:', err);
+    }
+  },
+
+  addSkill: async (skill) => {
+    const trimmed = skill.trim();
+    if (!trimmed) return;
+
     set((state) => ({
       profile: {
         ...state.profile,
-        skills: state.profile.skills.includes(skill.trim())
+        skills: state.profile.skills.includes(trimmed)
           ? state.profile.skills
-          : [...state.profile.skills, skill.trim()],
+          : [...state.profile.skills, trimmed],
       },
-    })),
+    }));
 
-  removeSkill: (skill) =>
+    try {
+      const updatedSkills = get().profile.skills;
+      await supabase
+        .from('profiles')
+        .update({ skills: updatedSkills })
+        .eq('id', 'default_profile');
+    } catch (err) {
+      console.error('Failed to sync addSkill to Supabase:', err);
+    }
+  },
+
+  removeSkill: async (skill) => {
     set((state) => ({
       profile: {
         ...state.profile,
         skills: state.profile.skills.filter((s) => s !== skill),
       },
-    })),
+    }));
 
-  addLink: (link) =>
+    try {
+      const updatedSkills = get().profile.skills;
+      await supabase
+        .from('profiles')
+        .update({ skills: updatedSkills })
+        .eq('id', 'default_profile');
+    } catch (err) {
+      console.error('Failed to sync removeSkill to Supabase:', err);
+    }
+  },
+
+  addLink: async (link) => {
+    const newLink: SocialLink = { ...link, id: `link_${Date.now()}` };
+
     set((state) => ({
       profile: {
         ...state.profile,
-        socialLinks: [
-          ...state.profile.socialLinks,
-          { ...link, id: `link_${Date.now()}` },
-        ],
+        socialLinks: [...state.profile.socialLinks, newLink],
       },
-    })),
+    }));
 
-  updateLink: (id, updates) =>
+    try {
+      const updatedLinks = get().profile.socialLinks;
+      await supabase
+        .from('profiles')
+        .update({ social_links: updatedLinks })
+        .eq('id', 'default_profile');
+    } catch (err) {
+      console.error('Failed to sync addLink to Supabase:', err);
+    }
+  },
+
+  updateLink: async (id, updates) => {
     set((state) => ({
       profile: {
         ...state.profile,
@@ -91,13 +188,38 @@ export const useProfileStore = create<ProfileStore>((set) => ({
           l.id === id ? { ...l, ...updates } : l
         ),
       },
-    })),
+    }));
 
-  removeLink: (id) =>
+    try {
+      const updatedLinks = get().profile.socialLinks;
+      await supabase
+        .from('profiles')
+        .update({ social_links: updatedLinks })
+        .eq('id', 'default_profile');
+    } catch (err) {
+      console.error('Failed to sync updateLink to Supabase:', err);
+    }
+  },
+
+  removeLink: async (id) => {
     set((state) => ({
       profile: {
         ...state.profile,
         socialLinks: state.profile.socialLinks.filter((l) => l.id !== id),
       },
-    })),
+    }));
+
+    try {
+      const updatedLinks = get().profile.socialLinks;
+      await supabase
+        .from('profiles')
+        .update({ social_links: updatedLinks })
+        .eq('id', 'default_profile');
+    } catch (err) {
+      console.error('Failed to sync removeLink to Supabase:', err);
+    }
+  },
 }));
+
+// Automatically attempt to fetch profile from Supabase on app startup
+useProfileStore.getState().fetchProfile();
