@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
+import { safeStorage } from '../lib/storage';
 
 export type ProjectStatus = 'active' | 'blocked' | 'idle' | 'warning';
 export type Priority = 'low' | 'medium' | 'high';
@@ -149,9 +149,9 @@ export const MOCK_PROJECTS: Project[] = [
 
 const saveToLocalStorage = async (projects: Project[]) => {
   try {
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+    await safeStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
   } catch (err) {
-    console.error('Failed to save projects to AsyncStorage:', err);
+    // Silently handle fallback
   }
 };
 
@@ -205,7 +205,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       }
 
       // Supabase is empty or unavailable; attempt loading from local storage
-      const localData = await AsyncStorage.getItem(STORAGE_KEY);
+      const localData = await safeStorage.getItem(STORAGE_KEY);
       if (localData) {
         const parsed = JSON.parse(localData);
         if (Array.isArray(parsed)) {
@@ -217,9 +217,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       // On first launch with no local or remote projects, default to empty list
       set({ projects: [], isLoading: false });
     } catch (err) {
-      console.error('Error fetching projects:', err);
       try {
-        const localData = await AsyncStorage.getItem(STORAGE_KEY);
+        const localData = await safeStorage.getItem(STORAGE_KEY);
         if (localData) {
           const parsed = JSON.parse(localData);
           if (Array.isArray(parsed)) {
