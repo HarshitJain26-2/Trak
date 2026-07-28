@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 
 export type ProjectStatus = 'active' | 'blocked' | 'idle' | 'warning';
@@ -45,7 +46,9 @@ interface ProjectStore {
   getProject: (id: string) => Project | undefined;
 }
 
-const MOCK_PROJECTS: Project[] = [
+const STORAGE_KEY = 'trak_local_projects';
+
+export const MOCK_PROJECTS: Project[] = [
   {
     id: '1',
     name: 'Kernel v2.0',
@@ -144,8 +147,16 @@ const MOCK_PROJECTS: Project[] = [
   },
 ];
 
+const saveToLocalStorage = async (projects: Project[]) => {
+  try {
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+  } catch (err) {
+    console.error('Failed to save projects to AsyncStorage:', err);
+  }
+};
+
 export const useProjectStore = create<ProjectStore>((set, get) => ({
-  projects: MOCK_PROJECTS,
+  projects: [],
   isLoading: false,
 
   fetchProjects: async () => {
@@ -155,48 +166,71 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         .from('projects')
         .select('*');
 
-      if (pError || !dbProjects || dbProjects.length === 0) {
-        console.log('Supabase projects table empty or unavailable, using fallback state.');
-        set({ isLoading: false });
+      if (!pError && dbProjects && dbProjects.length > 0) {
+        const { data: dbMilestones } = await supabase
+          .from('milestones')
+          .select('*');
+
+        const formattedProjects: Project[] = dbProjects.map((row: any) => {
+          const projectMilestones = (dbMilestones || [])
+            .filter((m: any) => m.project_id === row.id)
+            .map((m: any) => ({
+              id: m.id,
+              title: m.title,
+              completed: m.completed ?? false,
+            }));
+
+          return {
+            id: row.id,
+            name: row.name,
+            version: row.version || '',
+            description: row.description || '',
+            status: row.status as ProjectStatus,
+            techStack: row.tech_stack || [],
+            deadline: row.deadline || '',
+            progress: row.progress ?? 0,
+            repoUrl: row.repo_url || '',
+            priority: row.priority as Priority,
+            lastUpdated: row.last_updated || 'recently',
+            notes: row.notes || '',
+            isCompleted: row.is_completed ?? false,
+            isDeleted: row.is_deleted ?? false,
+            milestones: projectMilestones,
+          };
+        });
+
+        await saveToLocalStorage(formattedProjects);
+        set({ projects: formattedProjects, isLoading: false });
         return;
       }
 
-      const { data: dbMilestones } = await supabase
-        .from('milestones')
-        .select('*');
+      // Supabase is empty or unavailable; attempt loading from local storage
+      const localData = await AsyncStorage.getItem(STORAGE_KEY);
+      if (localData) {
+        const parsed = JSON.parse(localData);
+        if (Array.isArray(parsed)) {
+          set({ projects: parsed, isLoading: false });
+          return;
+        }
+      }
 
-      const formattedProjects: Project[] = dbProjects.map((row: any) => {
-        const projectMilestones = (dbMilestones || [])
-          .filter((m: any) => m.project_id === row.id)
-          .map((m: any) => ({
-            id: m.id,
-            title: m.title,
-            completed: m.completed ?? false,
-          }));
-
-        return {
-          id: row.id,
-          name: row.name,
-          version: row.version || '',
-          description: row.description || '',
-          status: row.status as ProjectStatus,
-          techStack: row.tech_stack || [],
-          deadline: row.deadline || '',
-          progress: row.progress ?? 0,
-          repoUrl: row.repo_url || '',
-          priority: row.priority as Priority,
-          lastUpdated: row.last_updated || 'recently',
-          notes: row.notes || '',
-          isCompleted: row.is_completed ?? false,
-          isDeleted: row.is_deleted ?? false,
-          milestones: projectMilestones,
-        };
-      });
-
-      set({ projects: formattedProjects, isLoading: false });
+      // On first launch with no local or remote projects, default to empty list
+      set({ projects: [], isLoading: false });
     } catch (err) {
-      console.error('Error fetching projects from Supabase:', err);
-      set({ isLoading: false });
+      console.error('Error fetching projects:', err);
+      try {
+        const localData = await AsyncStorage.getItem(STORAGE_KEY);
+        if (localData) {
+          const parsed = JSON.parse(localData);
+          if (Array.isArray(parsed)) {
+            set({ projects: parsed, isLoading: false });
+            return;
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+      set({ projects: [], isLoading: false });
     }
   },
 
@@ -211,6 +245,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     };
 
     set((state) => ({ projects: [newProject, ...state.projects] }));
+    await saveToLocalStorage(get().projects);
 
     try {
       await supabase.from('projects').insert({
@@ -240,6 +275,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         p.id === projectId ? { ...p, isDeleted: true } : p
       ),
     }));
+    await saveToLocalStorage(get().projects);
 
     try {
       await supabase
@@ -257,6 +293,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         p.id === projectId ? { ...p, isDeleted: false } : p
       ),
     }));
+    await saveToLocalStorage(get().projects);
 
     try {
       await supabase
@@ -272,6 +309,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     set((state) => ({
       projects: state.projects.filter((p) => p.id !== projectId),
     }));
+    await saveToLocalStorage(get().projects);
 
     try {
       await supabase.from('projects').delete().eq('id', projectId);
