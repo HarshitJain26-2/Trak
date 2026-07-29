@@ -15,8 +15,16 @@ import {
 } from '@expo-google-fonts/jetbrains-mono';
 import { View, ActivityIndicator } from 'react-native';
 import { Colors } from '../constants/colors';
+import { useEffect } from 'react';
+import { supabase } from '../lib/supabase';
+import { useProjectStore } from '../store/useProjectStore';
+import { useProfileStore } from '../store/useProfileStore';
 
 export default function RootLayout() {
+  const fetchProjects = useProjectStore((s) => s.fetchProjects);
+  const clearProjects = useProjectStore((s) => s.clearProjects);
+  const fetchProfile = useProfileStore((s) => s.fetchProfile);
+
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
@@ -25,6 +33,28 @@ export default function RootLayout() {
     JetBrainsMono_400Regular,
     JetBrainsMono_500Medium,
   });
+
+  // Listen to auth state changes and load/clear user-specific data accordingly
+  useEffect(() => {
+    // Fetch data for any already-active session (e.g. app resume)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        fetchProjects();
+        fetchProfile();
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        fetchProjects();
+        fetchProfile();
+      } else if (event === 'SIGNED_OUT') {
+        clearProjects();
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   if (!fontsLoaded) {
     return (
@@ -54,3 +84,4 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+

@@ -51,6 +51,12 @@ const DEFAULT_PROFILE: Profile = {
   joinedDate: 'JUL 2024',
 };
 
+/** Get the authenticated user's ID, or null if not logged in */
+const getAuthUserId = async (): Promise<string | null> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  return user?.id ?? null;
+};
+
 export const useProfileStore = create<ProfileStore>((set, get) => ({
   profile: DEFAULT_PROFILE,
   isLoading: false,
@@ -58,10 +64,17 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
   fetchProfile: async () => {
     set({ isLoading: true });
     try {
+      const userId = await getAuthUserId();
+      if (!userId) {
+        console.log('No authenticated user; using default profile.');
+        set({ isLoading: false });
+        return;
+      }
+
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', 'default_profile')
+        .eq('id', userId)
         .single();
 
       if (error || !data) {
@@ -96,9 +109,12 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     set((state) => ({ profile: { ...state.profile, ...updates } }));
 
     try {
+      const userId = await getAuthUserId();
+      if (!userId) return;
+
       const current = get().profile;
       await supabase.from('profiles').upsert({
-        id: 'default_profile',
+        id: userId,
         name: current.name,
         username: current.username,
         bio: current.bio,
@@ -130,11 +146,14 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     }));
 
     try {
+      const userId = await getAuthUserId();
+      if (!userId) return;
+
       const updatedSkills = get().profile.skills;
       await supabase
         .from('profiles')
         .update({ skills: updatedSkills })
-        .eq('id', 'default_profile');
+        .eq('id', userId);
     } catch (err) {
       console.error('Failed to sync addSkill to Supabase:', err);
     }
@@ -149,11 +168,14 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     }));
 
     try {
+      const userId = await getAuthUserId();
+      if (!userId) return;
+
       const updatedSkills = get().profile.skills;
       await supabase
         .from('profiles')
         .update({ skills: updatedSkills })
-        .eq('id', 'default_profile');
+        .eq('id', userId);
     } catch (err) {
       console.error('Failed to sync removeSkill to Supabase:', err);
     }
@@ -170,11 +192,14 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     }));
 
     try {
+      const userId = await getAuthUserId();
+      if (!userId) return;
+
       const updatedLinks = get().profile.socialLinks;
       await supabase
         .from('profiles')
         .update({ social_links: updatedLinks })
-        .eq('id', 'default_profile');
+        .eq('id', userId);
     } catch (err) {
       console.error('Failed to sync addLink to Supabase:', err);
     }
@@ -191,11 +216,14 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     }));
 
     try {
+      const userId = await getAuthUserId();
+      if (!userId) return;
+
       const updatedLinks = get().profile.socialLinks;
       await supabase
         .from('profiles')
         .update({ social_links: updatedLinks })
-        .eq('id', 'default_profile');
+        .eq('id', userId);
     } catch (err) {
       console.error('Failed to sync updateLink to Supabase:', err);
     }
@@ -210,16 +238,17 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     }));
 
     try {
+      const userId = await getAuthUserId();
+      if (!userId) return;
+
       const updatedLinks = get().profile.socialLinks;
       await supabase
         .from('profiles')
         .update({ social_links: updatedLinks })
-        .eq('id', 'default_profile');
+        .eq('id', userId);
     } catch (err) {
       console.error('Failed to sync removeLink to Supabase:', err);
     }
   },
 }));
 
-// Automatically attempt to fetch profile from Supabase on app startup
-useProfileStore.getState().fetchProfile();
