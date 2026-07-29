@@ -35,20 +35,17 @@ interface ProfileStore {
 }
 
 const DEFAULT_PROFILE: Profile = {
-  name: 'Harshit Jain',
-  username: 'HarshitJain26-2',
-  bio: 'Full-stack developer building tools for developers. Obsessed with great DX and clean architecture.',
-  role: 'Software Engineer',
-  location: 'India',
+  name: '',
+  username: '',
+  bio: '',
+  role: '',
+  location: '',
   avatarUrl: '',
-  githubUrl: 'github.com/HarshitJain26-2',
+  githubUrl: '',
   company: '',
-  skills: ['React Native', 'TypeScript', 'Node.js', 'Expo', 'Zustand'],
-  socialLinks: [
-    { id: 'gh', platform: 'github', url: 'github.com/HarshitJain26-2', label: 'GitHub' },
-    { id: 'em', platform: 'email', url: 'harshit@example.com', label: 'Email' },
-  ],
-  joinedDate: 'JUL 2024',
+  skills: [],
+  socialLinks: [],
+  joinedDate: '',
 };
 
 /** Get the authenticated user's ID, or null if not logged in */

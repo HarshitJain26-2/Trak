@@ -15,13 +15,11 @@ import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { Colors } from '../constants/colors';
 import { supabase } from '../lib/supabase';
-import { useProfileStore } from '../store/useProfileStore';
 
 type AuthMode = 'signin' | 'signup';
 
 export default function AuthScreen() {
   const router = useRouter();
-  const updateProfile = useProfileStore((state) => state.updateProfile);
 
   const [mode, setMode] = useState<AuthMode>('signin');
   const [fullName, setFullName] = useState('');
@@ -72,18 +70,8 @@ export default function AuthScreen() {
           return;
         }
 
-        // Sync profile store
-        updateProfile({
-          name: fullName.trim(),
-          username: email.split('@')[0],
-          socialLinks: [
-            { id: 'gh', platform: 'github', url: `github.com/${email.split('@')[0]}`, label: 'GitHub' },
-            { id: 'em', platform: 'email', url: email.trim(), label: 'Email' },
-          ],
-        });
-
-        // Navigate into app
-        router.replace('/(tabs)');
+        // Navigate to profile setup so user fills in their own details
+        router.replace('/setup-profile');
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
           email: email.trim(),
