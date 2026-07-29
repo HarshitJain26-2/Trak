@@ -34,26 +34,10 @@ export default function RootLayout() {
     JetBrainsMono_500Medium,
   });
 
-  // Listen to auth state changes and load/clear user-specific data accordingly
+  // Fetch projects and profile on app load
   useEffect(() => {
-    // Fetch data for any already-active session (e.g. app resume)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        fetchProjects();
-        fetchProfile();
-      }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        fetchProjects();
-        fetchProfile();
-      } else if (event === 'SIGNED_OUT') {
-        clearProjects();
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    fetchProjects();
+    fetchProfile();
   }, []);
 
   if (!fontsLoaded) {

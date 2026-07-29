@@ -513,25 +513,7 @@ export default function ProfileScreen() {
   const { projects } = useProjectStore();
 
   const handleLogOut = () => {
-    Alert.alert(
-      'Log Out',
-      'Are you sure you want to log out of your session?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Log Out',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await supabase.auth.signOut();
-            } catch (e) {
-              console.error('Logout error:', e);
-            }
-            router.replace('/auth');
-          },
-        },
-      ]
-    );
+    router.push('/setup-profile');
   };
 
   const totalProjects = projects.length;

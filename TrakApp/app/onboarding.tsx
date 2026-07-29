@@ -59,7 +59,7 @@ export default function OnboardingScreen() {
     Animated.spring(btnScale, { toValue: 1, useNativeDriver: true, speed: 30 }).start();
 
   const handleGetStarted = () => {
-    router.replace('/auth');
+    router.replace('/(tabs)');
   };
 
   const progressWidth = progressAnim.interpolate({

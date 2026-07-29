@@ -21,6 +21,10 @@ type AuthMode = 'signin' | 'signup';
 export default function AuthScreen() {
   const router = useRouter();
 
+  React.useEffect(() => {
+    router.replace('/(tabs)');
+  }, []);
+
   const [mode, setMode] = useState<AuthMode>('signin');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
+import { safeStorage } from '../lib/storage';
 
 export interface SocialLink {
   id: string;
@@ -47,12 +48,24 @@ const DEFAULT_PROFILE: Profile = {
   skills: [],
   socialLinks: [],
   joinedDate: '',
+const PROFILE_STORAGE_KEY = 'trak_local_profile';
+
+const saveProfileToLocalStorage = async (profile: Profile) => {
+  try {
+    await safeStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
+  } catch (err) {
+    // Silently handle fallback
+  }
 };
 
 /** Get the authenticated user's ID, or null if not logged in */
 const getAuthUserId = async (): Promise<string | null> => {
-  const { data: { user } } = await supabase.auth.getUser();
-  return user?.id ?? null;
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    return user?.id ?? null;
+  } catch {
+    return null;
+  }
 };
 
 export const useProfileStore = create<ProfileStore>((set, get) => ({
@@ -62,27 +75,26 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
   fetchProfile: async () => {
     set({ isLoading: true });
     try {
-      const userId = await getAuthUserId();
-      if (!userId) {
-        console.log('No authenticated user; using default profile.');
-        set({ isLoading: false });
-        return;
+      // First attempt loading from local storage
+      const localData = await safeStorage.getItem(PROFILE_STORAGE_KEY);
+      if (localData) {
+        const parsed = JSON.parse(localData);
+        if (parsed && typeof parsed === 'object') {
+          set({ profile: { ...DEFAULT_PROFILE, ...parsed }, isLoading: false });
+        }
       }
+
+      const userId = await getAuthUserId();
+      const profileId = userId || 'default_profile';
 
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', userId)
-        .single();
+        .eq('id', profileId)
+        .maybeSingle();
 
-      if (error || !data) {
-        console.log('Supabase profile unavailable or empty, using fallback state.');
-        set({ isLoading: false });
-        return;
-      }
-
-      set({
-        profile: {
+      if (!error && data) {
+        const remoteProfile: Profile = {
           name: data.name || DEFAULT_PROFILE.name,
           username: data.username || DEFAULT_PROFILE.username,
           bio: data.bio || DEFAULT_PROFILE.bio,
@@ -94,11 +106,14 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
           skills: data.skills || DEFAULT_PROFILE.skills,
           socialLinks: (data.social_links as SocialLink[]) || DEFAULT_PROFILE.socialLinks,
           joinedDate: data.joined_date || DEFAULT_PROFILE.joinedDate,
-        },
-        isLoading: false,
-      });
+        };
+        await saveProfileToLocalStorage(remoteProfile);
+        set({ profile: remoteProfile, isLoading: false });
+        return;
+      }
+      set({ isLoading: false });
     } catch (err) {
-      console.error('Error fetching profile from Supabase:', err);
+      console.error('Error fetching profile:', err);
       set({ isLoading: false });
     }
   },
@@ -113,11 +128,10 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
         .from('profiles')
         .select('id')
         .eq('username', clean)
-        .neq('id', userId || '')
+        .neq('id', userId || 'default_profile')
         .maybeSingle();
 
       if (error) {
-        console.warn('checkUsernameAvailable query error:', error.message);
         return true;
       }
 
@@ -129,9 +143,6 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
 
   updateProfile: async (updates) => {
     try {
-      const userId = await getAuthUserId();
-      if (!userId) return { success: false, error: 'Not authenticated' };
-
       const current = get().profile;
       const newProfile = { ...current, ...updates };
 
@@ -144,42 +155,37 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
         if (!isAvailable) {
           return {
             success: false,
-            error: `Username "${cleanUsername}" is already taken by another user.`,
+            error: `Username "${cleanUsername}" is already taken.`,
           };
         }
       }
 
-      const { error } = await supabase.from('profiles').upsert({
-        id: userId,
-        name: newProfile.name,
-        username: newProfile.username || null,
-        bio: newProfile.bio,
-        role: newProfile.role,
-        location: newProfile.location,
-        avatar_url: newProfile.avatarUrl,
-        github_url: newProfile.githubUrl,
-        company: newProfile.company,
-        skills: newProfile.skills,
-        social_links: newProfile.socialLinks,
-        joined_date: newProfile.joinedDate,
-      });
-
-      if (error) {
-        if (
-          error.code === '23505' ||
-          error.message?.toLowerCase().includes('unique') ||
-          error.message?.toLowerCase().includes('username')
-        ) {
-          return {
-            success: false,
-            error: `Username "${newProfile.username}" is already taken by another user.`,
-          };
-        }
-        console.error('Failed to sync updateProfile to Supabase:', error);
-        return { success: false, error: error.message };
-      }
-
+      // Update state and save to local storage immediately
       set({ profile: newProfile });
+      await saveProfileToLocalStorage(newProfile);
+
+      const userId = await getAuthUserId();
+      const profileId = userId || 'default_profile';
+
+      try {
+        await supabase.from('profiles').upsert({
+          id: profileId,
+          name: newProfile.name,
+          username: newProfile.username || null,
+          bio: newProfile.bio,
+          role: newProfile.role,
+          location: newProfile.location,
+          avatar_url: newProfile.avatarUrl,
+          github_url: newProfile.githubUrl,
+          company: newProfile.company,
+          skills: newProfile.skills,
+          social_links: newProfile.socialLinks,
+          joined_date: newProfile.joinedDate,
+        });
+      } catch (err) {
+        console.error('Supabase profile sync warning:', err);
+      }
+
       return { success: true };
     } catch (err: any) {
       console.error('Failed to updateProfile:', err);
