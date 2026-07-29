@@ -26,7 +26,8 @@ interface ProfileStore {
   profile: Profile;
   isLoading: boolean;
   fetchProfile: () => Promise<void>;
-  updateProfile: (updates: Partial<Profile>) => Promise<void>;
+  updateProfile: (updates: Partial<Profile>) => Promise<{ success: boolean; error?: string }>;
+  checkUsernameAvailable: (username: string) => Promise<boolean>;
   addSkill: (skill: string) => Promise<void>;
   removeSkill: (skill: string) => Promise<void>;
   addLink: (link: Omit<SocialLink, 'id'>) => Promise<void>;
@@ -102,30 +103,87 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     }
   },
 
-  updateProfile: async (updates) => {
-    set((state) => ({ profile: { ...state.profile, ...updates } }));
+  checkUsernameAvailable: async (username: string): Promise<boolean> => {
+    const clean = username.trim().toLowerCase();
+    if (!clean) return true;
 
     try {
       const userId = await getAuthUserId();
-      if (!userId) return;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('username', clean)
+        .neq('id', userId || '')
+        .maybeSingle();
+
+      if (error) {
+        console.warn('checkUsernameAvailable query error:', error.message);
+        return true;
+      }
+
+      return !data;
+    } catch {
+      return true;
+    }
+  },
+
+  updateProfile: async (updates) => {
+    try {
+      const userId = await getAuthUserId();
+      if (!userId) return { success: false, error: 'Not authenticated' };
 
       const current = get().profile;
-      await supabase.from('profiles').upsert({
+      const newProfile = { ...current, ...updates };
+
+      if (updates.username !== undefined && updates.username.trim() !== '') {
+        const cleanUsername = updates.username.trim().toLowerCase();
+        newProfile.username = cleanUsername;
+
+        // Check if username is already taken by another user
+        const isAvailable = await get().checkUsernameAvailable(cleanUsername);
+        if (!isAvailable) {
+          return {
+            success: false,
+            error: `Username "${cleanUsername}" is already taken by another user.`,
+          };
+        }
+      }
+
+      const { error } = await supabase.from('profiles').upsert({
         id: userId,
-        name: current.name,
-        username: current.username,
-        bio: current.bio,
-        role: current.role,
-        location: current.location,
-        avatar_url: current.avatarUrl,
-        github_url: current.githubUrl,
-        company: current.company,
-        skills: current.skills,
-        social_links: current.socialLinks,
-        joined_date: current.joinedDate,
+        name: newProfile.name,
+        username: newProfile.username || null,
+        bio: newProfile.bio,
+        role: newProfile.role,
+        location: newProfile.location,
+        avatar_url: newProfile.avatarUrl,
+        github_url: newProfile.githubUrl,
+        company: newProfile.company,
+        skills: newProfile.skills,
+        social_links: newProfile.socialLinks,
+        joined_date: newProfile.joinedDate,
       });
-    } catch (err) {
-      console.error('Failed to sync updateProfile to Supabase:', err);
+
+      if (error) {
+        if (
+          error.code === '23505' ||
+          error.message?.toLowerCase().includes('unique') ||
+          error.message?.toLowerCase().includes('username')
+        ) {
+          return {
+            success: false,
+            error: `Username "${newProfile.username}" is already taken by another user.`,
+          };
+        }
+        console.error('Failed to sync updateProfile to Supabase:', error);
+        return { success: false, error: error.message };
+      }
+
+      set({ profile: newProfile });
+      return { success: true };
+    } catch (err: any) {
+      console.error('Failed to updateProfile:', err);
+      return { success: false, error: err?.message || 'Failed to update profile' };
     }
   },
 

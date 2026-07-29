@@ -6,7 +6,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS public.profiles (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
-  username TEXT,
+  username TEXT UNIQUE,
   bio TEXT,
   role TEXT,
   location TEXT,
@@ -53,14 +53,15 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.milestones ENABLE ROW LEVEL SECURITY;
 
--- PROFILES: each user can only see and modify their own profile
--- profiles.id is TEXT; cast auth.uid() to text for comparison
+-- PROFILES RLS: authenticated users can view profiles (to check username availability & view profiles)
+-- Only the owner can insert/update their own profile
 DROP POLICY IF EXISTS "Allow public access to profiles" ON public.profiles;
 DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Authenticated users can view profiles" ON public.profiles;
 DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
 DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 
-CREATE POLICY "Users can view own profile"   ON public.profiles FOR SELECT USING (auth.uid()::text = id);
+CREATE POLICY "Authenticated users can view profiles" ON public.profiles FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Users can insert own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid()::text = id);
 CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid()::text = id) WITH CHECK (auth.uid()::text = id);
 

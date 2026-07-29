@@ -5,10 +5,15 @@
 ALTER TABLE public.projects
   ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
 
--- ─── STEP 2: Update profiles table ───────────────────────────────────────────
--- The profiles table keeps id as TEXT. We store the user's UUID as a text string.
--- Any old 'default_profile' rows are no longer used; each user gets their own row
--- identified by their auth UUID (stored as text).
+-- ─── STEP 2: Update profiles table with UNIQUE username constraint ───────────
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'profiles_username_key'
+  ) THEN
+    ALTER TABLE public.profiles ADD CONSTRAINT profiles_username_key UNIQUE (username);
+  END IF;
+END $$;
 
 -- ─── STEP 3: Drop old open-access RLS policies ───────────────────────────────
 DROP POLICY IF EXISTS "Allow public access to profiles"   ON public.profiles;
@@ -16,14 +21,15 @@ DROP POLICY IF EXISTS "Allow public access to projects"   ON public.projects;
 DROP POLICY IF EXISTS "Allow public access to milestones" ON public.milestones;
 
 -- ─── STEP 4: Per-user RLS policies for PROFILES ──────────────────────────────
--- profiles.id is TEXT; auth.uid() is UUID → cast auth.uid() to text for comparison
 DROP POLICY IF EXISTS "Users can view own profile"   ON public.profiles;
+DROP POLICY IF EXISTS "Authenticated users can view profiles" ON public.profiles;
 DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
 DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 
-CREATE POLICY "Users can view own profile"
+CREATE POLICY "Authenticated users can view profiles"
   ON public.profiles FOR SELECT
-  USING (auth.uid()::text = id);
+  TO authenticated
+  USING (true);
 
 CREATE POLICY "Users can insert own profile"
   ON public.profiles FOR INSERT

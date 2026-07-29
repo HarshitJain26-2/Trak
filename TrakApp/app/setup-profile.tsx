@@ -32,6 +32,7 @@ export default function SetupProfileScreen() {
   const [location, setLocation] = useState('');
   const [company, setCompany] = useState('');
   const [saving, setSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   // Pre-fill once the profile is loaded from Supabase
   useEffect(() => {
@@ -47,6 +48,7 @@ export default function SetupProfileScreen() {
   }, [profile.name]);
 
   const handleSave = async () => {
+    setErrorMessage('');
     setSaving(true);
     try {
       const now = new Date();
@@ -56,10 +58,11 @@ export default function SetupProfileScreen() {
         now.getFullYear();
 
       const cleanGh = githubUsername.trim().replace(/^(https?:\/\/)?(www\.)?github\.com\//, '');
+      const cleanUsername = username.trim().toLowerCase();
 
-      await updateProfile({
+      const res = await updateProfile({
         name: name.trim() || 'Developer',
-        username: username.trim(),
+        username: cleanUsername,
         role: role.trim(),
         bio: bio.trim(),
         location: location.trim(),
@@ -70,6 +73,11 @@ export default function SetupProfileScreen() {
           ? [{ id: 'gh', platform: 'github' as const, url: `github.com/${cleanGh}`, label: 'GitHub' }]
           : profile.socialLinks,
       });
+
+      if (!res.success) {
+        setErrorMessage(res.error || 'Failed to save profile.');
+        return;
+      }
 
       router.replace('/(tabs)');
     } finally {
@@ -134,6 +142,13 @@ export default function SetupProfileScreen() {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
+            {errorMessage ? (
+              <View style={styles.errorBox}>
+                <Feather name="alert-circle" size={14} color="#FF6B6B" />
+                <Text style={styles.errorText}>{errorMessage}</Text>
+              </View>
+            ) : null}
+
             {/* Section: Identity */}
             <SectionLabel icon="user" label="IDENTITY" />
 
@@ -523,5 +538,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: `${Colors.onSurfaceVariant}60`,
     textAlign: 'center',
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255, 107, 107, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 107, 0.3)',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 12,
+  },
+  errorText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    color: '#FF6B6B',
+    flex: 1,
   },
 });

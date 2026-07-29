@@ -83,12 +83,24 @@ interface EditModalProps {
   initialValue: string;
   multiline?: boolean;
   onClose: () => void;
-  onSave: (field: keyof Profile, value: string) => void;
+  onSave: (field: keyof Profile, value: string) => Promise<void>;
 }
 
 function EditModal({ visible, title, field, initialValue, multiline, onClose, onSave }: EditModalProps) {
   const [val, setVal] = useState(initialValue);
+  const [saving, setSaving] = useState(false);
   React.useEffect(() => { if (visible) setVal(initialValue); }, [visible]);
+
+  const handleSave = async () => {
+    if (!val.trim() || saving) return;
+    setSaving(true);
+    try {
+      await onSave(field, val.trim());
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
@@ -107,18 +119,22 @@ function EditModal({ visible, title, field, initialValue, multiline, onClose, on
                   placeholderTextColor={`${Colors.onSurfaceVariant}60`}
                   selectionColor={Colors.primaryFixed}
                   returnKeyType={multiline ? 'default' : 'done'}
-                  onSubmitEditing={multiline ? undefined : () => { onSave(field, val.trim()); onClose(); }}
+                  onSubmitEditing={multiline ? undefined : handleSave}
                 />
                 <View style={editStyles.btnRow}>
-                  <Pressable style={[editStyles.btn, editStyles.btnCancel]} onPress={onClose}>
+                  <Pressable style={[editStyles.btn, editStyles.btnCancel]} onPress={onClose} disabled={saving}>
                     <Text style={editStyles.btnCancelText}>Cancel</Text>
                   </Pressable>
                   <Pressable
-                    style={[editStyles.btn, editStyles.btnSave, !val.trim() && editStyles.btnDisabled]}
-                    disabled={!val.trim()}
-                    onPress={() => { onSave(field, val.trim()); onClose(); }}
+                    style={[editStyles.btn, editStyles.btnSave, (!val.trim() || saving) && editStyles.btnDisabled]}
+                    disabled={!val.trim() || saving}
+                    onPress={handleSave}
                   >
-                    <Text style={editStyles.btnSaveText}>Save</Text>
+                    {saving ? (
+                      <ActivityIndicator size="small" color="#002203" />
+                    ) : (
+                      <Text style={editStyles.btnSaveText}>Save</Text>
+                    )}
                   </Pressable>
                 </View>
               </View>
@@ -615,7 +631,12 @@ export default function ProfileScreen() {
         initialValue={String(profile[editModal.field] ?? '')}
         multiline={editModal.multiline}
         onClose={() => setEditModal((s) => ({ ...s, visible: false }))}
-        onSave={(field, value) => updateProfile({ [field]: value })}
+        onSave={async (field, value) => {
+          const res = await updateProfile({ [field]: value });
+          if (!res.success && res.error) {
+            Alert.alert('Update Failed', res.error);
+          }
+        }}
       />
 
       <AddSkillModal
