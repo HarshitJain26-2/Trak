@@ -73,7 +73,7 @@ export default function AuthScreen() {
         // Navigate to profile setup so user fills in their own details
         router.replace('/setup-profile');
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { error } = await supabase.auth.signInWithPassword({
           email: email.trim(),
           password: password.trim(),
         });
@@ -88,11 +88,9 @@ export default function AuthScreen() {
           }
         }
 
-        if (data?.user?.user_metadata?.full_name) {
-          updateProfile({ name: data.user.user_metadata.full_name });
-        }
-
-        router.replace('/(tabs)');
+        // Always route through profile setup first on login
+        // Pre-existing profiles will be pre-filled; user can skip if they want
+        router.replace('/setup-profile');
       }
     } catch (err: any) {
       setErrorMessage(err.message || 'Authentication failed.');

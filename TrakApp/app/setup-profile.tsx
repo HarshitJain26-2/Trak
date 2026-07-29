@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Animated,
+  ActivityIndicator,
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,114 +19,77 @@ import { useProfileStore } from '../store/useProfileStore';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const STEPS = [
-  {
-    key: 'identity',
-    title: 'Who are you?',
-    subtitle: 'Let\'s set up your developer identity.',
-    icon: 'user' as const,
-  },
-  {
-    key: 'role',
-    title: 'Your role & bio',
-    subtitle: 'Tell the world what you build.',
-    icon: 'briefcase' as const,
-  },
-  {
-    key: 'location',
-    title: 'Where are you?',
-    subtitle: 'Optional, but nice to show.',
-    icon: 'map-pin' as const,
-  },
-];
-
 export default function SetupProfileScreen() {
   const router = useRouter();
-  const { updateProfile } = useProfileStore();
+  const { profile, updateProfile, isLoading } = useProfileStore();
 
-  // Step tracking
-  const [step, setStep] = useState(0);
-  const slideAnim = useRef(new Animated.Value(0)).current;
-  const btnScale = useRef(new Animated.Value(1)).current;
-
-  // Form fields
+  // Pre-fill with existing profile data for returning users
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
-  const [githubUrl, setGithubUrl] = useState('');
+  const [githubUsername, setGithubUsername] = useState('');
   const [role, setRole] = useState('');
   const [bio, setBio] = useState('');
   const [location, setLocation] = useState('');
   const [company, setCompany] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  // Validation for current step
-  const isStepValid = () => {
-    if (step === 0) return name.trim().length > 0 && username.trim().length > 0;
-    if (step === 1) return role.trim().length > 0;
-    return true; // Step 2 is fully optional
-  };
+  // Pre-fill once the profile is loaded from Supabase
+  useEffect(() => {
+    setName(profile.name || '');
+    setUsername(profile.username || '');
+    // Extract username from github URL if it's stored as a URL
+    const gh = profile.githubUrl || '';
+    setGithubUsername(gh.replace(/^(https?:\/\/)?(www\.)?github\.com\//, ''));
+    setRole(profile.role || '');
+    setBio(profile.bio || '');
+    setLocation(profile.location || '');
+    setCompany(profile.company || '');
+  }, [profile.name]);
 
-  const animateNext = () => {
-    Animated.sequence([
-      Animated.timing(slideAnim, { toValue: -20, duration: 150, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
-    ]).start();
-  };
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const now = new Date();
+      const joinedDate =
+        now.toLocaleString('default', { month: 'short' }).toUpperCase() +
+        ' ' +
+        now.getFullYear();
 
-  const handleNext = () => {
-    if (!isStepValid()) return;
-    if (step < STEPS.length - 1) {
-      animateNext();
-      setStep((s) => s + 1);
-    } else {
-      handleFinish();
+      const cleanGh = githubUsername.trim().replace(/^(https?:\/\/)?(www\.)?github\.com\//, '');
+
+      await updateProfile({
+        name: name.trim() || 'Developer',
+        username: username.trim(),
+        role: role.trim(),
+        bio: bio.trim(),
+        location: location.trim(),
+        company: company.trim(),
+        githubUrl: cleanGh ? `github.com/${cleanGh}` : '',
+        joinedDate: profile.joinedDate || joinedDate,
+        socialLinks: cleanGh
+          ? [{ id: 'gh', platform: 'github' as const, url: `github.com/${cleanGh}`, label: 'GitHub' }]
+          : profile.socialLinks,
+      });
+
+      router.replace('/(tabs)');
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleSkip = () => {
-    if (step < STEPS.length - 1) {
-      animateNext();
-      setStep((s) => s + 1);
-    } else {
-      handleFinish();
-    }
-  };
-
-  const handleFinish = async () => {
-    const now = new Date();
-    const joinedDate = now.toLocaleString('default', { month: 'short' }).toUpperCase() + ' ' + now.getFullYear();
-
-    await updateProfile({
-      name: name.trim() || 'Developer',
-      username: username.trim(),
-      role: role.trim(),
-      bio: bio.trim(),
-      location: location.trim(),
-      company: company.trim(),
-      githubUrl: githubUrl.trim() ? `github.com/${githubUrl.trim().replace(/^(https?:\/\/)?(github\.com\/)?/, '')}` : '',
-      joinedDate,
-      socialLinks: [
-        ...(githubUrl.trim()
-          ? [{
-              id: 'gh',
-              platform: 'github' as const,
-              url: `github.com/${githubUrl.trim().replace(/^(https?:\/\/)?(github\.com\/)?/, '')}`,
-              label: 'GitHub',
-            }]
-          : []),
-      ],
-      skills: [],
-    });
-
     router.replace('/(tabs)');
   };
 
-  const handlePressIn = () =>
-    Animated.spring(btnScale, { toValue: 0.95, useNativeDriver: true, speed: 30 }).start();
-  const handlePressOut = () =>
-    Animated.spring(btnScale, { toValue: 1, useNativeDriver: true, speed: 30 }).start();
+  if (isLoading) {
+    return (
+      <View style={styles.loadingWrap}>
+        <ActivityIndicator color={Colors.primaryFixed} size="large" />
+      </View>
+    );
+  }
 
-  const currentStep = STEPS[step];
-  const isLast = step === STEPS.length - 1;
+  const isNewUser = !profile.name;
 
   return (
     <View style={styles.root}>
@@ -134,181 +97,160 @@ export default function SetupProfileScreen() {
       <View style={[styles.blob, styles.blobTL]} pointerEvents="none" />
       <View style={[styles.blob, styles.blobBR]} pointerEvents="none" />
 
-      <SafeAreaView style={{ flex: 1 }}>
+      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          {/* Progress dots */}
-          <View style={styles.progressRow}>
-            {STEPS.map((_, i) => (
-              <View
-                key={i}
-                style={[
-                  styles.dot,
-                  i === step && styles.dotActive,
-                  i < step && styles.dotDone,
-                ]}
-              />
-            ))}
+          {/* ── Header bar ── */}
+          <View style={styles.topBar}>
+            <View style={styles.topBarLeft}>
+              <View style={styles.topIconBox}>
+                <Feather name="user" size={16} color={Colors.primaryFixed} />
+              </View>
+              <View>
+                <Text style={styles.topTitle}>
+                  {isNewUser ? 'Complete your profile' : 'Update your profile'}
+                </Text>
+                <Text style={styles.topSubtitle}>
+                  {isNewUser
+                    ? 'Fill in your details to get started'
+                    : 'All fields are optional'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Skip button */}
+            <Pressable style={styles.skipBtn} onPress={handleSkip} hitSlop={8}>
+              <Text style={styles.skipText}>Skip</Text>
+              <Feather name="chevron-right" size={14} color={`${Colors.onSurfaceVariant}80`} />
+            </Pressable>
           </View>
 
+          {/* ── Form ── */}
           <ScrollView
             style={{ flex: 1 }}
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.formContent}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           >
-            <Animated.View style={{ transform: [{ translateX: slideAnim }] }}>
-              {/* Step header */}
-              <View style={styles.stepHeader}>
-                <View style={styles.stepIconBox}>
-                  <Feather name={currentStep.icon} size={22} color={Colors.primaryFixed} />
-                </View>
-                <View style={styles.stepMeta}>
-                  <Text style={styles.stepLabel}>STEP {step + 1} OF {STEPS.length}</Text>
-                  <Text style={styles.stepTitle}>{currentStep.title}</Text>
-                  <Text style={styles.stepSubtitle}>{currentStep.subtitle}</Text>
-                </View>
-              </View>
+            {/* Section: Identity */}
+            <SectionLabel icon="user" label="IDENTITY" />
 
-              {/* ── STEP 0: Identity ── */}
-              {step === 0 && (
-                <View style={styles.fields}>
-                  <Field
-                    label="FULL NAME"
-                    icon="user"
-                    placeholder="e.g. Alex Chen"
-                    value={name}
-                    onChangeText={setName}
-                    autoCapitalize="words"
-                    returnKeyType="next"
-                  />
-                  <Field
-                    label="USERNAME"
-                    icon="at-sign"
-                    placeholder="e.g. alexchen"
-                    value={username}
-                    onChangeText={(t) => setUsername(t.replace(/\s/g, '').toLowerCase())}
-                    autoCapitalize="none"
-                    mono
-                    returnKeyType="next"
-                  />
-                  <Field
-                    label="GITHUB USERNAME"
-                    icon="github"
-                    placeholder="e.g. alexchen (optional)"
-                    value={githubUrl}
-                    onChangeText={setGithubUrl}
-                    autoCapitalize="none"
-                    mono
-                    returnKeyType="done"
-                    hint="Just your username, not the full URL"
-                  />
-                </View>
-              )}
+            <InputField
+              label="Full Name"
+              placeholder="e.g. Alex Chen"
+              value={name}
+              onChangeText={setName}
+              autoCapitalize="words"
+              returnKeyType="next"
+              icon="user"
+            />
 
-              {/* ── STEP 1: Role & Bio ── */}
-              {step === 1 && (
-                <View style={styles.fields}>
-                  <Field
-                    label="ROLE / TITLE"
-                    icon="briefcase"
-                    placeholder="e.g. Full-Stack Engineer"
-                    value={role}
-                    onChangeText={setRole}
-                    autoCapitalize="words"
-                    returnKeyType="next"
-                  />
-                  <Field
-                    label="BIO"
-                    icon="edit-3"
-                    placeholder="What do you build? What drives you? (optional)"
-                    value={bio}
-                    onChangeText={setBio}
-                    multiline
-                    returnKeyType="default"
-                    hint="A sentence or two works great"
-                  />
-                </View>
-              )}
+            <InputField
+              label="Username"
+              placeholder="e.g. alexchen"
+              value={username}
+              onChangeText={(t) => setUsername(t.replace(/\s/g, '').toLowerCase())}
+              autoCapitalize="none"
+              returnKeyType="next"
+              icon="at-sign"
+              mono
+              hint="No spaces, lowercase"
+            />
 
-              {/* ── STEP 2: Location & Company ── */}
-              {step === 2 && (
-                <View style={styles.fields}>
-                  <Field
-                    label="LOCATION"
-                    icon="map-pin"
-                    placeholder="e.g. San Francisco, CA"
-                    value={location}
-                    onChangeText={setLocation}
-                    autoCapitalize="words"
-                    returnKeyType="next"
-                    hint="City, Country or remote"
-                  />
-                  <Field
-                    label="COMPANY / TEAM"
-                    icon="home"
-                    placeholder="e.g. Acme Corp (optional)"
-                    value={company}
-                    onChangeText={setCompany}
-                    autoCapitalize="words"
-                    returnKeyType="done"
-                  />
+            {/* Section: Role */}
+            <SectionLabel icon="briefcase" label="ROLE & BIO" />
 
-                  {/* Preview card */}
-                  <View style={styles.previewCard}>
-                    <Text style={styles.previewLabel}>PREVIEW</Text>
-                    <Text style={styles.previewName}>{name || 'Your Name'}</Text>
-                    <Text style={styles.previewRole}>{role || 'Your Role'}</Text>
-                    {bio ? <Text style={styles.previewBio} numberOfLines={2}>{bio}</Text> : null}
-                    <View style={styles.previewPills}>
-                      {location ? (
-                        <View style={styles.previewPill}>
-                          <Feather name="map-pin" size={10} color={Colors.onSurfaceVariant} />
-                          <Text style={styles.previewPillText}>{location}</Text>
-                        </View>
-                      ) : null}
-                      {company ? (
-                        <View style={styles.previewPill}>
-                          <Feather name="home" size={10} color={Colors.onSurfaceVariant} />
-                          <Text style={styles.previewPillText}>{company}</Text>
-                        </View>
-                      ) : null}
-                    </View>
-                  </View>
-                </View>
-              )}
-            </Animated.View>
+            <InputField
+              label="Role / Title"
+              placeholder="e.g. Full-Stack Engineer"
+              value={role}
+              onChangeText={setRole}
+              autoCapitalize="words"
+              returnKeyType="next"
+              icon="briefcase"
+            />
+
+            <InputField
+              label="Bio"
+              placeholder="What do you build? What drives you?"
+              value={bio}
+              onChangeText={setBio}
+              multiline
+              returnKeyType="default"
+              icon="edit-3"
+              hint="Keep it short — a sentence or two"
+            />
+
+            {/* Section: Location */}
+            <SectionLabel icon="map-pin" label="WHERE YOU'RE BASED" />
+
+            <InputField
+              label="Location"
+              placeholder="e.g. San Francisco, CA"
+              value={location}
+              onChangeText={setLocation}
+              autoCapitalize="words"
+              returnKeyType="next"
+              icon="map-pin"
+            />
+
+            <InputField
+              label="Company / Team"
+              placeholder="e.g. Acme Corp"
+              value={company}
+              onChangeText={setCompany}
+              autoCapitalize="words"
+              returnKeyType="next"
+              icon="home"
+            />
+
+            {/* Section: Links */}
+            <SectionLabel icon="github" label="GITHUB" />
+
+            <InputField
+              label="GitHub Username"
+              placeholder="e.g. alexchen"
+              value={githubUsername}
+              onChangeText={(t) =>
+                setGithubUsername(t.replace(/^(https?:\/\/)?(www\.)?github\.com\//, '').replace(/\s/g, ''))
+              }
+              autoCapitalize="none"
+              returnKeyType="done"
+              icon="github"
+              mono
+              hint="Just your username — not the full URL"
+            />
+
+            {/* Bottom spacer for button */}
+            <View style={{ height: 16 }} />
           </ScrollView>
 
-          {/* Footer buttons */}
+          {/* ── Save button ── */}
           <View style={styles.footer}>
-            {/* Skip (only on optional steps or last step) */}
-            {(step === 2 || (step === 1 && !role.trim())) && (
-              <Pressable style={styles.skipBtn} onPress={handleSkip}>
-                <Text style={styles.skipText}>{isLast ? 'Skip & Finish' : 'Skip'}</Text>
-              </Pressable>
-            )}
+            <Pressable
+              style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+              onPress={handleSave}
+              disabled={saving}
+            >
+              {saving ? (
+                <ActivityIndicator color="#002203" size="small" />
+              ) : (
+                <>
+                  <Feather name="check" size={18} color="#002203" />
+                  <Text style={styles.saveBtnText}>
+                    {isNewUser ? 'Save & Enter Trak' : 'Save Changes'}
+                  </Text>
+                </>
+              )}
+            </Pressable>
 
-            <Animated.View style={[styles.nextBtnWrap, { transform: [{ scale: btnScale }] }]}>
-              <Pressable
-                style={[styles.nextBtn, !isStepValid() && styles.nextBtnDisabled]}
-                onPress={handleNext}
-                onPressIn={handlePressIn}
-                onPressOut={handlePressOut}
-                disabled={!isStepValid() && step !== 2}
-              >
-                <Text style={styles.nextBtnText}>
-                  {isLast ? 'Launch Trak' : 'Continue'}
-                </Text>
-                <Feather
-                  name={isLast ? 'zap' : 'arrow-right'}
-                  size={18}
-                  color="#002203"
-                />
-              </Pressable>
-            </Animated.View>
+            <Pressable style={styles.skipFooterBtn} onPress={handleSkip}>
+              <Text style={styles.skipFooterText}>
+                {isNewUser ? 'Skip for now, I\'ll fill this in later' : 'Cancel, go back to app'}
+              </Text>
+            </Pressable>
           </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -316,48 +258,80 @@ export default function SetupProfileScreen() {
   );
 }
 
-// ─── Reusable field component ──────────────────────────────────────────────────
-function Field({
+// ─── Section label ─────────────────────────────────────────────────────────────
+function SectionLabel({ icon, label }: { icon: keyof typeof Feather.glyphMap; label: string }) {
+  return (
+    <View style={sectionStyles.row}>
+      <Feather name={icon} size={12} color={`${Colors.primaryFixed}90`} />
+      <Text style={sectionStyles.text}>{label}</Text>
+      <View style={sectionStyles.line} />
+    </View>
+  );
+}
+
+const sectionStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 24,
+    marginBottom: 12,
+  },
+  text: {
+    fontFamily: 'JetBrainsMono_500Medium',
+    fontSize: 10,
+    color: `${Colors.primaryFixed}90`,
+    letterSpacing: 2,
+  },
+  line: {
+    flex: 1,
+    height: 1,
+    backgroundColor: `${Colors.outlineVariant}33`,
+  },
+});
+
+// ─── Input field ───────────────────────────────────────────────────────────────
+function InputField({
   label,
-  icon,
   placeholder,
   value,
   onChangeText,
   multiline,
   autoCapitalize,
   returnKeyType,
-  hint,
+  icon,
   mono,
+  hint,
 }: {
   label: string;
-  icon: keyof typeof Feather.glyphMap;
   placeholder: string;
   value: string;
   onChangeText: (t: string) => void;
   multiline?: boolean;
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   returnKeyType?: 'next' | 'done' | 'default';
-  hint?: string;
+  icon: keyof typeof Feather.glyphMap;
   mono?: boolean;
+  hint?: string;
 }) {
   return (
-    <View style={fieldStyles.wrap}>
-      <Text style={fieldStyles.label}>{label}</Text>
-      <View style={[fieldStyles.inputWrap, multiline && fieldStyles.inputWrapMulti]}>
+    <View style={inputStyles.wrap}>
+      <Text style={inputStyles.label}>{label}</Text>
+      <View style={[inputStyles.row, multiline && inputStyles.rowMulti]}>
         <Feather
           name={icon}
           size={15}
-          color={`${Colors.onSurfaceVariant}70`}
-          style={{ marginTop: multiline ? 2 : 0 }}
+          color={`${Colors.onSurfaceVariant}60`}
+          style={{ marginTop: multiline ? 1 : 0 }}
         />
         <TextInput
           style={[
-            fieldStyles.input,
-            mono && fieldStyles.inputMono,
-            multiline && fieldStyles.inputMulti,
+            inputStyles.input,
+            mono && inputStyles.inputMono,
+            multiline && inputStyles.inputMulti,
           ]}
           placeholder={placeholder}
-          placeholderTextColor={`${Colors.onSurfaceVariant}40`}
+          placeholderTextColor={`${Colors.onSurfaceVariant}35`}
           value={value}
           onChangeText={onChangeText}
           multiline={multiline}
@@ -365,23 +339,23 @@ function Field({
           returnKeyType={returnKeyType}
           selectionColor={Colors.primaryFixed}
           textAlignVertical={multiline ? 'top' : 'center'}
-          numberOfLines={multiline ? 4 : 1}
+          numberOfLines={multiline ? 3 : 1}
         />
       </View>
-      {hint ? <Text style={fieldStyles.hint}>{hint}</Text> : null}
+      {hint ? <Text style={inputStyles.hint}>{hint}</Text> : null}
     </View>
   );
 }
 
-const fieldStyles = StyleSheet.create({
-  wrap: { gap: 6 },
+const inputStyles = StyleSheet.create({
+  wrap: { gap: 5 },
   label: {
-    fontFamily: 'JetBrainsMono_500Medium',
-    fontSize: 10,
-    color: `${Colors.onSurfaceVariant}99`,
-    letterSpacing: 2,
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    color: Colors.onSurface,
+    opacity: 0.8,
   },
-  inputWrap: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -392,9 +366,9 @@ const fieldStyles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 13,
   },
-  inputWrapMulti: {
+  rowMulti: {
     alignItems: 'flex-start',
-    paddingTop: 13,
+    paddingTop: 12,
   },
   input: {
     flex: 1,
@@ -409,22 +383,28 @@ const fieldStyles = StyleSheet.create({
     fontSize: 14,
   },
   inputMulti: {
-    minHeight: 88,
+    minHeight: 72,
     lineHeight: 22,
   },
   hint: {
     fontFamily: 'Inter_400Regular',
     fontSize: 11,
-    color: `${Colors.onSurfaceVariant}60`,
+    color: `${Colors.onSurfaceVariant}55`,
     marginLeft: 2,
   },
 });
 
-// ─── Styles ────────────────────────────────────────────────────────────────────
+// ─── Main styles ───────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: Colors.surfaceContainerLowest,
+  },
+  loadingWrap: {
+    flex: 1,
+    backgroundColor: Colors.surfaceContainerLowest,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   blob: {
     position: 'absolute',
@@ -435,170 +415,113 @@ const styles = StyleSheet.create({
   blobTL: {
     top: -SCREEN_WIDTH * 0.4,
     left: -SCREEN_WIDTH * 0.3,
-    backgroundColor: `${Colors.primaryFixed}08`,
+    backgroundColor: `${Colors.primaryFixed}07`,
   },
   blobBR: {
     bottom: -SCREEN_WIDTH * 0.4,
     right: -SCREEN_WIDTH * 0.3,
-    backgroundColor: `${Colors.secondaryContainer}08`,
+    backgroundColor: `${Colors.secondaryContainer}07`,
   },
-  progressRow: {
+
+  // Top bar
+  topBar: {
     flexDirection: 'row',
-    gap: 6,
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 8,
-    justifyContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: `${Colors.outlineVariant}25`,
   },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: `${Colors.onSurfaceVariant}25`,
-  },
-  dotActive: {
-    width: 28,
-    backgroundColor: Colors.primaryFixed,
-    borderRadius: 4,
-  },
-  dotDone: {
-    backgroundColor: `${Colors.primaryFixed}50`,
-  },
-  scrollContent: {
-    paddingHorizontal: 24,
-    paddingBottom: 24,
-    gap: 24,
-  },
-  stepHeader: {
+  topBarLeft: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 14,
-    paddingTop: 8,
-    paddingBottom: 8,
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
   },
-  stepIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+  topIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
     backgroundColor: `${Colors.primaryFixed}15`,
     borderWidth: 1,
     borderColor: `${Colors.primaryFixed}25`,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 4,
   },
-  stepMeta: { flex: 1, gap: 2 },
-  stepLabel: {
-    fontFamily: 'JetBrainsMono_400Regular',
-    fontSize: 10,
-    color: `${Colors.primaryFixed}70`,
-    letterSpacing: 2,
-  },
-  stepTitle: {
-    fontFamily: 'Inter_700Bold',
-    fontSize: 22,
+  topTitle: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 15,
     color: Colors.onSurface,
-    letterSpacing: -0.4,
+    letterSpacing: -0.2,
   },
-  stepSubtitle: {
-    fontFamily: 'Inter_400Regular',
-    fontSize: 13,
-    color: `${Colors.onSurfaceVariant}CC`,
-    lineHeight: 18,
-  },
-  fields: { gap: 16 },
-  // Preview card on step 3
-  previewCard: {
-    backgroundColor: Colors.surfaceContainer,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: `${Colors.primaryFixed}20`,
-    padding: 16,
-    gap: 6,
-    marginTop: 4,
-  },
-  previewLabel: {
-    fontFamily: 'JetBrainsMono_400Regular',
-    fontSize: 9,
-    color: `${Colors.primaryFixed}70`,
-    letterSpacing: 2,
-    marginBottom: 4,
-  },
-  previewName: {
-    fontFamily: 'Inter_700Bold',
-    fontSize: 18,
-    color: Colors.onSurface,
-    letterSpacing: -0.3,
-  },
-  previewRole: {
-    fontFamily: 'Inter_400Regular',
-    fontSize: 13,
-    color: Colors.primaryFixed,
-  },
-  previewBio: {
-    fontFamily: 'Inter_400Regular',
-    fontSize: 12,
-    color: `${Colors.onSurfaceVariant}CC`,
-    lineHeight: 18,
-  },
-  previewPills: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 4,
-  },
-  previewPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: Colors.surfaceContainerHigh,
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  previewPillText: {
+  topSubtitle: {
     fontFamily: 'Inter_400Regular',
     fontSize: 11,
-    color: Colors.onSurfaceVariant,
-  },
-  footer: {
-    paddingHorizontal: 24,
-    paddingBottom: Platform.OS === 'ios' ? 0 : 16,
-    paddingTop: 12,
-    gap: 10,
-    borderTopWidth: 1,
-    borderTopColor: `${Colors.outlineVariant}20`,
+    color: `${Colors.onSurfaceVariant}80`,
+    marginTop: 1,
   },
   skipBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    gap: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: `${Colors.surfaceContainerHigh}80`,
   },
   skipText: {
     fontFamily: 'Inter_400Regular',
-    fontSize: 14,
-    color: `${Colors.onSurfaceVariant}80`,
+    fontSize: 13,
+    color: `${Colors.onSurfaceVariant}90`,
   },
-  nextBtnWrap: { width: '100%' },
-  nextBtn: {
+
+  // Form
+  formContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 8,
+    gap: 12,
+  },
+
+  // Footer
+  footer: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 4 : 16,
+    gap: 8,
+    borderTopWidth: 1,
+    borderTopColor: `${Colors.outlineVariant}20`,
+  },
+  saveBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     backgroundColor: Colors.primaryFixed,
     borderRadius: 12,
-    paddingVertical: 16,
+    paddingVertical: 15,
     shadowColor: Colors.primaryFixed,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.28,
     shadowRadius: 12,
     elevation: 8,
   },
-  nextBtnDisabled: {
-    opacity: 0.45,
+  saveBtnDisabled: {
+    opacity: 0.6,
   },
-  nextBtnText: {
+  saveBtnText: {
     fontFamily: 'Inter_600SemiBold',
-    fontSize: 17,
+    fontSize: 16,
     color: '#002203',
+  },
+  skipFooterBtn: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  skipFooterText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: `${Colors.onSurfaceVariant}60`,
+    textAlign: 'center',
   },
 });
