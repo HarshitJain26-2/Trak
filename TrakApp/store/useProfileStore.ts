@@ -48,6 +48,8 @@ const DEFAULT_PROFILE: Profile = {
   skills: [],
   socialLinks: [],
   joinedDate: '',
+};
+
 const PROFILE_STORAGE_KEY = 'trak_local_profile';
 
 const saveProfileToLocalStorage = async (profile: Profile) => {
