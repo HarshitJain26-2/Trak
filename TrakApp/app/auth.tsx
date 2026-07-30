@@ -15,15 +15,13 @@ import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { Colors } from '../constants/colors';
 import { supabase } from '../lib/supabase';
+import { useProfileStore } from '../store/useProfileStore';
+import { useProjectStore } from '../store/useProjectStore';
 
 type AuthMode = 'signin' | 'signup';
 
 export default function AuthScreen() {
   const router = useRouter();
-
-  React.useEffect(() => {
-    router.replace('/(tabs)');
-  }, []);
 
   const [mode, setMode] = useState<AuthMode>('signin');
   const [fullName, setFullName] = useState('');
@@ -74,6 +72,9 @@ export default function AuthScreen() {
           return;
         }
 
+        await useProfileStore.getState().fetchProfile();
+        await useProjectStore.getState().fetchProjects();
+
         // Navigate to profile setup so user fills in their own details
         router.replace('/setup-profile');
       } else {
@@ -91,6 +92,9 @@ export default function AuthScreen() {
             return;
           }
         }
+
+        await useProfileStore.getState().fetchProfile();
+        await useProjectStore.getState().fetchProjects();
 
         // Always route through profile setup first on login
         // Pre-existing profiles will be pre-filled; user can skip if they want

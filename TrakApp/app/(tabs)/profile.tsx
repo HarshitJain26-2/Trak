@@ -12,6 +12,7 @@ import {
   Platform,
   Image,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
@@ -22,6 +23,7 @@ import { useProjectStore } from '../../store/useProjectStore';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
+import { safeStorage } from '../../lib/storage';
 
 // ─── Platform icons ────────────────────────────────────────────────────────────
 const PLATFORM_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
@@ -513,7 +515,33 @@ export default function ProfileScreen() {
   const { projects } = useProjectStore();
 
   const handleLogOut = () => {
-    router.push('/setup-profile');
+    const performLogOut = async () => {
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.error('Logout error:', err);
+      }
+      await safeStorage.removeItem('trak_local_profile');
+      await safeStorage.removeItem('trak_local_projects');
+      useProfileStore.getState().clearProfile();
+      useProjectStore.getState().clearProjects();
+      router.replace('/auth');
+    };
+
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm('Are you sure you want to log out of Trak?')) {
+        performLogOut();
+      }
+    } else {
+      Alert.alert(
+        'Log Out',
+        'Are you sure you want to log out of Trak?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Log Out', style: 'destructive', onPress: performLogOut },
+        ]
+      );
+    }
   };
 
   const totalProjects = projects.length;

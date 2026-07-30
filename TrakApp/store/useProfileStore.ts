@@ -34,6 +34,7 @@ interface ProfileStore {
   addLink: (link: Omit<SocialLink, 'id'>) => Promise<void>;
   updateLink: (id: string, updates: Partial<Omit<SocialLink, 'id'>>) => Promise<void>;
   removeLink: (id: string) => Promise<void>;
+  clearProfile: () => void;
 }
 
 const DEFAULT_PROFILE: Profile = {
@@ -73,6 +74,10 @@ const getAuthUserId = async (): Promise<string | null> => {
 export const useProfileStore = create<ProfileStore>((set, get) => ({
   profile: DEFAULT_PROFILE,
   isLoading: false,
+
+  clearProfile: () => {
+    set({ profile: DEFAULT_PROFILE, isLoading: false });
+  },
 
   fetchProfile: async () => {
     set({ isLoading: true });
