@@ -109,17 +109,27 @@ export default function AuthScreen() {
 
   const handleGitHubAuth = async () => {
     setLoading(true);
+    setErrorMessage('');
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'github',
       });
       if (error) {
-        setErrorMessage(error.message);
+        if (error.message?.includes('provider is not enabled') || error.message?.includes('Unsupported provider')) {
+          setErrorMessage('GitHub login is disabled in your Supabase Dashboard. Please use Email & Password, or enable GitHub under Supabase -> Auth -> Providers.');
+        } else {
+          setErrorMessage(error.message);
+        }
       } else {
         router.replace('/(tabs)');
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'GitHub login failed.');
+      const msg = err.message || 'GitHub login failed.';
+      if (msg.includes('provider is not enabled') || msg.includes('Unsupported provider')) {
+        setErrorMessage('GitHub login is disabled in your Supabase Dashboard. Please use Email & Password, or enable GitHub under Supabase -> Auth -> Providers.');
+      } else {
+        setErrorMessage(msg);
+      }
     } finally {
       setLoading(false);
     }
