@@ -5,7 +5,6 @@ import {
   Text,
   StyleSheet,
   Pressable,
-  TouchableWithoutFeedback,
   Alert,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -111,159 +110,157 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
       visible={visible}
       onRequestClose={onClose}
     >
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.overlay}>
-          <TouchableWithoutFeedback>
-            <View style={styles.sheet}>
-              {/* Drag indicator / Handle */}
-              <View style={styles.handle} />
+      {/* Overlay — tap outside sheet to close */}
+      <Pressable style={styles.overlay} onPress={onClose}>
+        {/* Sheet — stop press from bubbling to overlay */}
+        <Pressable style={styles.sheet} onPress={() => {}}>
+          {/* Drag indicator / Handle */}
+          <View style={styles.handle} />
 
-              {/* Header */}
-              <View style={styles.header}>
-                <View style={styles.titleRow}>
-                  <Text style={styles.projectName} numberOfLines={1}>
-                    {project.name}
-                  </Text>
-                  <Text style={styles.versionTag}>{project.version}</Text>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.titleRow}>
+              <Text style={styles.projectName} numberOfLines={1}>
+                {project.name}
+              </Text>
+              <Text style={styles.versionTag}>{project.version}</Text>
+            </View>
+            <Text style={styles.projectDesc} numberOfLines={1}>
+              {project.description || 'No description provided'}
+            </Text>
+          </View>
+
+          <View style={styles.divider} />
+
+          {/* Options */}
+          <View style={styles.optionsList}>
+            {/* 1. View Details */}
+            <Pressable
+              style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
+              onPress={handleViewDetails}
+            >
+              <View style={[styles.iconWrap, { backgroundColor: `${Colors.primaryFixed}1A` }]}>
+                <Feather name="eye" size={18} color={Colors.primaryFixed} />
+              </View>
+              <View style={styles.optionContent}>
+                <Text style={styles.optionTitle}>View Project Details</Text>
+                <Text style={styles.optionSub}>Open telemetry & feature milestones</Text>
+              </View>
+              <Feather name="chevron-right" size={16} color={`${Colors.onSurfaceVariant}4D`} />
+            </Pressable>
+
+            {/* 2. Toggle Complete / Reactivate (if not in trash) */}
+            {!isDeleted && (
+              <Pressable
+                style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
+                onPress={handleToggleComplete}
+              >
+                <View
+                  style={[
+                    styles.iconWrap,
+                    {
+                      backgroundColor: isCompleted
+                        ? `${Colors.secondaryContainer}33`
+                        : `${Colors.primaryFixed}1A`,
+                    },
+                  ]}
+                >
+                  <Feather
+                    name={isCompleted ? 'rotate-ccw' : 'check-circle'}
+                    size={18}
+                    color={isCompleted ? Colors.secondaryFixed : Colors.primaryFixed}
+                  />
                 </View>
-                <Text style={styles.projectDesc} numberOfLines={1}>
-                  {project.description || 'No description provided'}
+                <View style={styles.optionContent}>
+                  <Text style={styles.optionTitle}>
+                    {isCompleted ? 'Reactivate Project' : 'Mark as Completed'}
+                  </Text>
+                  <Text style={styles.optionSub}>
+                    {isCompleted
+                      ? 'Move back to Active Deployments'
+                      : 'Move project to shipped tab'}
+                  </Text>
+                </View>
+              </Pressable>
+            )}
+
+            {/* 3. Copy Repo URL */}
+            <Pressable
+              style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
+              onPress={handleCopyRepo}
+            >
+              <View style={[styles.iconWrap, { backgroundColor: `${Colors.secondaryContainer}26` }]}>
+                <Feather name="copy" size={18} color={Colors.secondary} />
+              </View>
+              <View style={styles.optionContent}>
+                <Text style={styles.optionTitle}>Copy Repository URL</Text>
+                <Text style={styles.optionSub}>{project.repoUrl || 'No repo set'}</Text>
+              </View>
+            </Pressable>
+
+            {/* 4. Delete / Restore */}
+            <Pressable
+              style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
+              onPress={handleDeleteOrRestore}
+            >
+              <View
+                style={[
+                  styles.iconWrap,
+                  {
+                    backgroundColor: isDeleted
+                      ? `${Colors.primaryFixed}1A`
+                      : `${Colors.error}1A`,
+                  },
+                ]}
+              >
+                <Feather
+                  name={isDeleted ? 'rotate-ccw' : 'trash-2'}
+                  size={18}
+                  color={isDeleted ? Colors.primaryFixed : Colors.error}
+                />
+              </View>
+              <View style={styles.optionContent}>
+                <Text
+                  style={[
+                    styles.optionTitle,
+                    !isDeleted && { color: Colors.error },
+                  ]}
+                >
+                  {isDeleted ? 'Restore Project' : 'Move to Trash'}
+                </Text>
+                <Text style={styles.optionSub}>
+                  {isDeleted
+                    ? 'Restore back to active deployments'
+                    : 'Soft delete and send to Trash tab'}
                 </Text>
               </View>
+            </Pressable>
 
-              <View style={styles.divider} />
-
-              {/* Options */}
-              <View style={styles.optionsList}>
-                {/* 1. View Details */}
-                <Pressable
-                  style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
-                  onPress={handleViewDetails}
-                >
-                  <View style={[styles.iconWrap, { backgroundColor: `${Colors.primaryFixed}1A` }]}>
-                    <Feather name="eye" size={18} color={Colors.primaryFixed} />
-                  </View>
-                  <View style={styles.optionContent}>
-                    <Text style={styles.optionTitle}>View Project Details</Text>
-                    <Text style={styles.optionSub}>Open telemetry & feature milestones</Text>
-                  </View>
-                  <Feather name="chevron-right" size={16} color={`${Colors.onSurfaceVariant}4D`} />
-                </Pressable>
-
-                {/* 2. Toggle Complete / Reactivate (if not in trash) */}
-                {!isDeleted && (
-                  <Pressable
-                    style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
-                    onPress={handleToggleComplete}
-                  >
-                    <View
-                      style={[
-                        styles.iconWrap,
-                        {
-                          backgroundColor: isCompleted
-                            ? `${Colors.secondaryContainer}33`
-                            : `${Colors.primaryFixed}1A`,
-                        },
-                      ]}
-                    >
-                      <Feather
-                        name={isCompleted ? 'rotate-ccw' : 'check-circle'}
-                        size={18}
-                        color={isCompleted ? Colors.secondaryFixed : Colors.primaryFixed}
-                      />
-                    </View>
-                    <View style={styles.optionContent}>
-                      <Text style={styles.optionTitle}>
-                        {isCompleted ? 'Reactivate Project' : 'Mark as Completed'}
-                      </Text>
-                      <Text style={styles.optionSub}>
-                        {isCompleted
-                          ? 'Move back to Active Deployments'
-                          : 'Move project to shipped tab'}
-                      </Text>
-                    </View>
-                  </Pressable>
-                )}
-
-                {/* 3. Copy Repo URL */}
-                <Pressable
-                  style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
-                  onPress={handleCopyRepo}
-                >
-                  <View style={[styles.iconWrap, { backgroundColor: `${Colors.secondaryContainer}26` }]}>
-                    <Feather name="copy" size={18} color={Colors.secondary} />
-                  </View>
-                  <View style={styles.optionContent}>
-                    <Text style={styles.optionTitle}>Copy Repository URL</Text>
-                    <Text style={styles.optionSub}>{project.repoUrl || 'No repo set'}</Text>
-                  </View>
-                </Pressable>
-
-                {/* 4. Delete / Restore */}
-                <Pressable
-                  style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
-                  onPress={handleDeleteOrRestore}
-                >
-                  <View
-                    style={[
-                      styles.iconWrap,
-                      {
-                        backgroundColor: isDeleted
-                          ? `${Colors.primaryFixed}1A`
-                          : `${Colors.error}1A`,
-                      },
-                    ]}
-                  >
-                    <Feather
-                      name={isDeleted ? 'rotate-ccw' : 'trash-2'}
-                      size={18}
-                      color={isDeleted ? Colors.primaryFixed : Colors.error}
-                    />
-                  </View>
-                  <View style={styles.optionContent}>
-                    <Text
-                      style={[
-                        styles.optionTitle,
-                        !isDeleted && { color: Colors.error },
-                      ]}
-                    >
-                      {isDeleted ? 'Restore Project' : 'Move to Trash'}
-                    </Text>
-                    <Text style={styles.optionSub}>
-                      {isDeleted
-                        ? 'Restore back to active deployments'
-                        : 'Soft delete and send to Trash tab'}
-                    </Text>
-                  </View>
-                </Pressable>
-
-                {/* 5. Permanent Delete (only if already deleted) */}
-                {isDeleted && (
-                  <Pressable
-                    style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
-                    onPress={handlePermanentDelete}
-                  >
-                    <View style={[styles.iconWrap, { backgroundColor: `${Colors.error}26` }]}>
-                      <Feather name="x-circle" size={18} color={Colors.error} />
-                    </View>
-                    <View style={styles.optionContent}>
-                      <Text style={[styles.optionTitle, { color: Colors.error }]}>
-                        Delete Permanently
-                      </Text>
-                      <Text style={styles.optionSub}>Erase forever from database</Text>
-                    </View>
-                  </Pressable>
-                )}
-              </View>
-
-              {/* Cancel Button */}
-              <Pressable style={styles.cancelBtn} onPress={onClose}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+            {/* 5. Permanent Delete (only if already deleted) */}
+            {isDeleted && (
+              <Pressable
+                style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
+                onPress={handlePermanentDelete}
+              >
+                <View style={[styles.iconWrap, { backgroundColor: `${Colors.error}26` }]}>
+                  <Feather name="x-circle" size={18} color={Colors.error} />
+                </View>
+                <View style={styles.optionContent}>
+                  <Text style={[styles.optionTitle, { color: Colors.error }]}>
+                    Delete Permanently
+                  </Text>
+                  <Text style={styles.optionSub}>Erase forever from database</Text>
+                </View>
               </Pressable>
-            </View>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
+            )}
+          </View>
+
+          {/* Cancel Button */}
+          <Pressable style={styles.cancelBtn} onPress={onClose}>
+            <Text style={styles.cancelBtnText}>Cancel</Text>
+          </Pressable>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 };
