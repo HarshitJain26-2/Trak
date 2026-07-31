@@ -25,6 +25,7 @@ import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { safeStorage } from '../../lib/storage';
 import { ConfirmDialog, useConfirmDialog } from '../../components/ConfirmDialog';
+import { ActionSheet, useActionSheet } from '../../components/ActionSheet';
 
 // ─── Platform icons ────────────────────────────────────────────────────────────
 const PLATFORM_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
@@ -515,6 +516,7 @@ export default function ProfileScreen() {
   const { profile, updateProfile, addSkill, removeSkill, addLink, updateLink, removeLink } = useProfileStore();
   const { projects } = useProjectStore();
   const { dialogProps, ask } = useConfirmDialog();
+  const { actionSheetProps, showActionSheet } = useActionSheet();
 
   const handleLogOut = async () => {
     const confirmed = await ask({
@@ -602,18 +604,33 @@ export default function ProfileScreen() {
 
   // Show action sheet when avatar is tapped
   const handleAvatarPress = () => {
-    Alert.alert(
-      'Profile Photo',
-      'Choose how to update your photo',
-      [
-        { text: 'Photo Library', onPress: pickFromLibrary },
-        { text: 'Take Photo', onPress: takePhoto },
-        ...(profile.avatarUrl
-          ? [{ text: 'Remove Photo', style: 'destructive' as const, onPress: () => updateProfile({ avatarUrl: '' }) }]
-          : []),
-        { text: 'Cancel', style: 'cancel' as const },
-      ]
-    );
+    const options = [
+      {
+        label: 'Photo Library',
+        icon: 'image' as const,
+        onPress: pickFromLibrary,
+      },
+      {
+        label: 'Take Photo',
+        icon: 'camera' as const,
+        onPress: takePhoto,
+      },
+    ];
+
+    if (profile.avatarUrl) {
+      options.push({
+        label: 'Remove Photo',
+        icon: 'trash-2' as const,
+        destructive: true,
+        onPress: () => updateProfile({ avatarUrl: '' }),
+      });
+    }
+
+    showActionSheet({
+      title: 'Profile Photo',
+      message: 'Choose how to update your photo',
+      options,
+    });
   };
 
   const handleSaveLink = (data: Omit<SocialLink, 'id'>) => {
@@ -626,8 +643,9 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.root}>
-      {/* Themed Confirm Dialog */}
+      {/* Themed Dialogs */}
       <ConfirmDialog {...dialogProps} />
+      <ActionSheet {...actionSheetProps} />
 
       {/* Edit Modal */}
       <EditModal
