@@ -45,21 +45,19 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
   };
 
   const handleToggleComplete = () => {
-    onClose();
     if (isCompleted) {
+      onClose();
       unmarkCompleted(project.id);
-      Alert.alert('Reactivated', `"${project.name}" has been moved back to Active Deployments.`);
     } else {
+      onClose();
       markCompleted(project.id);
-      Alert.alert('Completed', `"${project.name}" has been marked as Completed!`);
     }
   };
 
   const handleDeleteOrRestore = () => {
-    onClose();
     if (isDeleted) {
+      onClose();
       restoreProject(project.id);
-      Alert.alert('Restored', `"${project.name}" has been restored from Trash.`);
     } else {
       Alert.alert(
         'Move to Trash',
@@ -69,7 +67,10 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
           {
             text: 'Delete',
             style: 'destructive',
-            onPress: () => deleteProject(project.id),
+            onPress: () => {
+              onClose();
+              deleteProject(project.id);
+            },
           },
         ]
       );
@@ -77,7 +78,6 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
   };
 
   const handlePermanentDelete = () => {
-    onClose();
     Alert.alert(
       'Delete Permanently',
       `Are you sure you want to permanently erase "${project.name}"? This action cannot be undone.`,
@@ -86,7 +86,10 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
         {
           text: 'Delete Forever',
           style: 'destructive',
-          onPress: () => permanentlyDeleteProject(project.id),
+          onPress: () => {
+            onClose();
+            permanentlyDeleteProject(project.id);
+          },
         },
       ]
     );
