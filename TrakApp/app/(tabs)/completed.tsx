@@ -7,7 +7,6 @@ import {
   Pressable,
   Animated,
   Platform,
-  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
@@ -16,7 +15,7 @@ import { useRouter } from 'expo-router';
 import { Colors } from '../../constants/colors';
 import { useProjectStore, Project } from '../../store/useProjectStore';
 import { TechPill } from '../../components/TechPill';
-
+import { ConfirmDialog, useConfirmDialog } from '../../components/ConfirmDialog';
 import { ProjectActionModal } from '../../components/ProjectActionModal';
 
 // ─── Completed Project Card ────────────────────────────────────────────────────
@@ -125,23 +124,23 @@ export default function CompletedScreen() {
   const insets = useSafeAreaInsets();
   const { projects, unmarkCompleted } = useProjectStore();
   const completedProjects = projects.filter((p) => p.isCompleted && !p.isDeleted);
+  const { dialogProps, ask } = useConfirmDialog();
 
-  const handleReactivate = (project: Project) => {
-    Alert.alert(
-      'Reactivate Project',
-      `Move "${project.name}" back to active deployments?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reactivate',
-          onPress: () => unmarkCompleted(project.id),
-        },
-      ]
-    );
+  const handleReactivate = async (project: Project) => {
+    const ok = await ask({
+      title: 'Reactivate Project',
+      message: `Move "${project.name}" back to Active Deployments?`,
+      confirmLabel: 'Reactivate',
+      destructive: false,
+      icon: 'rotate-ccw',
+    });
+    if (ok) unmarkCompleted(project.id);
   };
 
   return (
     <View style={styles.root}>
+      <ConfirmDialog {...dialogProps} />
+
       {/* App Bar */}
       <BlurView
         intensity={60}

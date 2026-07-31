@@ -10,7 +10,6 @@ import {
   Modal,
   TextInput,
   TouchableWithoutFeedback,
-  Alert,
   KeyboardAvoidingView,
 } from 'react-native';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
@@ -21,6 +20,7 @@ import { Colors } from '../../../constants/colors';
 import { useProjectStore, Milestone } from '../../../store/useProjectStore';
 import { TechPill } from '../../../components/TechPill';
 import { StatusDot } from '../../../components/StatusDot';
+import { ConfirmDialog, useConfirmDialog } from '../../../components/ConfirmDialog';
 
 // ─── Milestone Action Modal ────────────────────────────────────────────────────
 interface MilestoneActionModalProps {
@@ -171,6 +171,7 @@ export default function ProjectDetailsScreen() {
     useProjectStore();
   const project = getProject(id);
   const insets = useSafeAreaInsets();
+  const { dialogProps, ask } = useConfirmDialog();
 
   const [notesExpanded, setNotesExpanded] = useState(false);
   const notesHeight = useRef(new Animated.Value(0)).current;
@@ -209,21 +210,15 @@ export default function ProjectDetailsScreen() {
     setShowRenameModal(true);
   };
 
-  const handleRequestDelete = (milestone: Milestone) => {
-    Alert.alert(
-      'Delete Feature',
-      `Remove "${milestone.title}" from this project?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            if (project) deleteMilestone(project.id, milestone.id);
-          },
-        },
-      ]
-    );
+  const handleRequestDelete = async (milestone: Milestone) => {
+    const ok = await ask({
+      title: 'Delete Feature',
+      message: `Remove "${milestone.title}" from this project?`,
+      confirmLabel: 'Delete',
+      destructive: true,
+      icon: 'trash-2',
+    });
+    if (ok && project) deleteMilestone(project.id, milestone.id);
   };
 
   if (!project) {
@@ -265,6 +260,8 @@ export default function ProjectDetailsScreen() {
 
   return (
     <View style={styles.root}>
+      <ConfirmDialog {...dialogProps} />
+
       {/* Modals */}
       <MilestoneActionModal
         visible={showActionSheet}
@@ -317,23 +314,16 @@ export default function ProjectDetailsScreen() {
             <Pressable
               hitSlop={8}
               style={styles.deleteBtn}
-              onPress={() =>
-                Alert.alert(
-                  'Delete Project',
-                  `Permanently delete "${project.name}"? This cannot be undone.`,
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: 'Delete',
-                      style: 'destructive',
-                      onPress: () => {
-                        deleteProject(project.id);
-                        router.back();
-                      },
-                    },
-                  ]
-                )
-              }
+              onPress={async () => {
+                const ok = await ask({
+                  title: 'Move to Trash',
+                  message: `Move "${project.name}" to the Trash?`,
+                  confirmLabel: 'Move to Trash',
+                  destructive: true,
+                  icon: 'trash-2',
+                });
+                if (ok) { deleteProject(project.id); router.back(); }
+              }}
             >
               <Feather name="trash-2" size={18} color={`${Colors.error}CC`} />
             </Pressable>
@@ -566,21 +556,15 @@ export default function ProjectDetailsScreen() {
         {!project.isCompleted ? (
           <Pressable
             style={({ pressed }) => [styles.completeBtn, pressed && styles.completeBtnPressed]}
-            onPress={() => {
-              Alert.alert(
-                'Mark as Completed',
-                `Move "${project.name}" to Completed Projects?`,
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Complete',
-                    onPress: () => {
-                      markCompleted(project.id);
-                      router.back();
-                    },
-                  },
-                ]
-              );
+            onPress={async () => {
+              const ok = await ask({
+                title: 'Mark as Completed',
+                message: `Move "${project.name}" to Completed Projects?`,
+                confirmLabel: 'Mark Completed',
+                destructive: false,
+                icon: 'check-circle',
+              });
+              if (ok) { markCompleted(project.id); router.back(); }
             }}
           >
             <Feather name="check-circle" size={18} color={Colors.primaryFixed} />

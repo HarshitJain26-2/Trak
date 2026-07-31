@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Modal,
   View,
@@ -10,166 +10,7 @@ import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors } from '../constants/colors';
 import { useProjectStore, Project } from '../store/useProjectStore';
-
-// ─── Custom Confirm Dialog ────────────────────────────────────────────────────
-interface ConfirmDialogProps {
-  visible: boolean;
-  title: string;
-  message: string;
-  confirmLabel: string;
-  confirmDestructive?: boolean;
-  onCancel: () => void;
-  onConfirm: () => void;
-}
-
-function ConfirmDialog({
-  visible,
-  title,
-  message,
-  confirmLabel,
-  confirmDestructive = false,
-  onCancel,
-  onConfirm,
-}: ConfirmDialogProps) {
-  if (!visible) return null;
-  return (
-    <Modal transparent animationType="fade" visible={visible} onRequestClose={onCancel}>
-      <Pressable style={confirmStyles.overlay} onPress={onCancel}>
-        <Pressable style={confirmStyles.card} onPress={() => {}}>
-          {/* Icon */}
-          <View
-            style={[
-              confirmStyles.iconWrap,
-              { backgroundColor: confirmDestructive ? 'rgba(255,180,171,0.12)' : 'rgba(114,255,112,0.1)' },
-            ]}
-          >
-            <Feather
-              name={confirmDestructive ? 'trash-2' : 'check-circle'}
-              size={26}
-              color={confirmDestructive ? Colors.error : Colors.primaryFixed}
-            />
-          </View>
-
-          {/* Title */}
-          <Text style={confirmStyles.title}>{title}</Text>
-
-          {/* Message */}
-          <Text style={confirmStyles.message}>{message}</Text>
-
-          {/* Buttons */}
-          <View style={confirmStyles.btnRow}>
-            <Pressable
-              style={({ pressed }) => [confirmStyles.btn, confirmStyles.btnCancel, pressed && confirmStyles.btnPressed]}
-              onPress={onCancel}
-            >
-              <Text style={confirmStyles.btnCancelText}>Cancel</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [
-                confirmStyles.btn,
-                confirmDestructive ? confirmStyles.btnDestructive : confirmStyles.btnConfirm,
-                pressed && confirmStyles.btnPressed,
-              ]}
-              onPress={onConfirm}
-            >
-              <Text
-                style={[
-                  confirmStyles.btnConfirmText,
-                  confirmDestructive && { color: '#0b0e14' },
-                ]}
-              >
-                {confirmLabel}
-              </Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-}
-
-const confirmStyles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(5, 7, 12, 0.85)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-  },
-  card: {
-    width: '100%',
-    backgroundColor: '#111622',
-    borderRadius: 20,
-    padding: 24,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#1F293D',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 24,
-    elevation: 16,
-  },
-  iconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  title: {
-    fontFamily: 'Inter_700Bold',
-    fontSize: 18,
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  message: {
-    fontFamily: 'Inter_400Regular',
-    fontSize: 14,
-    color: '#8B949E',
-    textAlign: 'center',
-    lineHeight: 21,
-    marginBottom: 24,
-  },
-  btnRow: {
-    flexDirection: 'row',
-    gap: 10,
-    width: '100%',
-  },
-  btn: {
-    flex: 1,
-    paddingVertical: 13,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnPressed: {
-    opacity: 0.8,
-  },
-  btnCancel: {
-    backgroundColor: '#171D2B',
-    borderWidth: 1,
-    borderColor: '#263044',
-  },
-  btnCancelText: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 14,
-    color: '#8B949E',
-  },
-  btnConfirm: {
-    backgroundColor: Colors.primaryFixed,
-  },
-  btnDestructive: {
-    backgroundColor: Colors.error,
-  },
-  btnConfirmText: {
-    fontFamily: 'Inter_700Bold',
-    fontSize: 14,
-    color: '#0b0e14',
-  },
-});
+import { ConfirmDialog, useConfirmDialog } from './ConfirmDialog';
 
 // ─── Project Action Modal ─────────────────────────────────────────────────────
 interface ProjectActionModalProps {
@@ -184,50 +25,9 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
   onClose,
 }) => {
   const router = useRouter();
-  const {
-    deleteProject,
-    restoreProject,
-    permanentlyDeleteProject,
-    markCompleted,
-    unmarkCompleted,
-  } = useProjectStore();
-
-  // ── confirm dialog state ──
-  const [confirmState, setConfirmState] = useState<{
-    visible: boolean;
-    title: string;
-    message: string;
-    confirmLabel: string;
-    destructive: boolean;
-    action: () => void;
-  }>({
-    visible: false,
-    title: '',
-    message: '',
-    confirmLabel: '',
-    destructive: false,
-    action: () => {},
-  });
-
-  const showConfirm = (
-    title: string,
-    message: string,
-    confirmLabel: string,
-    destructive: boolean,
-    action: () => void
-  ) => {
-    setConfirmState({ visible: true, title, message, confirmLabel, destructive, action });
-  };
-
-  const dismissConfirm = () => {
-    setConfirmState((s) => ({ ...s, visible: false }));
-  };
-
-  const executeConfirm = () => {
-    confirmState.action();
-    dismissConfirm();
-    onClose();
-  };
+  const { deleteProject, restoreProject, permanentlyDeleteProject, markCompleted, unmarkCompleted } =
+    useProjectStore();
+  const { dialogProps, ask } = useConfirmDialog();
 
   if (!project) return null;
 
@@ -239,44 +39,63 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
     router.push(`/project/${project.id}`);
   };
 
-  const handleToggleComplete = () => {
+  const handleToggleComplete = async () => {
     if (isCompleted) {
-      onClose();
-      unmarkCompleted(project.id);
+      const ok = await ask({
+        title: 'Reactivate Project',
+        message: `Move "${project.name}" back to Active Deployments?`,
+        confirmLabel: 'Reactivate',
+        destructive: false,
+        icon: 'rotate-ccw',
+      });
+      if (ok) { onClose(); unmarkCompleted(project.id); }
     } else {
-      onClose();
-      markCompleted(project.id);
+      const ok = await ask({
+        title: 'Mark as Completed',
+        message: `Move "${project.name}" to your Completed (Shipped) tab?`,
+        confirmLabel: 'Mark Completed',
+        destructive: false,
+        icon: 'check-circle',
+      });
+      if (ok) { onClose(); markCompleted(project.id); }
     }
   };
 
-  const handleDeleteOrRestore = () => {
+  const handleDeleteOrRestore = async () => {
     if (isDeleted) {
-      onClose();
-      restoreProject(project.id);
+      const ok = await ask({
+        title: 'Restore Project',
+        message: `Restore "${project.name}" back to Active Deployments?`,
+        confirmLabel: 'Restore',
+        destructive: false,
+        icon: 'rotate-ccw',
+      });
+      if (ok) { onClose(); restoreProject(project.id); }
     } else {
-      showConfirm(
-        'Move to Trash',
-        `Are you sure you want to delete "${project.name}"?\nIt will be moved to the Trash.`,
-        'Move to Trash',
-        true,
-        () => deleteProject(project.id)
-      );
+      const ok = await ask({
+        title: 'Move to Trash',
+        message: `Are you sure you want to delete "${project.name}"?\nIt will be moved to the Trash.`,
+        confirmLabel: 'Move to Trash',
+        destructive: true,
+        icon: 'trash-2',
+      });
+      if (ok) { onClose(); deleteProject(project.id); }
     }
   };
 
-  const handlePermanentDelete = () => {
-    showConfirm(
-      'Delete Forever',
-      `This will permanently erase "${project.name}" from your workspace. This action cannot be undone.`,
-      'Delete Forever',
-      true,
-      () => permanentlyDeleteProject(project.id)
-    );
+  const handlePermanentDelete = async () => {
+    const ok = await ask({
+      title: 'Delete Forever',
+      message: `This will permanently erase "${project.name}" from your workspace.\nThis action cannot be undone.`,
+      confirmLabel: 'Delete Forever',
+      destructive: true,
+      icon: 'x-circle',
+    });
+    if (ok) { onClose(); permanentlyDeleteProject(project.id); }
   };
 
   const handleCopyRepo = () => {
     onClose();
-    // Clipboard API - works on both native and web
     if (project.repoUrl) {
       try {
         if (typeof navigator !== 'undefined' && navigator.clipboard) {
@@ -288,36 +107,17 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
 
   return (
     <>
-      {/* Custom confirm dialog — sits above the action sheet */}
-      <ConfirmDialog
-        visible={confirmState.visible}
-        title={confirmState.title}
-        message={confirmState.message}
-        confirmLabel={confirmState.confirmLabel}
-        confirmDestructive={confirmState.destructive}
-        onCancel={dismissConfirm}
-        onConfirm={executeConfirm}
-      />
+      <ConfirmDialog {...dialogProps} />
 
-      <Modal
-        transparent
-        animationType="fade"
-        visible={visible}
-        onRequestClose={onClose}
-      >
-        {/* Overlay — tap outside sheet to close */}
+      <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
         <Pressable style={styles.overlay} onPress={onClose}>
-          {/* Sheet — stop press from bubbling to overlay */}
           <Pressable style={styles.sheet} onPress={() => {}}>
-            {/* Handle */}
             <View style={styles.handle} />
 
             {/* Header */}
             <View style={styles.header}>
               <View style={styles.titleRow}>
-                <Text style={styles.projectName} numberOfLines={1}>
-                  {project.name}
-                </Text>
+                <Text style={styles.projectName} numberOfLines={1}>{project.name}</Text>
                 <Text style={styles.versionTag}>{project.version}</Text>
               </View>
               <Text style={styles.projectDesc} numberOfLines={1}>
@@ -327,9 +127,8 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
 
             <View style={styles.divider} />
 
-            {/* Options */}
             <View style={styles.optionsList}>
-              {/* 1. View Details */}
+              {/* View Details */}
               <Pressable
                 style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
                 onPress={handleViewDetails}
@@ -344,7 +143,7 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
                 <Feather name="chevron-right" size={16} color={`${Colors.onSurfaceVariant}4D`} />
               </Pressable>
 
-              {/* 2. Toggle Complete / Reactivate */}
+              {/* Mark Complete / Reactivate */}
               {!isDeleted && (
                 <Pressable
                   style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
@@ -353,11 +152,7 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
                   <View
                     style={[
                       styles.iconWrap,
-                      {
-                        backgroundColor: isCompleted
-                          ? `${Colors.secondaryContainer}33`
-                          : `${Colors.primaryFixed}1A`,
-                      },
+                      { backgroundColor: isCompleted ? `${Colors.secondaryContainer}33` : `${Colors.primaryFixed}1A` },
                     ]}
                   >
                     <Feather
@@ -371,15 +166,13 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
                       {isCompleted ? 'Reactivate Project' : 'Mark as Completed'}
                     </Text>
                     <Text style={styles.optionSub}>
-                      {isCompleted
-                        ? 'Move back to Active Deployments'
-                        : 'Move project to shipped tab'}
+                      {isCompleted ? 'Move back to Active Deployments' : 'Move project to shipped tab'}
                     </Text>
                   </View>
                 </Pressable>
               )}
 
-              {/* 3. Copy Repo URL */}
+              {/* Copy Repo URL */}
               <Pressable
                 style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
                 onPress={handleCopyRepo}
@@ -393,7 +186,7 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
                 </View>
               </Pressable>
 
-              {/* 4. Delete / Restore */}
+              {/* Delete / Restore */}
               <Pressable
                 style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
                 onPress={handleDeleteOrRestore}
@@ -401,11 +194,7 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
                 <View
                   style={[
                     styles.iconWrap,
-                    {
-                      backgroundColor: isDeleted
-                        ? `${Colors.primaryFixed}1A`
-                        : `${Colors.error}1A`,
-                    },
+                    { backgroundColor: isDeleted ? `${Colors.primaryFixed}1A` : `${Colors.error}1A` },
                   ]}
                 >
                   <Feather
@@ -415,23 +204,16 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
                   />
                 </View>
                 <View style={styles.optionContent}>
-                  <Text
-                    style={[
-                      styles.optionTitle,
-                      !isDeleted && { color: Colors.error },
-                    ]}
-                  >
+                  <Text style={[styles.optionTitle, !isDeleted && { color: Colors.error }]}>
                     {isDeleted ? 'Restore Project' : 'Move to Trash'}
                   </Text>
                   <Text style={styles.optionSub}>
-                    {isDeleted
-                      ? 'Restore back to active deployments'
-                      : 'Soft delete and send to Trash tab'}
+                    {isDeleted ? 'Restore back to active deployments' : 'Soft delete and send to Trash tab'}
                   </Text>
                 </View>
               </Pressable>
 
-              {/* 5. Permanent Delete */}
+              {/* Permanently Delete (trash tab only) */}
               {isDeleted && (
                 <Pressable
                   style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
@@ -441,16 +223,14 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
                     <Feather name="x-circle" size={18} color={Colors.error} />
                   </View>
                   <View style={styles.optionContent}>
-                    <Text style={[styles.optionTitle, { color: Colors.error }]}>
-                      Delete Permanently
-                    </Text>
+                    <Text style={[styles.optionTitle, { color: Colors.error }]}>Delete Permanently</Text>
                     <Text style={styles.optionSub}>Erase forever from database</Text>
                   </View>
                 </Pressable>
               )}
             </View>
 
-            {/* Cancel Button */}
+            {/* Cancel */}
             <Pressable style={styles.cancelBtn} onPress={onClose}>
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </Pressable>
@@ -485,9 +265,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 16,
   },
-  header: {
-    marginBottom: 12,
-  },
+  header: { marginBottom: 12 },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -495,37 +273,21 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 4,
   },
-  projectName: {
-    fontFamily: 'Inter_700Bold',
-    fontSize: 20,
-    color: '#FFFFFF',
-    flex: 1,
-  },
+  projectName: { fontFamily: 'Inter_700Bold', fontSize: 20, color: '#FFFFFF', flex: 1 },
   versionTag: {
     fontFamily: 'JetBrainsMono_500Medium',
     fontSize: 12,
     color: Colors.primaryFixed,
-    backgroundColor: 'rgba(0, 230, 118, 0.1)',
+    backgroundColor: 'rgba(0,230,118,0.1)',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: 'rgba(0, 230, 118, 0.2)',
+    borderColor: 'rgba(0,230,118,0.2)',
   },
-  projectDesc: {
-    fontFamily: 'Inter_400Regular',
-    fontSize: 13,
-    color: '#8B949E',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#1F293D',
-    marginVertical: 12,
-  },
-  optionsList: {
-    gap: 8,
-    marginBottom: 16,
-  },
+  projectDesc: { fontFamily: 'Inter_400Regular', fontSize: 13, color: '#8B949E' },
+  divider: { height: 1, backgroundColor: '#1F293D', marginVertical: 12 },
+  optionsList: { gap: 8, marginBottom: 16 },
   option: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -535,9 +297,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#263044',
   },
-  optionPressed: {
-    backgroundColor: '#1F293D',
-  },
+  optionPressed: { backgroundColor: '#1F293D' },
   iconWrap: {
     width: 38,
     height: 38,
@@ -546,20 +306,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
   },
-  optionContent: {
-    flex: 1,
-  },
-  optionTitle: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 15,
-    color: '#FFFFFF',
-  },
-  optionSub: {
-    fontFamily: 'Inter_400Regular',
-    fontSize: 12,
-    color: '#8B949E',
-    marginTop: 2,
-  },
+  optionContent: { flex: 1 },
+  optionTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 15, color: '#FFFFFF' },
+  optionSub: { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#8B949E', marginTop: 2 },
   cancelBtn: {
     backgroundColor: '#171D2B',
     borderRadius: 12,
@@ -569,9 +318,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#263044',
   },
-  cancelBtnText: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 15,
-    color: '#8B949E',
-  },
+  cancelBtnText: { fontFamily: 'Inter_600SemiBold', fontSize: 15, color: '#8B949E' },
 });

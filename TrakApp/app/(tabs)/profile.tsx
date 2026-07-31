@@ -24,6 +24,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { safeStorage } from '../../lib/storage';
+import { ConfirmDialog, useConfirmDialog } from '../../components/ConfirmDialog';
 
 // ─── Platform icons ────────────────────────────────────────────────────────────
 const PLATFORM_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
@@ -513,35 +514,27 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { profile, updateProfile, addSkill, removeSkill, addLink, updateLink, removeLink } = useProfileStore();
   const { projects } = useProjectStore();
+  const { dialogProps, ask } = useConfirmDialog();
 
-  const handleLogOut = () => {
-    const performLogOut = async () => {
-      try {
-        await supabase.auth.signOut();
-      } catch (err) {
-        console.error('Logout error:', err);
-      }
-      await safeStorage.removeItem('trak_local_profile');
-      await safeStorage.removeItem('trak_local_projects');
-      useProfileStore.getState().clearProfile();
-      useProjectStore.getState().clearProjects();
-      router.replace('/auth');
-    };
-
-    if (Platform.OS === 'web') {
-      if (typeof window !== 'undefined' && window.confirm('Are you sure you want to log out of Trak?')) {
-        performLogOut();
-      }
-    } else {
-      Alert.alert(
-        'Log Out',
-        'Are you sure you want to log out of Trak?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Log Out', style: 'destructive', onPress: performLogOut },
-        ]
-      );
+  const handleLogOut = async () => {
+    const confirmed = await ask({
+      title: 'Log Out',
+      message: 'Are you sure you want to log out of Trak?',
+      confirmLabel: 'Log Out',
+      destructive: true,
+      icon: 'log-out',
+    });
+    if (!confirmed) return;
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error('Logout error:', err);
     }
+    await safeStorage.removeItem('trak_local_profile');
+    await safeStorage.removeItem('trak_local_projects');
+    useProfileStore.getState().clearProfile();
+    useProjectStore.getState().clearProjects();
+    router.replace('/auth');
   };
 
   const totalProjects = projects.length;
@@ -633,6 +626,9 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.root}>
+      {/* Themed Confirm Dialog */}
+      <ConfirmDialog {...dialogProps} />
+
       {/* Edit Modal */}
       <EditModal
         visible={editModal.visible}

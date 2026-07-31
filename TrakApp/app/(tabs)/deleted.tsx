@@ -7,7 +7,6 @@ import {
   Pressable,
   Animated,
   Platform,
-  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
@@ -16,7 +15,7 @@ import { useRouter } from 'expo-router';
 import { Colors } from '../../constants/colors';
 import { useProjectStore, Project } from '../../store/useProjectStore';
 import { TechPill } from '../../components/TechPill';
-
+import { ConfirmDialog, useConfirmDialog } from '../../components/ConfirmDialog';
 import { ProjectActionModal } from '../../components/ProjectActionModal';
 
 // ─── Deleted Project Card ──────────────────────────────────────────────────────
@@ -113,38 +112,34 @@ export default function DeletedScreen() {
   const insets = useSafeAreaInsets();
   const { projects, restoreProject, permanentlyDeleteProject } = useProjectStore();
   const deletedProjects = projects.filter((p) => p.isDeleted);
+  const { dialogProps, ask } = useConfirmDialog();
 
-  const handleRestore = (project: Project) => {
-    Alert.alert(
-      'Restore Project',
-      `Restore "${project.name}" back to active projects?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Restore',
-          onPress: () => restoreProject(project.id),
-        },
-      ]
-    );
+  const handleRestore = async (project: Project) => {
+    const ok = await ask({
+      title: 'Restore Project',
+      message: `Restore "${project.name}" back to Active Deployments?`,
+      confirmLabel: 'Restore',
+      destructive: false,
+      icon: 'rotate-ccw',
+    });
+    if (ok) restoreProject(project.id);
   };
 
-  const handlePermanentDelete = (project: Project) => {
-    Alert.alert(
-      'Delete Permanently',
-      `Are you sure you want to permanently delete "${project.name}"? This action cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete Forever',
-          style: 'destructive',
-          onPress: () => permanentlyDeleteProject(project.id),
-        },
-      ]
-    );
+  const handlePermanentDelete = async (project: Project) => {
+    const ok = await ask({
+      title: 'Delete Forever',
+      message: `Permanently erase "${project.name}" from your workspace?\nThis action cannot be undone.`,
+      confirmLabel: 'Delete Forever',
+      destructive: true,
+      icon: 'x-circle',
+    });
+    if (ok) permanentlyDeleteProject(project.id);
   };
 
   return (
     <View style={styles.root}>
+      <ConfirmDialog {...dialogProps} />
+
       {/* App Bar */}
       <BlurView
         intensity={60}
