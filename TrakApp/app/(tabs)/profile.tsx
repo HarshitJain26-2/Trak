@@ -25,7 +25,7 @@ import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { safeStorage } from '../../lib/storage';
 import { ConfirmDialog, useConfirmDialog } from '../../components/ConfirmDialog';
-import { ActionSheet, useActionSheet } from '../../components/ActionSheet';
+import { ActionSheet, useActionSheet, ActionOption } from '../../components/ActionSheet';
 
 // ─── Platform icons ────────────────────────────────────────────────────────────
 const PLATFORM_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
@@ -604,7 +604,7 @@ export default function ProfileScreen() {
 
   // Show action sheet when avatar is tapped
   const handleAvatarPress = () => {
-    const options = [
+    const options: ActionOption[] = [
       {
         label: 'Photo Library',
         icon: 'image' as const,
