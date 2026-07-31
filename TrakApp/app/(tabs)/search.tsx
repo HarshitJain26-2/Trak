@@ -35,21 +35,32 @@ const STATUS_ACCENT: Record<string, string> = {
   idle: Colors.secondaryContainer,
 };
 
+import { ProjectActionModal } from '../../components/ProjectActionModal';
+
 function SearchResultCard({ project }: { project: Project }) {
   const router = useRouter();
+  const [modalVisible, setModalVisible] = useState(false);
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const accentColor = STATUS_ACCENT[project.status] ?? Colors.primaryFixed;
 
   return (
-    <Pressable
-      onPressIn={() =>
-        Animated.spring(scaleAnim, { toValue: 0.97, useNativeDriver: true, speed: 30 }).start()
-      }
-      onPressOut={() =>
-        Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 30 }).start()
-      }
-      onPress={() => router.push(`/project/${project.id}`)}
-    >
+    <>
+      <ProjectActionModal
+        visible={modalVisible}
+        project={project}
+        onClose={() => setModalVisible(false)}
+      />
+      <Pressable
+        onPressIn={() =>
+          Animated.spring(scaleAnim, { toValue: 0.97, useNativeDriver: true, speed: 30 }).start()
+        }
+        onPressOut={() =>
+          Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 30 }).start()
+        }
+        onPress={() => router.push(`/project/${project.id}`)}
+        onLongPress={() => setModalVisible(true)}
+        delayLongPress={350}
+      >
       <Animated.View style={[styles.resultCard, { transform: [{ scale: scaleAnim }] }]}>
         <View style={styles.resultLeft}>
           {/* Status accent bar */}
@@ -85,6 +96,7 @@ function SearchResultCard({ project }: { project: Project }) {
         <Feather name="chevron-right" size={20} color={`${Colors.onSurfaceVariant}4D`} />
       </Animated.View>
     </Pressable>
+    </>
   );
 }
 

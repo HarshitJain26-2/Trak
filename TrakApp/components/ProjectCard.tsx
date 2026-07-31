@@ -9,6 +9,7 @@ import type { Project } from '../store/useProjectStore';
 
 interface ProjectCardProps {
   project: Project;
+  onLongPress?: () => void;
 }
 
 const PRIORITY_ACCENT_COLORS: Record<string, string> = {
@@ -24,8 +25,9 @@ const STATUS_ACCENT_COLORS: Record<string, string> = {
   idle: Colors.secondaryContainer,
 };
 
-export const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
+export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }) => {
   const router = useRouter();
+  const [modalVisible, setModalVisible] = useState(false);
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
   const accentColor = PRIORITY_ACCENT_COLORS[project.priority] ?? STATUS_ACCENT_COLORS[project.status] ?? Colors.primaryFixed;
   
@@ -47,8 +49,28 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
     router.push(`/project/${project.id}`);
   };
 
+  const handleLongPress = () => {
+    if (onLongPress) {
+      onLongPress();
+    } else {
+      setModalVisible(true);
+    }
+  };
+
   return (
-    <Pressable onPressIn={handlePressIn} onPressOut={handlePressOut} onPress={handlePress}>
+    <>
+      <ProjectActionModal
+        visible={modalVisible}
+        project={project}
+        onClose={() => setModalVisible(false)}
+      />
+      <Pressable
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        onPress={handlePress}
+        onLongPress={handleLongPress}
+        delayLongPress={350}
+      >
       <Animated.View style={[styles.card, { transform: [{ scale: scaleAnim }] }]}>
         {/* Progress accent bar */}
         <View style={[styles.accentBar, { width: progressWidth, backgroundColor: accentColor }]} />
@@ -87,6 +109,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
         </View>
       </Animated.View>
     </Pressable>
+    </>
   );
 };
 

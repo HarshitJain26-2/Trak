@@ -17,6 +17,8 @@ import { Colors } from '../../constants/colors';
 import { useProjectStore, Project } from '../../store/useProjectStore';
 import { TechPill } from '../../components/TechPill';
 
+import { ProjectActionModal } from '../../components/ProjectActionModal';
+
 // ─── Deleted Project Card ──────────────────────────────────────────────────────
 function DeletedCard({
   project,
@@ -27,6 +29,7 @@ function DeletedCard({
   onRestore: () => void;
   onPermanentDelete: () => void;
 }) {
+  const [modalVisible, setModalVisible] = React.useState(false);
   const scale = useRef(new Animated.Value(1)).current;
 
   const onPressIn = () =>
@@ -35,7 +38,18 @@ function DeletedCard({
     Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 30 }).start();
 
   return (
-    <Pressable onPressIn={onPressIn} onPressOut={onPressOut}>
+    <>
+      <ProjectActionModal
+        visible={modalVisible}
+        project={project}
+        onClose={() => setModalVisible(false)}
+      />
+      <Pressable
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        onLongPress={() => setModalVisible(true)}
+        delayLongPress={350}
+      >
       <Animated.View style={[styles.card, { transform: [{ scale }] }]}>
         <View style={styles.cardContent}>
           {/* Header */}
@@ -75,6 +89,7 @@ function DeletedCard({
         </View>
       </Animated.View>
     </Pressable>
+    </>
   );
 }
 

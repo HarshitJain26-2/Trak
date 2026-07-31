@@ -17,6 +17,8 @@ import { Colors } from '../../constants/colors';
 import { useProjectStore, Project } from '../../store/useProjectStore';
 import { TechPill } from '../../components/TechPill';
 
+import { ProjectActionModal } from '../../components/ProjectActionModal';
+
 // ─── Completed Project Card ────────────────────────────────────────────────────
 function CompletedCard({
   project,
@@ -26,6 +28,7 @@ function CompletedCard({
   onReactivate: () => void;
 }) {
   const router = useRouter();
+  const [modalVisible, setModalVisible] = React.useState(false);
   const scale = useRef(new Animated.Value(1)).current;
 
   const onPressIn = () =>
@@ -37,11 +40,19 @@ function CompletedCard({
   const totalCount = project.milestones.length;
 
   return (
-    <Pressable
-      onPressIn={onPressIn}
-      onPressOut={onPressOut}
-      onPress={() => router.push(`/project/${project.id}`)}
-    >
+    <>
+      <ProjectActionModal
+        visible={modalVisible}
+        project={project}
+        onClose={() => setModalVisible(false)}
+      />
+      <Pressable
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        onPress={() => router.push(`/project/${project.id}`)}
+        onLongPress={() => setModalVisible(true)}
+        delayLongPress={350}
+      >
       <Animated.View style={[styles.card, { transform: [{ scale }] }]}>
         {/* Completed accent bar — always 100% width in green */}
         <View style={styles.accentBar} />
@@ -89,6 +100,7 @@ function CompletedCard({
         </View>
       </Animated.View>
     </Pressable>
+    </>
   );
 }
 
