@@ -6,6 +6,7 @@ import { Colors } from '../constants/colors';
 import { StatusDot } from './StatusDot';
 import { TechPill } from './TechPill';
 import type { Project } from '../store/useProjectStore';
+import { ProjectActionModal } from './ProjectActionModal';
 
 interface ProjectCardProps {
   project: Project;
