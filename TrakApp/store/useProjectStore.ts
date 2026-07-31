@@ -150,11 +150,12 @@ export const MOCK_PROJECTS: Project[] = [
   },
 ];
 
-const STORAGE_KEY = 'trak_local_projects';
+const getProjectStorageKey = (userId: string) => `trak_local_projects_${userId}`;
 
-const saveToLocalStorage = async (projects: Project[]) => {
+const saveToLocalStorage = async (userId: string, projects: Project[]) => {
   try {
-    await safeStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+    if (!userId) return;
+    await safeStorage.setItem(getProjectStorageKey(userId), JSON.stringify(projects));
   } catch (err) {
     // Silently handle fallback
   }
@@ -178,9 +179,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     try {
       let query = supabase.from('projects').select('*');
       const { data: { user } } = await supabase.auth.getUser();
-      if (user?.id) {
-        query = query.eq('user_id', user.id);
+      const userId = user?.id;
+      if (!userId) {
+        set({ projects: [], isLoading: false });
+        return;
       }
+      
+      query = query.eq('user_id', userId);
+      const storageKey = getProjectStorageKey(userId);
 
       const { data: dbProjects, error: pError } = await query;
 
@@ -219,13 +225,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           };
         });
 
-        await saveToLocalStorage(formattedProjects);
+        await saveToLocalStorage(userId, formattedProjects);
         set({ projects: formattedProjects, isLoading: false });
         return;
       }
 
       // Supabase returned empty or error; attempt loading from local storage
-      const localData = await safeStorage.getItem(STORAGE_KEY);
+      const localData = await safeStorage.getItem(storageKey);
       if (localData) {
         const parsed = JSON.parse(localData);
         if (Array.isArray(parsed)) {
@@ -237,7 +243,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       set({ projects: [], isLoading: false });
     } catch (err) {
       try {
-        const localData = await safeStorage.getItem(STORAGE_KEY);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user?.id) throw new Error('No user');
+        const localData = await safeStorage.getItem(getProjectStorageKey(user.id));
         if (localData) {
           const parsed = JSON.parse(localData);
           if (Array.isArray(parsed)) {
@@ -266,7 +274,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     };
 
     set((state) => ({ projects: [newProject, ...state.projects] }));
-    await saveToLocalStorage(get().projects);
+    const _uid = (await supabase.auth.getUser()).data.user?.id; if (_uid) await saveToLocalStorage(_uid, get().projects);
 
     try {
       const insertData: any = {
@@ -299,7 +307,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         p.id === projectId ? { ...p, isDeleted: true } : p
       ),
     }));
-    await saveToLocalStorage(get().projects);
+    const _uid = (await supabase.auth.getUser()).data.user?.id; if (_uid) await saveToLocalStorage(_uid, get().projects);
 
     try {
       await supabase
@@ -317,7 +325,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         p.id === projectId ? { ...p, isDeleted: false } : p
       ),
     }));
-    await saveToLocalStorage(get().projects);
+    const _uid = (await supabase.auth.getUser()).data.user?.id; if (_uid) await saveToLocalStorage(_uid, get().projects);
 
     try {
       await supabase
@@ -333,7 +341,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     set((state) => ({
       projects: state.projects.filter((p) => p.id !== projectId),
     }));
-    await saveToLocalStorage(get().projects);
+    const _uid = (await supabase.auth.getUser()).data.user?.id; if (_uid) await saveToLocalStorage(_uid, get().projects);
 
     try {
       await supabase.from('projects').delete().eq('id', projectId);

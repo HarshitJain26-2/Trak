@@ -51,11 +51,12 @@ const DEFAULT_PROFILE: Profile = {
   joinedDate: '',
 };
 
-const PROFILE_STORAGE_KEY = 'trak_local_profile';
+const getProfileStorageKey = (userId: string) => `trak_local_profile_${userId}`;
 
-const saveProfileToLocalStorage = async (profile: Profile) => {
+const saveProfileToLocalStorage = async (userId: string, profile: Profile) => {
   try {
-    await safeStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
+    if (!userId) return;
+    await safeStorage.setItem(getProfileStorageKey(userId), JSON.stringify(profile));
   } catch (err) {
     // Silently handle fallback
   }
@@ -82,8 +83,16 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
   fetchProfile: async () => {
     set({ isLoading: true });
     try {
+      const userId = await getAuthUserId();
+      if (!userId) {
+        set({ profile: DEFAULT_PROFILE, isLoading: false });
+        return;
+      }
+
+      const storageKey = getProfileStorageKey(userId);
+
       // First attempt loading from local storage
-      const localData = await safeStorage.getItem(PROFILE_STORAGE_KEY);
+      const localData = await safeStorage.getItem(storageKey);
       if (localData) {
         const parsed = JSON.parse(localData);
         if (parsed && typeof parsed === 'object') {
@@ -91,34 +100,31 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
         }
       }
 
-      const userId = await getAuthUserId();
-      const profileId = userId || 'default_profile';
-
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', profileId)
-        .maybeSingle();
+        .eq('id', userId)
+        .single();
 
       if (!error && data) {
-        const remoteProfile: Profile = {
-          name: data.name || DEFAULT_PROFILE.name,
-          username: data.username || DEFAULT_PROFILE.username,
-          bio: data.bio || DEFAULT_PROFILE.bio,
-          role: data.role || DEFAULT_PROFILE.role,
-          location: data.location || DEFAULT_PROFILE.location,
+        const updatedProfile: Profile = {
+          name: data.name || '',
+          username: data.username || '',
+          bio: data.bio || '',
+          role: data.role || '',
+          location: data.location || '',
           avatarUrl: data.avatar_url || '',
-          githubUrl: data.github_url || DEFAULT_PROFILE.githubUrl,
+          githubUrl: data.github_url || '',
           company: data.company || '',
-          skills: data.skills || DEFAULT_PROFILE.skills,
-          socialLinks: (data.social_links as SocialLink[]) || DEFAULT_PROFILE.socialLinks,
-          joinedDate: data.joined_date || DEFAULT_PROFILE.joinedDate,
+          skills: data.skills || [],
+          socialLinks: (data.social_links as SocialLink[]) || [],
+          joinedDate: data.created_at || new Date().toISOString(),
         };
-        await saveProfileToLocalStorage(remoteProfile);
-        set({ profile: remoteProfile, isLoading: false });
-        return;
+        set({ profile: updatedProfile, isLoading: false });
+        await saveProfileToLocalStorage(userId, updatedProfile);
+      } else {
+        set({ isLoading: false });
       }
-      set({ isLoading: false });
     } catch (err) {
       console.error('Error fetching profile:', err);
       set({ isLoading: false });
@@ -167,16 +173,17 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
         }
       }
 
-      // Update state and save to local storage immediately
+      // Optimistic update
       set({ profile: newProfile });
-      await saveProfileToLocalStorage(newProfile);
 
       const userId = await getAuthUserId();
-      const profileId = userId || 'default_profile';
+      if (!userId) return { success: false, error: 'User not authenticated' };
+      
+      await saveProfileToLocalStorage(userId, newProfile);
 
       try {
         await supabase.from('profiles').upsert({
-          id: profileId,
+          id: userId,
           name: newProfile.name,
           username: newProfile.username || null,
           bio: newProfile.bio,
@@ -216,6 +223,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     try {
       const userId = await getAuthUserId();
       if (!userId) return;
+      await saveProfileToLocalStorage(userId, get().profile);
 
       const updatedSkills = get().profile.skills;
       await supabase
@@ -238,6 +246,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     try {
       const userId = await getAuthUserId();
       if (!userId) return;
+      await saveProfileToLocalStorage(userId, get().profile);
 
       const updatedSkills = get().profile.skills;
       await supabase
@@ -262,6 +271,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     try {
       const userId = await getAuthUserId();
       if (!userId) return;
+      await saveProfileToLocalStorage(userId, get().profile);
 
       const updatedLinks = get().profile.socialLinks;
       await supabase
@@ -286,6 +296,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     try {
       const userId = await getAuthUserId();
       if (!userId) return;
+      await saveProfileToLocalStorage(userId, get().profile);
 
       const updatedLinks = get().profile.socialLinks;
       await supabase
@@ -308,6 +319,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     try {
       const userId = await getAuthUserId();
       if (!userId) return;
+      await saveProfileToLocalStorage(userId, get().profile);
 
       const updatedLinks = get().profile.socialLinks;
       await supabase
