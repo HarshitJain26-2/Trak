@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,8 @@ import { useProjectStore, Milestone } from '../../../store/useProjectStore';
 import { TechPill } from '../../../components/TechPill';
 import { StatusDot } from '../../../components/StatusDot';
 import { ConfirmDialog, useConfirmDialog } from '../../../components/ConfirmDialog';
+import { MemberAvatar } from '../../../components/MemberAvatar';
+import { InviteCodeModal } from '../../../components/InviteCodeModal';
 
 // ─── Milestone Action Modal ────────────────────────────────────────────────────
 interface MilestoneActionModalProps {
@@ -167,8 +169,17 @@ function TextInputModal({
 export default function ProjectDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { getProject, toggleMilestone, addMilestone, renameMilestone, deleteMilestone, markCompleted, deleteProject } =
-    useProjectStore();
+  const {
+    getProject,
+    toggleMilestone,
+    addMilestone,
+    renameMilestone,
+    deleteMilestone,
+    markCompleted,
+    deleteProject,
+    generateInviteCode,
+    leaveProject,
+  } = useProjectStore();
   const project = getProject(id);
   const insets = useSafeAreaInsets();
   const { dialogProps, ask } = useConfirmDialog();
@@ -182,6 +193,10 @@ export default function ProjectDetailsScreen() {
   const [showActionSheet, setShowActionSheet] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
+
+  // Collaboration state
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [isGeneratingCode, setIsGeneratingCode] = useState(false);
 
   const toggleNotes = () => {
     const toExpand = !notesExpanded;
@@ -221,6 +236,28 @@ export default function ProjectDetailsScreen() {
     if (ok && project) deleteMilestone(project.id, milestone.id);
   };
 
+  const handleGenerateInviteCode = async () => {
+    if (!project) return;
+    setIsGeneratingCode(true);
+    await generateInviteCode(project.id);
+    setIsGeneratingCode(false);
+  };
+
+  const handleLeaveProject = async () => {
+    if (!project) return;
+    const ok = await ask({
+      title: 'Leave Project',
+      message: `You will no longer have access to "${project.name}". You can rejoin later with an invite code.`,
+      confirmLabel: 'Leave',
+      destructive: true,
+      icon: 'log-out',
+    });
+    if (ok) {
+      leaveProject(project.id);
+      router.back();
+    }
+  };
+
   if (!project) {
     return (
       <View style={styles.root}>
@@ -258,6 +295,10 @@ export default function ProjectDetailsScreen() {
     outputRange: [0, 500],
   });
 
+  // Determine if this is a shared project (user is member, not owner)
+  const isSharedProject = project.isShared === true;
+  const allMembers = project.members || [];
+
   return (
     <View style={styles.root}>
       <ConfirmDialog {...dialogProps} />
@@ -293,6 +334,14 @@ export default function ProjectDetailsScreen() {
         }}
       />
 
+      <InviteCodeModal
+        visible={showInviteModal}
+        inviteCode={project.inviteCode || null}
+        isGenerating={isGeneratingCode}
+        onClose={() => setShowInviteModal(false)}
+        onGenerate={handleGenerateInviteCode}
+      />
+
       {/* App Bar */}
       <BlurView
         intensity={60}
@@ -310,23 +359,45 @@ export default function ProjectDetailsScreen() {
             <Text style={styles.appBarTitle}>Trak</Text>
           </View>
           <View style={styles.appBarRight}>
-            {/* Delete button */}
-            <Pressable
-              hitSlop={8}
-              style={styles.deleteBtn}
-              onPress={async () => {
-                const ok = await ask({
-                  title: 'Move to Trash',
-                  message: `Move "${project.name}" to the Trash?`,
-                  confirmLabel: 'Move to Trash',
-                  destructive: true,
-                  icon: 'trash-2',
-                });
-                if (ok) { deleteProject(project.id); router.back(); }
-              }}
-            >
-              <Feather name="trash-2" size={18} color={`${Colors.error}CC`} />
-            </Pressable>
+            {/* Invite button (owner only) */}
+            {!isSharedProject && (
+              <Pressable
+                hitSlop={8}
+                style={styles.inviteBtn}
+                onPress={() => setShowInviteModal(true)}
+              >
+                <Feather name="user-plus" size={16} color={Colors.primaryFixed} />
+              </Pressable>
+            )}
+            {/* Leave button (member only) */}
+            {isSharedProject && (
+              <Pressable
+                hitSlop={8}
+                style={styles.leaveBtn}
+                onPress={handleLeaveProject}
+              >
+                <Feather name="log-out" size={16} color={Colors.statusWarning} />
+              </Pressable>
+            )}
+            {/* Delete button (owner only) */}
+            {!isSharedProject && (
+              <Pressable
+                hitSlop={8}
+                style={styles.deleteBtn}
+                onPress={async () => {
+                  const ok = await ask({
+                    title: 'Move to Trash',
+                    message: `Move "${project.name}" to the Trash?`,
+                    confirmLabel: 'Move to Trash',
+                    destructive: true,
+                    icon: 'trash-2',
+                  });
+                  if (ok) { deleteProject(project.id); router.back(); }
+                }}
+              >
+                <Feather name="trash-2" size={18} color={`${Colors.error}CC`} />
+              </Pressable>
+            )}
             {/* Status chip */}
             <View style={styles.statusChip}>
               <StatusDot status={project.status} size={6} />
@@ -357,6 +428,15 @@ export default function ProjectDetailsScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.projectTitle}>{project.name}</Text>
               <Text style={styles.projectDesc}>{project.description}</Text>
+              {/* Shared project badge */}
+              {isSharedProject && project.ownerName && (
+                <View style={styles.sharedBadge}>
+                  <Feather name="users" size={12} color={Colors.secondaryContainer} />
+                  <Text style={styles.sharedBadgeText}>
+                    Shared by {project.ownerName}
+                  </Text>
+                </View>
+              )}
             </View>
             <Text style={styles.progressPct}>{project.progress}%</Text>
           </View>
@@ -388,6 +468,40 @@ export default function ProjectDetailsScreen() {
             </View>
           </View>
         </View>
+
+        {/* ── Team Section ── */}
+        {allMembers.length > 0 && (
+          <View style={styles.glassCard}>
+            <View style={styles.teamHeader}>
+              <Text style={styles.teamTitle}>Team</Text>
+              <View style={styles.teamCount}>
+                <Text style={styles.teamCountText}>{allMembers.length + 1}</Text>
+              </View>
+            </View>
+            <View style={styles.teamAvatars}>
+              {/* Owner avatar (always shown) */}
+              {!isSharedProject && (
+                <View style={styles.memberChip}>
+                  <MemberAvatar name="You" size={28} />
+                  <Text style={styles.memberName}>You (Owner)</Text>
+                </View>
+              )}
+              {isSharedProject && project.ownerName && (
+                <View style={styles.memberChip}>
+                  <MemberAvatar name={project.ownerName} size={28} />
+                  <Text style={styles.memberName}>{project.ownerName} (Owner)</Text>
+                </View>
+              )}
+              {/* Member avatars */}
+              {allMembers.map((member) => (
+                <View key={member.id} style={styles.memberChip}>
+                  <MemberAvatar name={member.name} size={28} />
+                  <Text style={styles.memberName}>{member.name}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
         {/* Repo link */}
         <Pressable style={styles.glassCard} onPress={() => {}}>
@@ -463,11 +577,16 @@ export default function ProjectDetailsScreen() {
                   <Feather name="check" size={12} color={Colors.onPrimaryFixed} />
                 )}
               </View>
-              <Text
-                style={[styles.milestoneText, milestone.completed && styles.milestoneTextDone]}
-              >
-                {milestone.title}
-              </Text>
+              <View style={styles.milestoneContent}>
+                <Text
+                  style={[styles.milestoneText, milestone.completed && styles.milestoneTextDone]}
+                >
+                  {milestone.title}
+                </Text>
+                {milestone.addedBy && (
+                  <Text style={styles.addedByText}>Added by {milestone.addedBy}</Text>
+                )}
+              </View>
               <Pressable
                 style={styles.editHint}
                 onPress={() => handleMilestoneLongPress(milestone)}
@@ -500,11 +619,19 @@ export default function ProjectDetailsScreen() {
                   <Feather name="check" size={12} color={Colors.onPrimaryFixed} />
                 )}
               </View>
-              <Text
-                style={[styles.milestoneText, milestone.completed && styles.milestoneTextDone]}
-              >
-                {milestone.title}
-              </Text>
+              <View style={styles.milestoneContent}>
+                <Text
+                  style={[styles.milestoneText, milestone.completed && styles.milestoneTextDone]}
+                >
+                  {milestone.title}
+                </Text>
+                {milestone.completedBy && (
+                  <View style={styles.doneByBadge}>
+                    <Feather name="check-circle" size={10} color={Colors.primaryFixed} />
+                    <Text style={styles.doneByText}>Done by {milestone.completedBy}</Text>
+                  </View>
+                )}
+              </View>
               <Feather
                 name="check-circle"
                 size={16}
@@ -552,29 +679,39 @@ export default function ProjectDetailsScreen() {
           </Animated.View>
         </View>
 
-        {/* Mark as Complete */}
-        {!project.isCompleted ? (
-          <Pressable
-            style={({ pressed }) => [styles.completeBtn, pressed && styles.completeBtnPressed]}
-            onPress={async () => {
-              const ok = await ask({
-                title: 'Mark as Completed',
-                message: `Move "${project.name}" to Completed Projects?`,
-                confirmLabel: 'Mark Completed',
-                destructive: false,
-                icon: 'check-circle',
-              });
-              if (ok) { markCompleted(project.id); router.back(); }
-            }}
-          >
-            <Feather name="check-circle" size={18} color={Colors.primaryFixed} />
-            <Text style={styles.completeBtnText}>Mark as Completed</Text>
-          </Pressable>
+        {/* Mark as Complete / Leave Project */}
+        {!isSharedProject ? (
+          !project.isCompleted ? (
+            <Pressable
+              style={({ pressed }) => [styles.completeBtn, pressed && styles.completeBtnPressed]}
+              onPress={async () => {
+                const ok = await ask({
+                  title: 'Mark as Completed',
+                  message: `Move "${project.name}" to Completed Projects?`,
+                  confirmLabel: 'Mark Completed',
+                  destructive: false,
+                  icon: 'check-circle',
+                });
+                if (ok) { markCompleted(project.id); router.back(); }
+              }}
+            >
+              <Feather name="check-circle" size={18} color={Colors.primaryFixed} />
+              <Text style={styles.completeBtnText}>Mark as Completed</Text>
+            </Pressable>
+          ) : (
+            <View style={styles.alreadyCompleted}>
+              <Feather name="check-circle" size={16} color={Colors.primaryFixed} />
+              <Text style={styles.alreadyCompletedText}>Project Completed</Text>
+            </View>
+          )
         ) : (
-          <View style={styles.alreadyCompleted}>
-            <Feather name="check-circle" size={16} color={Colors.primaryFixed} />
-            <Text style={styles.alreadyCompletedText}>Project Completed</Text>
-          </View>
+          <Pressable
+            style={({ pressed }) => [styles.leaveProjectBtn, pressed && styles.leaveProjectBtnPressed]}
+            onPress={handleLeaveProject}
+          >
+            <Feather name="log-out" size={18} color={Colors.statusWarning} />
+            <Text style={styles.leaveProjectBtnText}>Leave Project</Text>
+          </Pressable>
         )}
 
         <View style={{ height: 40 }} />
@@ -625,6 +762,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  inviteBtn: {
+    padding: 8,
+    borderRadius: 999,
+    backgroundColor: `${Colors.primaryFixed}1A`,
+    borderWidth: 1,
+    borderColor: `${Colors.primaryFixed}30`,
+  },
+  leaveBtn: {
+    padding: 8,
+    borderRadius: 999,
+    backgroundColor: `${Colors.statusWarning}1A`,
+    borderWidth: 1,
+    borderColor: `${Colors.statusWarning}30`,
   },
   deleteBtn: {
     padding: 8,
@@ -712,6 +863,24 @@ const styles = StyleSheet.create({
     color: Colors.onSurfaceVariant,
     marginTop: 2,
   },
+  sharedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: `${Colors.secondaryContainer}1A`,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: `${Colors.secondaryContainer}30`,
+    alignSelf: 'flex-start',
+  },
+  sharedBadgeText: {
+    fontFamily: 'JetBrainsMono_400Regular',
+    fontSize: 11,
+    color: Colors.secondaryContainer,
+  },
   progressPct: {
     fontFamily: 'JetBrainsMono_400Regular',
     fontSize: 12,
@@ -748,6 +917,52 @@ const styles = StyleSheet.create({
     fontFamily: 'JetBrainsMono_400Regular',
     fontSize: 12,
     color: Colors.onSurface,
+  },
+  // ── Team Section ──
+  teamHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
+  teamTitle: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 16,
+    color: Colors.onSurface,
+  },
+  teamCount: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    backgroundColor: Colors.surfaceContainer,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: `${Colors.outlineVariant}4D`,
+  },
+  teamCountText: {
+    fontFamily: 'JetBrainsMono_500Medium',
+    fontSize: 11,
+    color: Colors.onSurfaceVariant,
+  },
+  teamAvatars: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  memberChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: Colors.surfaceContainerLowest,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: `${Colors.outlineVariant}33`,
+  },
+  memberName: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13,
+    color: Colors.onSurfaceVariant,
   },
   repoRow: {
     flexDirection: 'row',
@@ -869,6 +1084,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: `${Colors.outlineVariant}1A`,
   },
+  milestoneContent: {
+    flex: 1,
+  },
   checkbox: {
     width: 20,
     height: 20,
@@ -887,11 +1105,32 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     fontSize: 16,
     color: Colors.onSurface,
-    flex: 1,
   },
   milestoneTextDone: {
     textDecorationLine: 'line-through',
     opacity: 0.5,
+  },
+  addedByText: {
+    fontFamily: 'JetBrainsMono_400Regular',
+    fontSize: 11,
+    color: `${Colors.onSurfaceVariant}60`,
+    marginTop: 3,
+  },
+  doneByBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    backgroundColor: `${Colors.primaryFixed}10`,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+  },
+  doneByText: {
+    fontFamily: 'JetBrainsMono_400Regular',
+    fontSize: 11,
+    color: `${Colors.primaryFixed}B0`,
   },
   editHint: {
     marginLeft: 'auto',
@@ -983,6 +1222,25 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     fontSize: 14,
     color: `${Colors.primaryFixed}80`,
+  },
+  leaveProjectBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: `${Colors.statusWarning}15`,
+    borderWidth: 1,
+    borderColor: `${Colors.statusWarning}40`,
+  },
+  leaveProjectBtnPressed: {
+    backgroundColor: `${Colors.statusWarning}25`,
+  },
+  leaveProjectBtnText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 15,
+    color: Colors.statusWarning,
   },
 });
 
@@ -1114,4 +1372,3 @@ const inputStyles = StyleSheet.create({
     color: Colors.onPrimaryFixed,
   },
 });
-
