@@ -1,5 +1,5 @@
 -- =============================================================================
--- Trak: Collaborative Feature Tracking — Migration
+-- Trak: Collaborative Feature Tracking — Migration (Fixed RLS Recursion)
 -- Run this in the Supabase SQL Editor
 -- =============================================================================
 
@@ -31,7 +31,30 @@ ALTER TABLE public.milestones
 ALTER TABLE public.project_members ENABLE ROW LEVEL SECURITY;
 
 -- =============================================================================
--- 6. Update RLS policies for PROJECTS — allow members to view/update
+-- 6. RLS for project_members (Defined FIRST without querying projects to avoid recursion)
+-- =============================================================================
+
+DROP POLICY IF EXISTS "Members can view project members" ON public.project_members;
+DROP POLICY IF EXISTS "Users can join projects" ON public.project_members;
+DROP POLICY IF EXISTS "Users can leave or owners can remove" ON public.project_members;
+DROP POLICY IF EXISTS "Authenticated users can view project members" ON public.project_members;
+DROP POLICY IF EXISTS "Users can insert project members" ON public.project_members;
+DROP POLICY IF EXISTS "Users can delete own project membership" ON public.project_members;
+
+-- SELECT: All authenticated users can view project members
+CREATE POLICY "Authenticated users can view project members" ON public.project_members
+  FOR SELECT TO authenticated USING (true);
+
+-- INSERT: User can insert their own membership (or via RPC)
+CREATE POLICY "Users can insert project members" ON public.project_members
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- DELETE: User can remove their own membership
+CREATE POLICY "Users can delete own project membership" ON public.project_members
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- =============================================================================
+-- 7. Update RLS policies for PROJECTS — allow members to view/update
 -- =============================================================================
 
 -- Drop existing project policies
@@ -39,6 +62,8 @@ DROP POLICY IF EXISTS "Users can view own projects"   ON public.projects;
 DROP POLICY IF EXISTS "Users can insert own projects" ON public.projects;
 DROP POLICY IF EXISTS "Users can update own projects" ON public.projects;
 DROP POLICY IF EXISTS "Users can delete own projects" ON public.projects;
+DROP POLICY IF EXISTS "Users can view own or shared projects" ON public.projects;
+DROP POLICY IF EXISTS "Users can update own or shared projects" ON public.projects;
 
 -- SELECT: owner OR member
 CREATE POLICY "Users can view own or shared projects" ON public.projects
@@ -69,40 +94,6 @@ CREATE POLICY "Users can delete own projects" ON public.projects
   FOR DELETE USING (auth.uid() = user_id);
 
 -- =============================================================================
--- 7. RLS for project_members
--- =============================================================================
-
--- SELECT: anyone who is the owner of the project or is a member
-CREATE POLICY "Members can view project members" ON public.project_members
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM public.projects p
-      WHERE p.id = project_id AND p.user_id = auth.uid()
-    )
-    OR user_id = auth.uid()
-  );
-
--- INSERT: owner can add members, or user can add self (for join-by-code)
-CREATE POLICY "Users can join projects" ON public.project_members
-  FOR INSERT WITH CHECK (
-    user_id = auth.uid()
-    OR EXISTS (
-      SELECT 1 FROM public.projects p
-      WHERE p.id = project_id AND p.user_id = auth.uid()
-    )
-  );
-
--- DELETE: owner can remove members, or member can remove self (leave)
-CREATE POLICY "Users can leave or owners can remove" ON public.project_members
-  FOR DELETE USING (
-    user_id = auth.uid()
-    OR EXISTS (
-      SELECT 1 FROM public.projects p
-      WHERE p.id = project_id AND p.user_id = auth.uid()
-    )
-  );
-
--- =============================================================================
 -- 8. Update RLS policies for MILESTONES — allow members to CRUD
 -- =============================================================================
 
@@ -110,6 +101,10 @@ DROP POLICY IF EXISTS "Users can view own milestones"   ON public.milestones;
 DROP POLICY IF EXISTS "Users can insert own milestones" ON public.milestones;
 DROP POLICY IF EXISTS "Users can update own milestones" ON public.milestones;
 DROP POLICY IF EXISTS "Users can delete own milestones" ON public.milestones;
+DROP POLICY IF EXISTS "Users can view project milestones" ON public.milestones;
+DROP POLICY IF EXISTS "Users can insert project milestones" ON public.milestones;
+DROP POLICY IF EXISTS "Users can update project milestones" ON public.milestones;
+DROP POLICY IF EXISTS "Owner can delete project milestones" ON public.milestones;
 
 -- SELECT: owner or member of the parent project
 CREATE POLICY "Users can view project milestones" ON public.milestones
