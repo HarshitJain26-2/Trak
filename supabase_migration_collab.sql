@@ -1,5 +1,5 @@
 -- =============================================================================
--- Trak: Collaborative Feature Tracking — Migration (Fixed RLS Recursion)
+-- Trak: Collaborative Feature Tracking — Migration (No Auth Required)
 -- Run this in the Supabase SQL Editor
 -- =============================================================================
 
@@ -7,7 +7,7 @@
 CREATE TABLE IF NOT EXISTS public.project_members (
   id TEXT PRIMARY KEY,
   project_id TEXT NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL,
   role TEXT NOT NULL DEFAULT 'member',  -- 'owner' | 'member'
   joined_at TIMESTAMPTZ DEFAULT now(),
   UNIQUE(project_id, user_id)
@@ -26,78 +26,33 @@ ALTER TABLE public.milestones
   ADD COLUMN IF NOT EXISTS added_by TEXT;
 
 -- =============================================================================
--- 5. Enable RLS on project_members
+-- 5. Open RLS policies for all tables — Allows full CRUD without auth requirement
 -- =============================================================================
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.milestones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.project_members ENABLE ROW LEVEL SECURITY;
 
--- =============================================================================
--- 6. RLS for project_members (Defined FIRST without querying projects to avoid recursion)
--- =============================================================================
+-- Drop all existing policies
+DROP POLICY IF EXISTS "Allow public access to profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Authenticated users can view profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Public access profiles" ON public.profiles;
 
-DROP POLICY IF EXISTS "Members can view project members" ON public.project_members;
-DROP POLICY IF EXISTS "Users can join projects" ON public.project_members;
-DROP POLICY IF EXISTS "Users can leave or owners can remove" ON public.project_members;
-DROP POLICY IF EXISTS "Authenticated users can view project members" ON public.project_members;
-DROP POLICY IF EXISTS "Users can insert project members" ON public.project_members;
-DROP POLICY IF EXISTS "Users can delete own project membership" ON public.project_members;
-
--- SELECT: All authenticated users can view project members
-CREATE POLICY "Authenticated users can view project members" ON public.project_members
-  FOR SELECT TO authenticated USING (true);
-
--- INSERT: User can insert their own membership (or via RPC)
-CREATE POLICY "Users can insert project members" ON public.project_members
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
-
--- DELETE: User can remove their own membership
-CREATE POLICY "Users can delete own project membership" ON public.project_members
-  FOR DELETE USING (auth.uid() = user_id);
-
--- =============================================================================
--- 7. Update RLS policies for PROJECTS — allow members to view/update
--- =============================================================================
-
--- Drop existing project policies
-DROP POLICY IF EXISTS "Users can view own projects"   ON public.projects;
+DROP POLICY IF EXISTS "Allow public access to projects" ON public.projects;
+DROP POLICY IF EXISTS "Users can view own projects" ON public.projects;
 DROP POLICY IF EXISTS "Users can insert own projects" ON public.projects;
 DROP POLICY IF EXISTS "Users can update own projects" ON public.projects;
 DROP POLICY IF EXISTS "Users can delete own projects" ON public.projects;
 DROP POLICY IF EXISTS "Users can view own or shared projects" ON public.projects;
 DROP POLICY IF EXISTS "Users can update own or shared projects" ON public.projects;
+DROP POLICY IF EXISTS "Public access projects" ON public.projects;
 
--- SELECT: owner OR member
-CREATE POLICY "Users can view own or shared projects" ON public.projects
-  FOR SELECT USING (
-    auth.uid() = user_id
-    OR EXISTS (
-      SELECT 1 FROM public.project_members pm
-      WHERE pm.project_id = id AND pm.user_id = auth.uid()
-    )
-  );
-
--- INSERT: only the owner
-CREATE POLICY "Users can insert own projects" ON public.projects
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
-
--- UPDATE: owner OR member
-CREATE POLICY "Users can update own or shared projects" ON public.projects
-  FOR UPDATE USING (
-    auth.uid() = user_id
-    OR EXISTS (
-      SELECT 1 FROM public.project_members pm
-      WHERE pm.project_id = id AND pm.user_id = auth.uid()
-    )
-  );
-
--- DELETE: owner only
-CREATE POLICY "Users can delete own projects" ON public.projects
-  FOR DELETE USING (auth.uid() = user_id);
-
--- =============================================================================
--- 8. Update RLS policies for MILESTONES — allow members to CRUD
--- =============================================================================
-
-DROP POLICY IF EXISTS "Users can view own milestones"   ON public.milestones;
+DROP POLICY IF EXISTS "Allow public access to milestones" ON public.milestones;
+DROP POLICY IF EXISTS "Users can view own milestones" ON public.milestones;
 DROP POLICY IF EXISTS "Users can insert own milestones" ON public.milestones;
 DROP POLICY IF EXISTS "Users can update own milestones" ON public.milestones;
 DROP POLICY IF EXISTS "Users can delete own milestones" ON public.milestones;
@@ -105,63 +60,24 @@ DROP POLICY IF EXISTS "Users can view project milestones" ON public.milestones;
 DROP POLICY IF EXISTS "Users can insert project milestones" ON public.milestones;
 DROP POLICY IF EXISTS "Users can update project milestones" ON public.milestones;
 DROP POLICY IF EXISTS "Owner can delete project milestones" ON public.milestones;
+DROP POLICY IF EXISTS "Public access milestones" ON public.milestones;
 
--- SELECT: owner or member of the parent project
-CREATE POLICY "Users can view project milestones" ON public.milestones
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM public.projects p
-      WHERE p.id = project_id AND (
-        p.user_id = auth.uid()
-        OR EXISTS (
-          SELECT 1 FROM public.project_members pm
-          WHERE pm.project_id = p.id AND pm.user_id = auth.uid()
-        )
-      )
-    )
-  );
+DROP POLICY IF EXISTS "Members can view project members" ON public.project_members;
+DROP POLICY IF EXISTS "Users can join projects" ON public.project_members;
+DROP POLICY IF EXISTS "Users can leave or owners can remove" ON public.project_members;
+DROP POLICY IF EXISTS "Authenticated users can view project members" ON public.project_members;
+DROP POLICY IF EXISTS "Users can insert project members" ON public.project_members;
+DROP POLICY IF EXISTS "Users can delete own project membership" ON public.project_members;
+DROP POLICY IF EXISTS "Public access project_members" ON public.project_members;
 
--- INSERT
-CREATE POLICY "Users can insert project milestones" ON public.milestones
-  FOR INSERT WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.projects p
-      WHERE p.id = project_id AND (
-        p.user_id = auth.uid()
-        OR EXISTS (
-          SELECT 1 FROM public.project_members pm
-          WHERE pm.project_id = p.id AND pm.user_id = auth.uid()
-        )
-      )
-    )
-  );
-
--- UPDATE
-CREATE POLICY "Users can update project milestones" ON public.milestones
-  FOR UPDATE USING (
-    EXISTS (
-      SELECT 1 FROM public.projects p
-      WHERE p.id = project_id AND (
-        p.user_id = auth.uid()
-        OR EXISTS (
-          SELECT 1 FROM public.project_members pm
-          WHERE pm.project_id = p.id AND pm.user_id = auth.uid()
-        )
-      )
-    )
-  );
-
--- DELETE: only owner can delete milestones
-CREATE POLICY "Owner can delete project milestones" ON public.milestones
-  FOR DELETE USING (
-    EXISTS (
-      SELECT 1 FROM public.projects p
-      WHERE p.id = project_id AND p.user_id = auth.uid()
-    )
-  );
+-- Create open public policies
+CREATE POLICY "Public access profiles" ON public.profiles FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Public access projects" ON public.projects FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Public access milestones" ON public.milestones FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Public access project_members" ON public.project_members FOR ALL TO public USING (true) WITH CHECK (true);
 
 -- =============================================================================
--- 9. RPC functions for invite code flow
+-- 6. RPC functions for invite code flow (No Auth Required)
 -- =============================================================================
 
 -- RPC: Lookup a project by invite code (returns minimal info)
@@ -172,15 +88,15 @@ AS $$
   SELECT
     p.id AS project_id,
     p.name AS project_name,
-    COALESCE(pr.name, 'Unknown') AS owner_name
+    COALESCE(pr.name, 'Developer') AS owner_name
   FROM public.projects p
   LEFT JOIN public.profiles pr ON pr.id = p.user_id::text
   WHERE p.invite_code = code
   LIMIT 1;
 $$;
 
--- RPC: Join a project by invite code
-CREATE OR REPLACE FUNCTION public.join_project_by_invite_code(code TEXT)
+-- RPC: Join a project by invite code (Supports unauthenticated device users)
+CREATE OR REPLACE FUNCTION public.join_project_by_invite_code(code TEXT, p_user_id UUID DEFAULT NULL)
 RETURNS TEXT
 LANGUAGE plpgsql SECURITY DEFINER
 AS $$
@@ -189,9 +105,9 @@ DECLARE
   _user_id UUID;
   _member_id TEXT;
 BEGIN
-  _user_id := auth.uid();
+  _user_id := COALESCE(p_user_id, auth.uid());
   IF _user_id IS NULL THEN
-    RAISE EXCEPTION 'Not authenticated';
+    RAISE EXCEPTION 'User ID required';
   END IF;
 
   -- Find the project

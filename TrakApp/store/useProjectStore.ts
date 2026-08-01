@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { safeStorage } from '../lib/storage';
+import { getActiveUserId } from '../lib/deviceUser';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
 export type ProjectStatus = 'active' | 'blocked' | 'idle' | 'warning';
@@ -19,7 +20,7 @@ export interface ProjectMember {
   id: string;
   userId: string;
   role: MemberRole;
-  name: string;          // from profiles table
+  name: string;          // display name
   joinedAt: string;
 }
 
@@ -72,8 +73,6 @@ interface ProjectStore {
   subscribeToRealtime: () => void;
   unsubscribeFromRealtime: () => void;
 }
-
-const BASE_STORAGE_KEY = 'trak_local_projects';
 
 export const MOCK_PROJECTS: Project[] = [
   {
@@ -133,45 +132,6 @@ export const MOCK_PROJECTS: Project[] = [
     ],
     notes: '### Context\nBlocked on security audit from infra team. Priority ticket raised.',
   },
-  {
-    id: '4',
-    name: 'Data Pipeline',
-    version: 'v2.0-beta',
-    description: 'Distributed data ingestion and transformation pipeline',
-    status: 'active',
-    techStack: ['Python', 'Kafka', 'S3'],
-    deadline: 'DEC 12',
-    progress: 25,
-    repoUrl: 'github.com/trak-io/data-pipeline',
-    priority: 'low',
-    lastUpdated: '2d ago',
-    milestones: [
-      { id: 'm1', title: 'Kafka setup', completed: true },
-      { id: 'm2', title: 'S3 sink', completed: false },
-      { id: 'm3', title: 'Monitoring', completed: false },
-    ],
-    notes: '### Context\nEarly beta. Schema validation layer in progress.',
-  },
-  {
-    id: '5',
-    name: 'Legacy API v1',
-    version: 'v1.0.0',
-    description: 'Original REST API — fully migrated to v2',
-    status: 'idle',
-    techStack: ['Node.js', 'Express', 'MySQL'],
-    deadline: 'DONE',
-    progress: 100,
-    repoUrl: 'github.com/trak-io/api-v1',
-    priority: 'low',
-    lastUpdated: '3mo ago',
-    milestones: [
-      { id: 'm1', title: 'Initial release', completed: true },
-      { id: 'm2', title: 'v2 migration', completed: true },
-      { id: 'm3', title: 'Deprecation notice', completed: true },
-    ],
-    notes: '### Context\nFully deprecated. Replaced by Auth Service v2.',
-    isCompleted: true,
-  },
 ];
 
 const getProjectStorageKey = (userId: string) => `trak_local_projects_${userId}`;
@@ -187,7 +147,7 @@ const saveToLocalStorage = async (userId: string, projects: Project[]) => {
 
 /** Generate a random short invite code like TRK-A4F9 */
 const generateShortCode = (): string => {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no ambiguous chars
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
   for (let i = 0; i < 4; i++) {
     code += chars[Math.floor(Math.random() * chars.length)];
@@ -195,19 +155,18 @@ const generateShortCode = (): string => {
   return `TRK-${code}`;
 };
 
-/** Get current user's display name from the profile store */
+/** Get current user's display name */
 const getCurrentUserName = async (): Promise<string> => {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user?.id) return 'Unknown';
+    const userId = await getActiveUserId();
     const { data } = await supabase
       .from('profiles')
       .select('name')
-      .eq('id', user.id)
+      .eq('id', userId)
       .single();
-    return data?.name || 'Unknown';
+    return data?.name || 'Developer';
   } catch {
-    return 'Unknown';
+    return 'Developer';
   }
 };
 
@@ -230,17 +189,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   fetchProjects: async () => {
     set({ isLoading: true });
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const userId = user?.id;
-      if (!userId) {
-        set({ projects: [], isLoading: false });
-        return;
-      }
+      const userId = await getActiveUserId();
+      set({ currentUserId: userId });
 
       const storageKey = getProjectStorageKey(userId);
 
       // 1. Fetch owned projects
-      const { data: ownedProjects, error: ownedError } = await supabase
+      const { data: ownedProjects } = await supabase
         .from('projects')
         .select('*')
         .eq('user_id', userId);
@@ -305,7 +260,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
         const profileMap = new Map<string, string>();
         [...memberProfiles, ...ownerProfiles].forEach((p: any) => {
-          profileMap.set(p.id, p.name || 'Unknown');
+          profileMap.set(p.id, p.name || 'Developer');
         });
 
         const formattedProjects: Project[] = allDbProjects.map((row: any) => {
@@ -325,7 +280,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
               id: m.id,
               userId: m.user_id,
               role: m.role as MemberRole,
-              name: profileMap.get(m.user_id) || 'Unknown',
+              name: profileMap.get(m.user_id) || 'Developer',
               joinedAt: m.joined_at,
             }));
 
@@ -350,7 +305,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             inviteCode: row.invite_code || undefined,
             members: projectMembers,
             isShared,
-            ownerName: isShared ? (profileMap.get(row.user_id?.toString()) || 'Unknown') : undefined,
+            ownerName: isShared ? (profileMap.get(row.user_id?.toString()) || 'Developer') : undefined,
           };
         });
 
@@ -363,21 +318,21 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const localData = await safeStorage.getItem(storageKey);
       if (localData) {
         const parsed = JSON.parse(localData);
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           set({ projects: parsed, isLoading: false });
           return;
         }
       }
 
-      set({ projects: [], isLoading: false });
+      // Fallback to mock projects if empty
+      set({ projects: MOCK_PROJECTS, isLoading: false });
     } catch (err) {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user?.id) throw new Error('No user');
-        const localData = await safeStorage.getItem(getProjectStorageKey(user.id));
+        const userId = await getActiveUserId();
+        const localData = await safeStorage.getItem(getProjectStorageKey(userId));
         if (localData) {
           const parsed = JSON.parse(localData);
-          if (Array.isArray(parsed)) {
+          if (Array.isArray(parsed) && parsed.length > 0) {
             set({ projects: parsed, isLoading: false });
             return;
           }
@@ -385,13 +340,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       } catch (e) {
         // ignore
       }
-      set({ projects: [], isLoading: false });
+      set({ projects: MOCK_PROJECTS, isLoading: false });
     }
   },
 
   addProject: async (data) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    const userId = user?.id || get().currentUserId;
+    const userId = await getActiveUserId();
 
     const newProject: Project = {
       ...data,
@@ -403,11 +357,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     };
 
     set((state) => ({ projects: [newProject, ...state.projects] }));
-    const _uid = (await supabase.auth.getUser()).data.user?.id; if (_uid) await saveToLocalStorage(_uid, get().projects);
+    await saveToLocalStorage(userId, get().projects);
 
     try {
       const insertData: any = {
         id: newProject.id,
+        user_id: userId,
         name: newProject.name,
         version: newProject.version,
         description: newProject.description,
@@ -422,7 +377,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         is_completed: false,
         is_deleted: false,
       };
-      if (userId) insertData.user_id = userId;
 
       await supabase.from('projects').insert(insertData);
     } catch (err) {
@@ -436,7 +390,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         p.id === projectId ? { ...p, isDeleted: true } : p
       ),
     }));
-    const _uid = (await supabase.auth.getUser()).data.user?.id; if (_uid) await saveToLocalStorage(_uid, get().projects);
+    const userId = await getActiveUserId();
+    await saveToLocalStorage(userId, get().projects);
 
     try {
       await supabase
@@ -454,7 +409,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         p.id === projectId ? { ...p, isDeleted: false } : p
       ),
     }));
-    const _uid = (await supabase.auth.getUser()).data.user?.id; if (_uid) await saveToLocalStorage(_uid, get().projects);
+    const userId = await getActiveUserId();
+    await saveToLocalStorage(userId, get().projects);
 
     try {
       await supabase
@@ -470,7 +426,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     set((state) => ({
       projects: state.projects.filter((p) => p.id !== projectId),
     }));
-    const _uid = (await supabase.auth.getUser()).data.user?.id; if (_uid) await saveToLocalStorage(_uid, get().projects);
+    const userId = await getActiveUserId();
+    await saveToLocalStorage(userId, get().projects);
 
     try {
       await supabase.from('projects').delete().eq('id', projectId);
@@ -682,10 +639,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   joinProjectByCode: async (code) => {
     try {
       const trimmedCode = code.trim().toUpperCase();
+      const userId = await getActiveUserId();
 
       // Use the RPC function to join
       const { data, error } = await supabase.rpc('join_project_by_invite_code', {
         code: trimmedCode,
+        p_user_id: userId,
       });
 
       if (error) {
@@ -709,8 +668,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   leaveProject: async (projectId) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user?.id) return;
+      const userId = await getActiveUserId();
 
       // Remove from local state immediately
       set((state) => ({
@@ -722,7 +680,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         .from('project_members')
         .delete()
         .eq('project_id', projectId)
-        .eq('user_id', user.id);
+        .eq('user_id', userId);
     } catch (err) {
       console.error('Failed to leave project:', err);
     }
@@ -744,13 +702,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         .in('id', userIds);
 
       const profileMap = new Map<string, string>();
-      (profiles || []).forEach((p: any) => profileMap.set(p.id, p.name || 'Unknown'));
+      (profiles || []).forEach((p: any) => profileMap.set(p.id, p.name || 'Developer'));
 
       return members.map((m: any) => ({
         id: m.id,
         userId: m.user_id,
         role: m.role as MemberRole,
-        name: profileMap.get(m.user_id) || 'Unknown',
+        name: profileMap.get(m.user_id) || 'Developer',
         joinedAt: m.joined_at,
       }));
     } catch (err) {
@@ -760,7 +718,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
 
   subscribeToRealtime: () => {
-    // Clean up existing subscription
     if (realtimeChannel) {
       supabase.removeChannel(realtimeChannel);
       realtimeChannel = null;
@@ -772,7 +729,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         'postgres_changes',
         { event: '*', schema: 'public', table: 'milestones' },
         () => {
-          // When any milestone changes, refetch to stay in sync
           get().fetchProjects();
         }
       )
@@ -780,7 +736,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         'postgres_changes',
         { event: '*', schema: 'public', table: 'project_members' },
         () => {
-          // When membership changes, refetch
           get().fetchProjects();
         }
       )
