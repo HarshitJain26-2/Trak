@@ -49,6 +49,13 @@ export default function AuthScreen() {
       return;
     }
 
+    // Basic email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setErrorMessage('Please enter a valid email address.');
+      return;
+    }
+
     if (mode === 'signup' && !fullName.trim()) {
       setErrorMessage('Please enter your full name.');
       return;
@@ -70,15 +77,40 @@ export default function AuthScreen() {
           },
         });
 
-        // Set active user ID from Supabase auth user, or fallback to email hash
+        // Check for Supabase auth errors (including duplicate email)
+        if (error) {
+          if (
+            error.message?.toLowerCase().includes('already registered') ||
+            error.message?.toLowerCase().includes('already been registered') ||
+            error.message?.toLowerCase().includes('user already exists') ||
+            error.code === 'user_already_exists'
+          ) {
+            setErrorMessage('An account with this email already exists. Please sign in instead.');
+          } else {
+            setErrorMessage(error.message || 'Sign up failed.');
+          }
+          return;
+        }
+
+        // Supabase may return a user with identities=[] when email is already registered
+        // but email confirmation is disabled — detect this case
+        if (data?.user && (data.user.identities?.length === 0)) {
+          setErrorMessage('An account with this email already exists. Please sign in instead.');
+          return;
+        }
+
+        // Set active user ID from Supabase auth user
         const userId = data?.user?.id || emailToUUID(cleanEmail);
         await setActiveUserId(userId);
 
-        if (fullName.trim()) {
-          useProfileStore.setState((s) => ({
-            profile: { ...s.profile, name: fullName.trim() },
-          }));
-        }
+        // Store name and email in profile state immediately
+        useProfileStore.setState((s) => ({
+          profile: {
+            ...s.profile,
+            ...(fullName.trim() ? { name: fullName.trim() } : {}),
+            email: cleanEmail,
+          },
+        }));
 
         await useProfileStore.getState().fetchProfile();
         await useProjectStore.getState().fetchProjects();
@@ -90,6 +122,20 @@ export default function AuthScreen() {
           email: cleanEmail,
           password: password.trim(),
         });
+
+        // Check for sign-in errors
+        if (error) {
+          if (
+            error.message?.toLowerCase().includes('invalid login') ||
+            error.message?.toLowerCase().includes('invalid credentials') ||
+            error.message?.toLowerCase().includes('email not confirmed')
+          ) {
+            setErrorMessage('Invalid email or password. Please try again.');
+          } else {
+            setErrorMessage(error.message || 'Sign in failed.');
+          }
+          return;
+        }
 
         // Use Supabase auth user ID if available, otherwise email hash
         const userId = data?.user?.id || emailToUUID(cleanEmail);

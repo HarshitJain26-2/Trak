@@ -36,6 +36,12 @@
     "scheme": "trak",
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "f08c49a2-de31-422d-a9b8-1fb39670bac8"
+      }
     }
   }
 }

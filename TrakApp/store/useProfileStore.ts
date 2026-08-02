@@ -13,6 +13,7 @@ export interface SocialLink {
 export interface Profile {
   name: string;
   username: string;
+  email: string;
   bio: string;
   role: string;
   location: string;
@@ -41,6 +42,7 @@ interface ProfileStore {
 const DEFAULT_PROFILE: Profile = {
   name: 'Developer',
   username: 'developer',
+  email: '',
   bio: 'Building awesome apps with Trak.',
   role: 'Full Stack Engineer',
   location: 'Remote',
@@ -96,6 +98,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
         const updatedProfile: Profile = {
           name: data.name || 'Developer',
           username: data.username || 'developer',
+          email: data.email || '',
           bio: data.bio || '',
           role: data.role || '',
           location: data.location || '',
@@ -182,6 +185,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
           skills: newProfile.skills,
           social_links: newProfile.socialLinks,
           joined_date: newProfile.joinedDate,
+          email: newProfile.email || null,
         };
 
         // Check if a profile row already exists for this user
@@ -214,6 +218,11 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
             // Roll back optimistic update
             set({ profile: current });
             return { success: false, error: `Username "${newProfile.username}" is already taken.` };
+          }
+          // Handle DB-level unique constraint violation for email
+          if (syncError.code === '23505' && syncError.message?.includes('email')) {
+            set({ profile: current });
+            return { success: false, error: 'An account with this email already exists.' };
           }
           if (syncError.code === '42501') {
             console.warn('Supabase profile sync RLS warning (handled offline/locally):', syncError.message);
