@@ -215,10 +215,14 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
             set({ profile: current });
             return { success: false, error: `Username "${newProfile.username}" is already taken.` };
           }
-          console.error('Supabase profile sync warning:', syncError);
+          if (syncError.code === '42501') {
+            console.warn('Supabase profile sync RLS warning (handled offline/locally):', syncError.message);
+          } else {
+            console.warn('Supabase profile sync warning:', syncError.message || syncError);
+          }
         }
-      } catch (err) {
-        console.error('Supabase profile sync warning:', err);
+      } catch (err: any) {
+        console.warn('Supabase profile sync warning:', err?.message || err);
       }
 
       return { success: true };
