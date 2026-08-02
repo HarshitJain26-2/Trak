@@ -98,8 +98,19 @@ export default function AuthScreen() {
         await useProfileStore.getState().fetchProfile();
         await useProjectStore.getState().fetchProjects();
 
-        // Always route through profile setup first on login
-        router.replace('/setup-profile');
+        const currentProfile = useProfileStore.getState().profile;
+        const hasUsername =
+          currentProfile.username &&
+          currentProfile.username.trim() !== '' &&
+          currentProfile.username !== 'developer';
+
+        if (hasUsername) {
+          // Returning user with existing profile -> go directly to dashboard
+          router.replace('/(tabs)');
+        } else {
+          // New/incomplete profile -> prompt for setup
+          router.replace('/setup-profile');
+        }
       }
     } catch (err: any) {
       setErrorMessage(err.message || 'Authentication failed.');

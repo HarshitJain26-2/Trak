@@ -49,6 +49,13 @@ export default function SetupProfileScreen() {
 
   const handleSave = async () => {
     setErrorMessage('');
+
+    const cleanUsername = username.trim().toLowerCase();
+    if (!cleanUsername) {
+      setErrorMessage('Username is compulsory. Please enter a username.');
+      return;
+    }
+
     setSaving(true);
     try {
       const now = new Date();
@@ -58,7 +65,6 @@ export default function SetupProfileScreen() {
         now.getFullYear();
 
       const cleanGh = githubUsername.trim().replace(/^(https?:\/\/)?(www\.)?github\.com\//, '');
-      const cleanUsername = username.trim().toLowerCase();
 
       const res = await updateProfile({
         name: name.trim() || 'Developer',
@@ -85,7 +91,14 @@ export default function SetupProfileScreen() {
     }
   };
 
-  const handleSkip = () => {
+  const handleSkip = async () => {
+    if (!profile.username || profile.username === 'developer') {
+      const autoUsername = `dev_${Date.now().toString().slice(-6)}`;
+      await updateProfile({
+        name: name.trim() || 'Developer',
+        username: autoUsername,
+      });
+    }
     router.replace('/(tabs)');
   };
 
@@ -163,7 +176,7 @@ export default function SetupProfileScreen() {
             />
 
             <InputField
-              label="Username"
+              label="Username *"
               placeholder="e.g. alexchen"
               value={username}
               onChangeText={(t) => setUsername(t.replace(/\s/g, '').toLowerCase())}
@@ -171,7 +184,7 @@ export default function SetupProfileScreen() {
               returnKeyType="next"
               icon="at-sign"
               mono
-              hint="No spaces, lowercase"
+              hint="Compulsory. No spaces, lowercase"
             />
 
             {/* Section: Role */}
