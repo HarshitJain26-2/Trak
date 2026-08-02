@@ -23,6 +23,7 @@ import { StatusDot } from '../../../components/StatusDot';
 import { ConfirmDialog, useConfirmDialog } from '../../../components/ConfirmDialog';
 import { MemberAvatar } from '../../../components/MemberAvatar';
 import { InviteCodeModal } from '../../../components/InviteCodeModal';
+import { AestheticCheckbox } from '../../../components/AestheticCheckbox';
 
 // ─── Milestone Action Modal ────────────────────────────────────────────────────
 interface MilestoneActionModalProps {
@@ -561,32 +562,32 @@ export default function ProjectDetailsScreen() {
             </View>
           )}
           {pendingMilestones.map((milestone, index) => (
-            <Pressable
+            <View
               key={milestone.id}
               style={[
                 styles.milestoneRow,
                 index < pendingMilestones.length - 1 && styles.milestoneRowBorder,
               ]}
-              onPress={() => toggleMilestone(project.id, milestone.id)}
-              onLongPress={() => handleMilestoneLongPress(milestone)}
-              delayLongPress={400}
             >
-              {/* Checkbox */}
-              <View style={[styles.checkbox, milestone.completed && styles.checkboxChecked]}>
-                {milestone.completed && (
-                  <Feather name="check" size={12} color={Colors.onPrimaryFixed} />
-                )}
-              </View>
-              <View style={styles.milestoneContent}>
-                <Text
-                  style={[styles.milestoneText, milestone.completed && styles.milestoneTextDone]}
-                >
+              {/* Aesthetic Checkbox with fancy loading spinner */}
+              <AestheticCheckbox
+                completed={false}
+                onToggle={() => toggleMilestone(project.id, milestone.id)}
+                size={22}
+              />
+              <Pressable
+                style={styles.milestoneContent}
+                onPress={() => toggleMilestone(project.id, milestone.id)}
+                onLongPress={() => handleMilestoneLongPress(milestone)}
+                delayLongPress={400}
+              >
+                <Text style={styles.milestoneText}>
                   {milestone.title}
                 </Text>
                 {milestone.addedBy && (
                   <Text style={styles.addedByText}>Added by {milestone.addedBy}</Text>
                 )}
-              </View>
+              </Pressable>
               <Pressable
                 style={styles.editHint}
                 onPress={() => handleMilestoneLongPress(milestone)}
@@ -594,7 +595,7 @@ export default function ProjectDetailsScreen() {
               >
                 <Feather name="more-horizontal" size={16} color={`${Colors.onSurfaceVariant}50`} />
               </Pressable>
-            </Pressable>
+            </View>
           ))}
 
           {completedMilestones.length > 0 && (
@@ -603,26 +604,26 @@ export default function ProjectDetailsScreen() {
             </View>
           )}
           {completedMilestones.map((milestone, index) => (
-            <Pressable
+            <View
               key={milestone.id}
               style={[
                 styles.milestoneRow,
                 index < completedMilestones.length - 1 && styles.milestoneRowBorder,
               ]}
-              onPress={() => toggleMilestone(project.id, milestone.id)}
-              onLongPress={() => handleMilestoneLongPress(milestone)}
-              delayLongPress={400}
             >
-              {/* Checkbox */}
-              <View style={[styles.checkbox, milestone.completed && styles.checkboxChecked]}>
-                {milestone.completed && (
-                  <Feather name="check" size={12} color={Colors.onPrimaryFixed} />
-                )}
-              </View>
-              <View style={styles.milestoneContent}>
-                <Text
-                  style={[styles.milestoneText, milestone.completed && styles.milestoneTextDone]}
-                >
+              {/* Aesthetic Checkbox with fancy loading spinner */}
+              <AestheticCheckbox
+                completed={true}
+                onToggle={() => toggleMilestone(project.id, milestone.id)}
+                size={22}
+              />
+              <Pressable
+                style={styles.milestoneContent}
+                onPress={() => toggleMilestone(project.id, milestone.id)}
+                onLongPress={() => handleMilestoneLongPress(milestone)}
+                delayLongPress={400}
+              >
+                <Text style={[styles.milestoneText, styles.milestoneTextDone]}>
                   {milestone.title}
                 </Text>
                 {milestone.completedBy && (
@@ -631,14 +632,15 @@ export default function ProjectDetailsScreen() {
                     <Text style={styles.doneByText}>Done by {milestone.completedBy}</Text>
                   </View>
                 )}
-              </View>
-              <Feather
-                name="check-circle"
-                size={16}
-                color={Colors.primaryFixed}
-                style={{ marginLeft: 'auto' }}
-              />
-            </Pressable>
+              </Pressable>
+              <Pressable
+                style={styles.editHint}
+                onPress={() => handleMilestoneLongPress(milestone)}
+                hitSlop={8}
+              >
+                <Feather name="more-horizontal" size={16} color={`${Colors.onSurfaceVariant}50`} />
+              </Pressable>
+            </View>
           ))}
         </View>
 
