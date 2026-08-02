@@ -119,7 +119,9 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
 
   checkUsernameAvailable: async (username: string): Promise<boolean> => {
     const clean = username.trim().toLowerCase();
-    if (!clean) return true;
+    // Enforce minimum length and valid format before querying
+    if (!clean || clean.length < 3) return false;
+    if (!/^[a-z0-9_.-]+$/.test(clean)) return false;
 
     try {
       const userId = await getActiveUserId();
@@ -131,12 +133,15 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
         .maybeSingle();
 
       if (error) {
-        return true;
+        // Fail safe: if we can't verify availability, treat as taken
+        console.warn('Username check error:', error.message);
+        return false;
       }
 
-      return !data;
+      return !data; // true = no conflict found = available
     } catch {
-      return true;
+      // Network error etc. — fail safe
+      return false;
     }
   },
 
@@ -165,8 +170,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       await saveProfileToLocalStorage(userId, newProfile);
 
       try {
-        await supabase.from('profiles').upsert({
-          id: userId,
+        const profileData = {
           name: newProfile.name,
           username: newProfile.username || null,
           bio: newProfile.bio,
@@ -178,7 +182,41 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
           skills: newProfile.skills,
           social_links: newProfile.socialLinks,
           joined_date: newProfile.joinedDate,
-        });
+        };
+
+        // Check if a profile row already exists for this user
+        const { data: existing } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', userId)
+          .maybeSingle();
+
+        let syncError: any = null;
+
+        if (existing) {
+          // Row exists — UPDATE (uses UPDATE RLS policy only)
+          const { error } = await supabase
+            .from('profiles')
+            .update(profileData)
+            .eq('id', userId);
+          syncError = error;
+        } else {
+          // No row yet — INSERT (uses INSERT RLS policy only)
+          const { error } = await supabase
+            .from('profiles')
+            .insert({ id: userId, ...profileData });
+          syncError = error;
+        }
+
+        if (syncError) {
+          // Handle DB-level unique constraint violation for username
+          if (syncError.code === '23505' && syncError.message?.includes('username')) {
+            // Roll back optimistic update
+            set({ profile: current });
+            return { success: false, error: `Username "${newProfile.username}" is already taken.` };
+          }
+          console.error('Supabase profile sync warning:', syncError);
+        }
       } catch (err) {
         console.error('Supabase profile sync warning:', err);
       }

@@ -24,6 +24,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { safeStorage } from '../../lib/storage';
+import { setActiveUserId } from '../../lib/deviceUser';
 import { ConfirmDialog, useConfirmDialog } from '../../components/ConfirmDialog';
 import { ActionSheet, useActionSheet, ActionOption } from '../../components/ActionSheet';
 
@@ -534,6 +535,7 @@ export default function ProfileScreen() {
     }
     await safeStorage.removeItem('trak_local_profile');
     await safeStorage.removeItem('trak_local_projects');
+    await setActiveUserId(null);
     useProfileStore.getState().clearProfile();
     useProjectStore.getState().clearProjects();
     router.replace('/auth');

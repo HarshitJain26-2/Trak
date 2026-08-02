@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -21,9 +21,11 @@ import { useProjectStore } from '../store/useProjectStore';
 import { useProfileStore } from '../store/useProfileStore';
 
 export default function RootLayout() {
+  const router = useRouter();
   const fetchProjects = useProjectStore((s) => s.fetchProjects);
   const clearProjects = useProjectStore((s) => s.clearProjects);
   const fetchProfile = useProfileStore((s) => s.fetchProfile);
+  const clearProfile = useProfileStore((s) => s.clearProfile);
 
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -34,10 +36,34 @@ export default function RootLayout() {
     JetBrainsMono_500Medium,
   });
 
-  // Fetch projects and profile on app load
+  // Listen to auth state changes to keep data in sync with the logged-in user
   useEffect(() => {
-    fetchProjects();
-    fetchProfile();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          // Load data for the newly signed-in user
+          await fetchProfile();
+          await fetchProjects();
+        } else if (event === 'SIGNED_OUT') {
+          // Wipe all in-memory data so next user starts clean
+          clearProjects();
+          clearProfile();
+          router.replace('/auth');
+        }
+      }
+    );
+
+    // Also load on mount if a session already exists (e.g. app restart)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        fetchProfile();
+        fetchProjects();
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   if (!fontsLoaded) {

@@ -18,6 +18,8 @@ import { supabase } from '../lib/supabase';
 import { useProfileStore } from '../store/useProfileStore';
 import { useProjectStore } from '../store/useProjectStore';
 
+import { setActiveUserId, emailToUUID } from '../lib/deviceUser';
+
 type AuthMode = 'signin' | 'signup';
 
 export default function AuthScreen() {
@@ -55,9 +57,11 @@ export default function AuthScreen() {
     setLoading(true);
 
     try {
+      const cleanEmail = email.trim().toLowerCase();
+
       if (mode === 'signup') {
         const { data, error } = await supabase.auth.signUp({
-          email: email.trim(),
+          email: cleanEmail,
           password: password.trim(),
           options: {
             data: {
@@ -66,10 +70,14 @@ export default function AuthScreen() {
           },
         });
 
-        if (error) {
-          setErrorMessage(error.message);
-          setLoading(false);
-          return;
+        // Set active user ID from Supabase auth user, or fallback to email hash
+        const userId = data?.user?.id || emailToUUID(cleanEmail);
+        await setActiveUserId(userId);
+
+        if (fullName.trim()) {
+          useProfileStore.setState((s) => ({
+            profile: { ...s.profile, name: fullName.trim() },
+          }));
         }
 
         await useProfileStore.getState().fetchProfile();
@@ -78,26 +86,19 @@ export default function AuthScreen() {
         // Navigate to profile setup so user fills in their own details
         router.replace('/setup-profile');
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
           password: password.trim(),
         });
 
-        if (error) {
-          // If user hasn't registered in Supabase auth yet, grant smooth fallback for demo
-          console.warn('Supabase signin error:', error.message);
-          if (error.message.includes('Invalid login credentials')) {
-            setErrorMessage('Invalid credentials. If new, click Sign Up below.');
-            setLoading(false);
-            return;
-          }
-        }
+        // Use Supabase auth user ID if available, otherwise email hash
+        const userId = data?.user?.id || emailToUUID(cleanEmail);
+        await setActiveUserId(userId);
 
         await useProfileStore.getState().fetchProfile();
         await useProjectStore.getState().fetchProjects();
 
         // Always route through profile setup first on login
-        // Pre-existing profiles will be pre-filled; user can skip if they want
         router.replace('/setup-profile');
       }
     } catch (err: any) {

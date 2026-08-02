@@ -314,7 +314,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         return;
       }
 
-      // Supabase returned empty or error; attempt loading from local storage
+      // Supabase returned empty — user has no projects yet
+      // Still attempt loading from local storage in case of offline scenario
       const localData = await safeStorage.getItem(storageKey);
       if (localData) {
         const parsed = JSON.parse(localData);
@@ -324,8 +325,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         }
       }
 
-      // Fallback to mock projects if empty
-      set({ projects: MOCK_PROJECTS, isLoading: false });
+      // New user with no projects — show empty list (never show mock data)
+      set({ projects: [], isLoading: false });
     } catch (err) {
       try {
         const userId = await getActiveUserId();
@@ -340,7 +341,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       } catch (e) {
         // ignore
       }
-      set({ projects: MOCK_PROJECTS, isLoading: false });
+      // Error state — show empty list, not shared mock data
+      set({ projects: [], isLoading: false });
     }
   },
 
