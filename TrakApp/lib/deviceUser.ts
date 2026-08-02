@@ -17,15 +17,23 @@ const AUTH_USER_ID_KEY = 'trak_active_user_id';
 /** Deterministic UUID from email address */
 export const emailToUUID = (email: string): string => {
   const clean = email.trim().toLowerCase();
-  let hash = 0;
+  let hash1 = 0;
+  let hash2 = 0;
   for (let i = 0; i < clean.length; i++) {
     const char = clean.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash |= 0;
+    hash1 = (hash1 << 5) - hash1 + char;
+    hash1 |= 0;
+    hash2 = (hash2 << 7) - hash2 + char;
+    hash2 |= 0;
   }
-  const hex1 = Math.abs(hash).toString(16).padStart(8, '0');
-  const hex2 = Math.abs(hash * 31).toString(16).padStart(12, '0');
-  return `${hex1.slice(0, 8)}-4000-8000-${hex2.slice(0, 12)}`;
+  const hex1 = Math.abs(hash1).toString(16).padStart(8, '0');
+  const hex2 = Math.abs(hash2).toString(16).padStart(8, '0');
+  const hex3 = Math.abs(hash1 * 31).toString(16).padStart(8, '0');
+  const hex4 = Math.abs(hash2 * 17).toString(16).padStart(8, '0');
+  const hex5 = Math.abs(hash1 * 13).toString(16).padStart(8, '0');
+
+  // Return standard 8-4-4-4-12 UUID format (e.g. 18c72a87-4000-8000-0003-001e26591234)
+  return `${hex1.slice(0, 8)}-${hex2.slice(0, 4)}-4${hex3.slice(0, 3)}-8${hex4.slice(0, 3)}-${hex5.slice(0, 8)}${hex2.slice(0, 4)}`;
 };
 
 export const setActiveUserId = async (userId: string | null) => {
