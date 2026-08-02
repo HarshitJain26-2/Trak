@@ -64,23 +64,40 @@ export function InviteCodeModal({
 
               {/* Code display */}
               {inviteCode ? (
-                <View style={styles.codeContainer}>
-                  <Text style={styles.codeText}>{inviteCode}</Text>
+                <View>
+                  <View style={styles.codeContainer}>
+                    <Text style={styles.codeText}>{inviteCode}</Text>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.copyBtn,
+                        pressed && styles.copyBtnPressed,
+                        copied && styles.copyBtnCopied,
+                      ]}
+                      onPress={handleCopy}
+                    >
+                      <Feather
+                        name={copied ? 'check' : 'copy'}
+                        size={16}
+                        color={copied ? Colors.primaryFixed : Colors.onSurfaceVariant}
+                      />
+                      <Text style={[styles.copyBtnText, copied && styles.copyBtnTextCopied]}>
+                        {copied ? 'Copied!' : 'Copy'}
+                      </Text>
+                    </Pressable>
+                  </View>
+
                   <Pressable
                     style={({ pressed }) => [
-                      styles.copyBtn,
-                      pressed && styles.copyBtnPressed,
-                      copied && styles.copyBtnCopied,
+                      styles.regenerateBtn,
+                      pressed && styles.regenerateBtnPressed,
+                      isGenerating && styles.regenerateBtnDisabled,
                     ]}
-                    onPress={handleCopy}
+                    onPress={onGenerate}
+                    disabled={isGenerating}
                   >
-                    <Feather
-                      name={copied ? 'check' : 'copy'}
-                      size={16}
-                      color={copied ? Colors.primaryFixed : Colors.onSurfaceVariant}
-                    />
-                    <Text style={[styles.copyBtnText, copied && styles.copyBtnTextCopied]}>
-                      {copied ? 'Copied!' : 'Copy'}
+                    <Feather name="refresh-cw" size={14} color={Colors.primaryFixed} />
+                    <Text style={styles.regenerateBtnText}>
+                      {isGenerating ? 'Regenerating...' : 'Change Code'}
                     </Text>
                   </Pressable>
                 </View>
@@ -265,5 +282,29 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     fontSize: 15,
     color: Colors.onSurfaceVariant,
+  },
+  regenerateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 230, 118, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 230, 118, 0.2)',
+    marginBottom: 16,
+  },
+  regenerateBtnPressed: {
+    opacity: 0.8,
+    backgroundColor: 'rgba(0, 230, 118, 0.12)',
+  },
+  regenerateBtnDisabled: {
+    opacity: 0.5,
+  },
+  regenerateBtnText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    color: Colors.primaryFixed,
   },
 });
