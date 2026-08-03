@@ -7,6 +7,8 @@ import { StatusDot } from './StatusDot';
 import { TechPill } from './TechPill';
 import type { Project } from '../store/useProjectStore';
 import { ProjectActionModal } from './ProjectActionModal';
+import { useSettingsStore } from '../store/useSettingsStore';
+import { triggerHaptic } from '../lib/haptics';
 
 interface ProjectCardProps {
   project: Project;
@@ -28,6 +30,7 @@ const STATUS_ACCENT_COLORS: Record<string, string> = {
 
 export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }) => {
   const router = useRouter();
+  const compactCards = useSettingsStore((s) => s.compactCards);
   const [modalVisible, setModalVisible] = useState(false);
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
   const accentColor = PRIORITY_ACCENT_COLORS[project.priority] ?? STATUS_ACCENT_COLORS[project.status] ?? Colors.primaryFixed;
@@ -47,10 +50,12 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
   };
 
   const handlePress = () => {
+    triggerHaptic(10);
     router.push(`/project/${project.id}`);
   };
 
   const handleLongPress = () => {
+    triggerHaptic(25);
     if (onLongPress) {
       onLongPress();
     } else {
@@ -76,22 +81,24 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
         {/* Progress accent bar */}
         <View style={[styles.accentBar, { width: progressWidth, backgroundColor: accentColor }]} />
 
-        <View style={styles.content}>
+        <View style={[styles.content, compactCards && styles.compactContent]}>
           {/* Header row */}
-          <View style={styles.headerRow}>
+          <View style={[styles.headerRow, compactCards && styles.compactHeaderRow]}>
             <View style={styles.titleRow}>
-              <StatusDot status={project.status} size={8} animated={project.status === 'active'} />
-              <Text style={styles.projectName}>{project.name}</Text>
+              <StatusDot status={project.status} size={compactCards ? 6 : 8} animated={project.status === 'active'} />
+              <Text style={[styles.projectName, compactCards && styles.compactProjectName]} numberOfLines={1}>
+                {project.name}
+              </Text>
             </View>
             {project.status === 'blocked' ? (
-              <Feather name="alert-triangle" size={16} color={Colors.error} />
+              <Feather name="alert-triangle" size={compactCards ? 14 : 16} color={Colors.error} />
             ) : (
-              <Text style={styles.version}>{project.version}</Text>
+              <Text style={[styles.version, compactCards && styles.compactVersion]}>{project.version}</Text>
             )}
           </View>
 
           {/* Tech stack pills */}
-          <View style={styles.pillsRow}>
+          <View style={[styles.pillsRow, compactCards && styles.compactPillsRow]}>
             {project.techStack.map((tech) => (
               <TechPill key={tech} label={tech} />
             ))}
@@ -99,13 +106,15 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
 
           {/* Footer row */}
           <View style={styles.footerRow}>
-            <View>
+            <View style={{ flexDirection: compactCards ? 'row' : 'column', alignItems: compactCards ? 'center' : 'flex-start', gap: compactCards ? 6 : 0 }}>
               <Text style={styles.deadlineLabel}>DEADLINE</Text>
-              <Text style={[styles.deadlineValue, { color: accentColor }]}>
+              <Text style={[styles.deadlineValue, { color: accentColor }, compactCards && styles.compactDeadlineValue]}>
                 {project.deadline}
               </Text>
             </View>
-            <Text style={styles.lastUpdated}>Updated {project.lastUpdated}</Text>
+            <Text style={[styles.lastUpdated, compactCards && styles.compactLastUpdated]}>
+              {compactCards ? `${computedProgress}%` : `Updated ${project.lastUpdated}`}
+            </Text>
           </View>
         </View>
       </Animated.View>
@@ -131,7 +140,6 @@ const styles = StyleSheet.create({
   },
   accentBar: {
     height: 2,
-    // glow via shadow
     shadowColor: Colors.primaryFixed,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.6,
@@ -141,11 +149,18 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingTop: 20,
   },
+  compactContent: {
+    padding: 10,
+    paddingTop: 12,
+  },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 8,
+  },
+  compactHeaderRow: {
+    marginBottom: 4,
   },
   titleRow: {
     flexDirection: 'row',
@@ -160,17 +175,28 @@ const styles = StyleSheet.create({
     color: Colors.onSurface,
     letterSpacing: -0.2,
   },
+  compactProjectName: {
+    fontSize: 15,
+    lineHeight: 20,
+  },
   version: {
     fontFamily: 'JetBrainsMono_400Regular',
     fontSize: 12,
     lineHeight: 18,
     color: Colors.onSurfaceVariant,
   },
+  compactVersion: {
+    fontSize: 11,
+    lineHeight: 16,
+  },
   pillsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 4,
     marginBottom: 16,
+  },
+  compactPillsRow: {
+    marginBottom: 8,
   },
   footerRow: {
     flexDirection: 'row',
@@ -190,10 +216,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
   },
+  compactDeadlineValue: {
+    fontSize: 11,
+    lineHeight: 16,
+  },
   lastUpdated: {
     fontFamily: 'JetBrainsMono_400Regular',
     fontSize: 12,
     color: Colors.onSurfaceVariant,
     opacity: 0.4,
+  },
+  compactLastUpdated: {
+    fontSize: 11,
+    color: Colors.primaryFixed,
+    opacity: 0.8,
   },
 });

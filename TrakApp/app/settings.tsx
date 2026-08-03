@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import * as Clipboard from 'expo-clipboard';
 import { Colors } from '../constants/colors';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { useProfileStore } from '../store/useProfileStore';
@@ -21,6 +22,7 @@ import { supabase } from '../lib/supabase';
 import { safeStorage } from '../lib/storage';
 import { setActiveUserId } from '../lib/deviceUser';
 import { ConfirmDialog, useConfirmDialog } from '../components/ConfirmDialog';
+import { triggerHaptic } from '../lib/haptics';
 
 function SectionHeader({ title }: { title: string }) {
   return (
@@ -53,27 +55,36 @@ export default function SettingsScreen() {
     loadSettings();
   }, []);
 
-  const handleExportData = () => {
-    const data = JSON.stringify(
-      {
-        profile: useProfileStore.getState().profile,
-        projects: projects,
-        exportedAt: new Date().toISOString(),
-      },
-      null,
-      2
-    );
-    Alert.alert(
-      'Export Project Data',
-      `Data summary ready:\n• ${projects.length} project(s)\n\nData backup format JSON is prepared.`,
-      [{ text: 'OK' }]
-    );
+  const handleExportData = async () => {
+    triggerHaptic(15);
+    const exportData = {
+      profile: useProfileStore.getState().profile,
+      projects: projects,
+      exportedAt: new Date().toISOString(),
+    };
+    const jsonString = JSON.stringify(exportData, null, 2);
+
+    try {
+      await Clipboard.setStringAsync(jsonString);
+      Alert.alert(
+        'Export Successful',
+        `Data for ${projects.length} project(s) and profile settings copied to clipboard as JSON!`,
+        [{ text: 'OK' }]
+      );
+    } catch (err) {
+      Alert.alert(
+        'Export Summary',
+        `Data summary:\n• ${projects.length} project(s)\n• Profile info included.`,
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   const handleClearCache = async () => {
+    triggerHaptic(25);
     const confirmed = await ask({
       title: 'Clear Local Cache',
-      message: 'This will reset your cached settings and app preferences on this device.',
+      message: 'This will reset your cached settings and local preferences on this device.',
       confirmLabel: 'Clear Cache',
       destructive: true,
       icon: 'trash-2',
@@ -85,6 +96,7 @@ export default function SettingsScreen() {
   };
 
   const handleLogOut = async () => {
+    triggerHaptic(30);
     const confirmed = await ask({
       title: 'Log Out',
       message: 'Are you sure you want to log out of Trak?',
@@ -117,7 +129,7 @@ export default function SettingsScreen() {
         style={[styles.appBar, Platform.OS === 'android' && { backgroundColor: `${Colors.surface}E6` }]}
       >
         <View style={[styles.appBarInner, { paddingTop: Math.max(insets.top, 24) + 12 }]}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={10}>
+          <Pressable onPress={() => { triggerHaptic(10); router.back(); }} style={styles.backBtn} hitSlop={10}>
             <Feather name="arrow-left" size={20} color={Colors.onSurface} />
           </Pressable>
           <Text style={styles.appBarTitle}>Settings</Text>
@@ -222,7 +234,7 @@ export default function SettingsScreen() {
               </View>
               <View style={styles.rowLabelWrap}>
                 <Text style={styles.rowTitle}>Export Project Data</Text>
-                <Text style={styles.rowSubtitle}>Download JSON snapshot of your data</Text>
+                <Text style={styles.rowSubtitle}>Copy JSON data backup to clipboard</Text>
               </View>
             </View>
             <Feather name="chevron-right" size={18} color={`${Colors.onSurfaceVariant}60`} />
