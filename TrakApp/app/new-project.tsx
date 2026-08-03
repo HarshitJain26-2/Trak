@@ -10,12 +10,17 @@ import {
   Modal,
   Platform,
   KeyboardAvoidingView,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors } from '../constants/colors';
 import { useProjectStore, Priority, ProjectStatus } from '../store/useProjectStore';
+import { validateDeadlineDate } from '../lib/deadlineValidator';
+import { ReminderConfigModal, ReminderConfig } from '../components/ReminderConfigModal';
+import { notificationService } from '../lib/notifications';
+import { triggerHaptic } from '../lib/haptics';
 
 const AVAILABLE_TAGS = ['TS', 'Rust', 'AWS', 'Go', 'Python', 'React', 'K8s', 'Node', 'Kafka', 'Redis'];
 
@@ -28,7 +33,7 @@ const PRIORITY_OPTIONS: PriorityOption[] = [
 
 export default function NewProjectScreen() {
   const router = useRouter();
-  const { addProject } = useProjectStore();
+  const { addProject, projects } = useProjectStore();
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -36,9 +41,16 @@ export default function NewProjectScreen() {
   const [repoUrl, setRepoUrl] = useState('');
   const [priority, setPriority] = useState<Priority>('low');
   const [selectedTags, setSelectedTags] = useState<string[]>(['TS']);
+  const [reminderModalVisible, setReminderModalVisible] = useState(false);
+  const [reminderConfig, setReminderConfig] = useState<ReminderConfig>({
+    preset: '1d',
+    offsetMinutes: 1440,
+    label: '1 day before',
+  });
 
-  // Sheet drag animation
-  const translateY = useRef(new Animated.Value(0)).current;
+  // Validation state
+  const [deadlineError, setDeadlineError] = useState<string | null>(null);
+
   const saveScale = useRef(new Animated.Value(1)).current;
 
   const toggleTag = (tag: string) => {
@@ -47,9 +59,44 @@ export default function NewProjectScreen() {
     );
   };
 
-  const handleSave = () => {
+  const handleDeadlineChange = (text: string) => {
+    setDeadline(text);
+    if (text.trim()) {
+      const res = validateDeadlineDate(text);
+      if (!res.isValid) {
+        setDeadlineError(res.error || 'Invalid deadline');
+      } else {
+        setDeadlineError(null);
+      }
+    } else {
+      setDeadlineError(null);
+    }
+  };
+
+  const handleSave = async () => {
     if (!name.trim()) return;
-    addProject({
+
+    // Check duplicate project name
+    const isDuplicateName = projects.some(
+      (p) => p.name.toLowerCase().trim() === name.toLowerCase().trim()
+    );
+    if (isDuplicateName) {
+      Alert.alert('Duplicate Project', 'A project with this name already exists.');
+      return;
+    }
+
+    if (deadline.trim()) {
+      const validation = validateDeadlineDate(deadline);
+      if (!validation.isValid) {
+        Alert.alert('Invalid Deadline', validation.error || 'Please enter a valid deadline date (e.g. 2026-12-31).');
+        return;
+      }
+    }
+
+    triggerHaptic(20);
+    const newProjectId = Date.now().toString();
+
+    await addProject({
       name: name.trim(),
       description: description.trim(),
       version: 'v0.1.0',
@@ -59,6 +106,22 @@ export default function NewProjectScreen() {
       repoUrl: repoUrl.trim(),
       priority,
     });
+
+    // Schedule reminder if deadline is valid and specified
+    if (deadline.trim() && reminderConfig) {
+      const deadlineDate = new Date(deadline.trim());
+      if (!isNaN(deadlineDate.getTime())) {
+        const triggerTimestamp = deadlineDate.getTime() - reminderConfig.offsetMinutes * 60 * 1000;
+        await notificationService.scheduleReminder({
+          id: `rem_${newProjectId}`,
+          projectId: newProjectId,
+          projectName: name.trim(),
+          triggerTime: triggerTimestamp,
+          offsetLabel: reminderConfig.label,
+        });
+      }
+    }
+
     router.back();
   };
 
@@ -71,7 +134,14 @@ export default function NewProjectScreen() {
 
   return (
     <View style={styles.root}>
-      {/* Backdrop - solid dark overlay (BlurView unreliable on Android) */}
+      <ReminderConfigModal
+        visible={reminderModalVisible}
+        onClose={() => setReminderModalVisible(false)}
+        onSelect={(cfg) => setReminderConfig(cfg)}
+        initialPreset={reminderConfig.preset}
+      />
+
+      {/* Backdrop */}
       <Pressable style={[StyleSheet.absoluteFill, styles.backdrop]} onPress={handleClose} />
 
       {/* Bottom Sheet */}
@@ -80,7 +150,6 @@ export default function NewProjectScreen() {
         style={styles.sheetWrapper}
       >
         <View style={styles.sheet}>
-          {/* Handle */}
           <View style={styles.handle} />
 
           {/* Header */}
@@ -154,101 +223,73 @@ export default function NewProjectScreen() {
               </View>
             </View>
 
-            {/* Deadline + Repo row */}
-            <View style={styles.twoColRow}>
-              <View style={[styles.field, { flex: 1 }]}>
-                <Text style={styles.fieldLabel}>DEADLINE</Text>
-                <View style={styles.inputWrapper}>
-                  <Feather name="calendar" size={16} color={`${Colors.onSurfaceVariant}80`} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="e.g. DEC 31"
-                    placeholderTextColor={`${Colors.onSurfaceVariant}4D`}
-                    value={deadline}
-                    onChangeText={setDeadline}
-                    autoCapitalize="characters"
-                  />
-                </View>
+            {/* Deadline Date & Time */}
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>DEADLINE (YYYY-MM-DD)</Text>
+              <View style={[styles.inputWrapper, deadlineError ? { borderColor: Colors.error } : null]}>
+                <Feather name="calendar" size={16} color={`${Colors.onSurfaceVariant}80`} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g. 2026-12-31"
+                  placeholderTextColor={`${Colors.onSurfaceVariant}4D`}
+                  value={deadline}
+                  onChangeText={handleDeadlineChange}
+                />
               </View>
-              <View style={[styles.field, { flex: 1 }]}>
-                <Text style={styles.fieldLabel}>REPO LINK</Text>
-                <View style={styles.inputWrapper}>
-                  <Feather name="terminal" size={16} color={`${Colors.onSurfaceVariant}80`} />
-                  <TextInput
-                    style={[styles.input, { fontFamily: 'JetBrainsMono_400Regular' }]}
-                    placeholder="github.com/org/repo"
-                    placeholderTextColor={`${Colors.onSurfaceVariant}4D`}
-                    value={repoUrl}
-                    onChangeText={setRepoUrl}
-                    autoCapitalize="none"
-                    keyboardType="url"
-                  />
-                </View>
-              </View>
+              {deadlineError && <Text style={styles.errorText}>{deadlineError}</Text>}
             </View>
 
-            {/* Priority segmented control */}
+            {/* Smart Reminder Trigger Selector */}
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>REMINDER SCHEDULE</Text>
+              <Pressable
+                style={styles.reminderPickerBtn}
+                onPress={() => setReminderModalVisible(true)}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Feather name="bell" size={16} color={Colors.primaryFixed} />
+                  <Text style={styles.reminderPickerText}>{reminderConfig.label}</Text>
+                </View>
+                <Feather name="chevron-right" size={16} color={Colors.onSurfaceVariant} />
+              </Pressable>
+            </View>
+
+            {/* Priority */}
             <View style={styles.field}>
               <Text style={styles.fieldLabel}>PRIORITY LEVEL</Text>
-              <View style={styles.segmentedControl}>
-                {PRIORITY_OPTIONS.map(({ label, value }) => (
-                  <Pressable
-                    key={value}
-                    style={[
-                      styles.segmentItem,
-                      priority === value && styles.segmentItemActive,
-                    ]}
-                    onPress={() => setPriority(value)}
-                  >
-                    <Text
-                      style={[
-                        styles.segmentText,
-                        priority === value && styles.segmentTextActive,
-                      ]}
+              <View style={styles.priorityRow}>
+                {PRIORITY_OPTIONS.map((opt) => {
+                  const isSelected = priority === opt.value;
+                  return (
+                    <Pressable
+                      key={opt.value}
+                      onPress={() => setPriority(opt.value)}
+                      style={[styles.priorityChip, isSelected && styles.priorityChipSelected]}
                     >
-                      {label}
-                    </Text>
-                  </Pressable>
-                ))}
+                      <Text style={[styles.priorityText, isSelected && styles.priorityTextSelected]}>
+                        {opt.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </View>
             </View>
-
-            {/* Atmospheric visual anchor */}
-            <View style={styles.visualAnchor}>
-              <View style={styles.visualAnchorGradient} />
-              <Text style={styles.visualAnchorCode}>System::READY</Text>
-              <View style={styles.visualAnchorDots}>
-                <View style={[styles.anchorDot, { backgroundColor: Colors.primaryFixed }]} />
-                <View style={[styles.anchorDot, { backgroundColor: `${Colors.onSurfaceVariant}33` }]} />
-                <View style={[styles.anchorDot, { backgroundColor: `${Colors.onSurfaceVariant}33` }]} />
-              </View>
-              <Feather
-                name="box"
-                size={48}
-                color={`${Colors.onSurfaceVariant}1A`}
-                style={styles.visualAnchorIcon}
-              />
-            </View>
-
-            <View style={{ height: 20 }} />
           </ScrollView>
 
-          {/* Sticky footer */}
+          {/* Action Footer */}
           <View style={styles.footer}>
-            <SafeAreaView edges={['bottom']}>
-              <Animated.View style={{ transform: [{ scale: saveScale }] }}>
-                <Pressable
-                  style={[styles.saveButton, !name.trim() && styles.saveButtonDisabled]}
-                  onPressIn={handleSavePressIn}
-                  onPressOut={handleSavePressOut}
-                  onPress={handleSave}
-                  disabled={!name.trim()}
-                >
-                  <Feather name="save" size={20} color={Colors.onPrimaryFixed} />
-                  <Text style={styles.saveButtonText}>Save Project</Text>
-                </Pressable>
-              </Animated.View>
-            </SafeAreaView>
+            <Animated.View style={{ transform: [{ scale: saveScale }], flex: 1 }}>
+              <Pressable
+                onPressIn={handleSavePressIn}
+                onPressOut={handleSavePressOut}
+                onPress={handleSave}
+                disabled={!name.trim()}
+                style={[styles.saveBtn, !name.trim() && styles.saveBtnDisabled]}
+              >
+                <Feather name="plus" size={18} color="#002203" />
+                <Text style={styles.saveBtnText}>Create Project</Text>
+              </Pressable>
+            </Animated.View>
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -257,225 +298,135 @@ export default function NewProjectScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'transparent',
-  },
-  backdrop: {
-    backgroundColor: 'rgba(0, 0, 0, 0.72)',
-  },
-  sheetWrapper: {
-    justifyContent: 'flex-end',
-  },
+  root: { flex: 1, justifyContent: 'flex-end' },
+  backdrop: { backgroundColor: 'rgba(0,0,0,0.7)' },
+  sheetWrapper: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: Colors.surfaceContainerLowest,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    borderTopWidth: 1,
-    borderColor: `${Colors.outlineVariant}4D`,
-    maxHeight: '90%',
-    minHeight: '75%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 24,
+    backgroundColor: '#161B22',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '85%',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   handle: {
-    width: 32,
+    width: 36,
     height: 4,
-    backgroundColor: `${Colors.onSurfaceVariant}4D`,
     borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     alignSelf: 'center',
-    marginTop: 8,
+    marginTop: 10,
+    marginBottom: 8,
   },
   sheetHeader: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 20,
-    height: 64,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
   },
-  sheetTitle: {
-    fontFamily: 'Inter_700Bold',
-    fontSize: 24,
-    color: Colors.primaryFixed,
-    letterSpacing: -0.5,
-  },
-  closeBtn: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 22,
-  },
-  form: {
-    flex: 1,
-  },
-  formContent: {
-    paddingHorizontal: 20,
-    gap: 24,
-    paddingBottom: 16,
-  },
-  field: {
-    gap: 8,
-  },
+  sheetTitle: { fontFamily: 'Inter_700Bold', fontSize: 18, color: Colors.onSurface },
+  closeBtn: { padding: 4 },
+  form: { flex: 1 },
+  formContent: { padding: 20, gap: 16 },
+  field: { gap: 6 },
   fieldLabel: {
     fontFamily: 'JetBrainsMono_500Medium',
-    fontSize: 12,
-    color: `${Colors.onSurfaceVariant}B3`,
-    letterSpacing: 2,
+    fontSize: 10,
+    color: Colors.onSurfaceVariant,
+    opacity: 0.5,
+    letterSpacing: 1.5,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    backgroundColor: Colors.surfaceContainer,
-    borderRadius: 8,
+    gap: 10,
+    backgroundColor: Colors.surfaceContainerHigh,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: `${Colors.outlineVariant}4D`,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    borderColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   input: {
     flex: 1,
     fontFamily: 'Inter_400Regular',
-    fontSize: 16,
+    fontSize: 14,
     color: Colors.onSurface,
   },
-  multilineInput: {
-    minHeight: 80,
-    width: '100%',
-    lineHeight: 22,
+  multilineInput: { minHeight: 70 },
+  errorText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    color: Colors.error,
+    marginTop: 2,
   },
-  tagsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    paddingVertical: 4,
-  },
+  tagsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   tagChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 999,
+    borderRadius: 8,
     backgroundColor: Colors.surfaceContainerHigh,
     borderWidth: 1,
-    borderColor: `${Colors.outlineVariant}80`,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   tagChipSelected: {
     backgroundColor: Colors.primaryFixed,
     borderColor: Colors.primaryFixed,
   },
-  tagChipText: {
-    fontFamily: 'JetBrainsMono_400Regular',
-    fontSize: 12,
+  tagChipText: { fontFamily: 'Inter_500Medium', fontSize: 12, color: Colors.onSurfaceVariant },
+  tagChipTextSelected: { color: Colors.onPrimaryFixed, fontFamily: 'Inter_600SemiBold' },
+  reminderPickerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.surfaceContainerHigh,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  reminderPickerText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 14,
     color: Colors.onSurface,
   },
-  tagChipTextSelected: {
-    color: Colors.onPrimaryFixed,
-  },
-  twoColRow: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  segmentedControl: {
-    flexDirection: 'row',
-    padding: 4,
-    backgroundColor: Colors.surfaceContainer,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: `${Colors.outlineVariant}4D`,
-  },
-  segmentItem: {
+  priorityRow: { flexDirection: 'row', gap: 8 },
+  priorityChip: {
     flex: 1,
+    paddingVertical: 10,
     alignItems: 'center',
-    paddingVertical: 8,
     borderRadius: 8,
-  },
-  segmentItemActive: {
-    backgroundColor: Colors.primaryFixed,
-  },
-  segmentText: {
-    fontFamily: 'JetBrainsMono_500Medium',
-    fontSize: 13,
-    color: Colors.onSurfaceVariant,
-  },
-  segmentTextActive: {
-    color: Colors.onPrimaryFixed,
-  },
-  visualAnchor: {
-    width: '100%',
-    height: 120,
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: `${Colors.outlineVariant}33`,
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  visualAnchorGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
     backgroundColor: Colors.surfaceContainerHigh,
-    opacity: 0.5,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
-  visualAnchorCode: {
-    position: 'absolute',
-    top: 16,
-    left: 16,
-    fontFamily: 'JetBrainsMono_400Regular',
-    fontSize: 12,
-    color: `${Colors.primaryFixed}66`,
+  priorityChipSelected: {
+    backgroundColor: `${Colors.primaryFixed}20`,
+    borderColor: Colors.primaryFixed,
   },
-  visualAnchorDots: {
-    position: 'absolute',
-    bottom: 16,
-    right: 16,
-    flexDirection: 'row',
-    gap: 4,
-  },
-  anchorDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  visualAnchorIcon: {
-    position: 'absolute',
-  },
+  priorityText: { fontFamily: 'Inter_500Medium', fontSize: 13, color: Colors.onSurfaceVariant },
+  priorityTextSelected: { color: Colors.primaryFixed, fontFamily: 'Inter_600SemiBold' },
   footer: {
     padding: 20,
     borderTopWidth: 1,
-    borderTopColor: `${Colors.outlineVariant}4D`,
-    backgroundColor: `${Colors.surfaceContainerLowest}E6`,
+    borderTopColor: 'rgba(255,255,255,0.06)',
   },
-  saveButton: {
+  saveBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     backgroundColor: Colors.primaryFixed,
+    paddingVertical: 14,
     borderRadius: 12,
-    paddingVertical: 16,
-    shadowColor: Colors.primaryFixed,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 8,
   },
-  saveButtonDisabled: {
-    opacity: 0.5,
-  },
-  saveButtonText: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 20,
-    color: Colors.onPrimaryFixed,
-  },
+  saveBtnDisabled: { opacity: 0.4 },
+  saveBtnText: { fontFamily: 'Inter_600SemiBold', fontSize: 15, color: '#002203' },
 });

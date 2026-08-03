@@ -26,6 +26,7 @@ import { ConfirmDialog, useConfirmDialog } from '../components/ConfirmDialog';
 import { ActionSheet, useActionSheet, ActionOption } from '../components/ActionSheet';
 import { triggerHaptic } from '../lib/haptics';
 import { t, SUPPORTED_LANGUAGES, SupportedLanguage } from '../lib/i18n';
+import { notificationService, PermissionStatus } from '../lib/notifications';
 
 function SectionHeader({ title, color }: { title: string; color: string }) {
   return (
@@ -41,6 +42,9 @@ export default function SettingsScreen() {
   const systemColorScheme = useColorScheme();
   const { dialogProps, ask } = useConfirmDialog();
   const { actionSheetProps, showActionSheet } = useActionSheet();
+
+  const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>('pending');
+  const [testingNotification, setTestingNotification] = useState(false);
 
   const {
     themeMode,
@@ -63,7 +67,36 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     loadSettings();
+    checkPermissionStatus();
   }, []);
+
+  const checkPermissionStatus = async () => {
+    const status = await notificationService.getPermissionStatus();
+    setPermissionStatus(status);
+  };
+
+  const handleRequestPermission = async () => {
+    triggerHaptic(15);
+    const newStatus = await notificationService.requestPermission();
+    setPermissionStatus(newStatus);
+    if (newStatus === 'granted') {
+      Alert.alert('Permission Granted', 'Notifications are now enabled for Trak.');
+    } else {
+      Alert.alert('Permission Denied', 'Notifications are currently blocked by browser/device settings.');
+    }
+  };
+
+  const handleSendTestNotification = async () => {
+    triggerHaptic(20);
+    setTestingNotification(true);
+    try {
+      const res = await notificationService.sendTestNotification();
+      await checkPermissionStatus();
+      Alert.alert(res.success ? 'Success' : 'Notification Alert', res.message);
+    } finally {
+      setTestingNotification(false);
+    }
+  };
 
   const currentLangObj = SUPPORTED_LANGUAGES.find((l) => l.code === language) || SUPPORTED_LANGUAGES[0];
 
@@ -255,8 +288,8 @@ export default function SettingsScreen() {
           </Pressable>
         </View>
 
-        {/* ── PREFERENCES ── */}
-        <SectionHeader title={t('preferences', language)} color={`${colors.onSurfaceVariant}90`} />
+        {/* ── 🔔 NOTIFICATIONS & TEST NOTIFICATION ── */}
+        <SectionHeader title="NOTIFICATIONS & REMINDERS" color={`${colors.onSurfaceVariant}90`} />
         <View style={[styles.glassCard, { backgroundColor: colors.glassBg, borderColor: colors.glassBorder }]}>
           <View style={styles.row}>
             <View style={styles.rowLeft}>
@@ -280,6 +313,59 @@ export default function SettingsScreen() {
 
           <View style={[styles.divider, { backgroundColor: `${colors.outlineVariant}20` }]} />
 
+          {/* Permission Status */}
+          <View style={styles.row}>
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconWrap, { backgroundColor: colors.surfaceContainerHigh }]}>
+                <Feather name="shield" size={16} color={colors.onSurfaceVariant} />
+              </View>
+              <View style={styles.rowLabelWrap}>
+                <Text style={[styles.rowTitle, { color: colors.onSurface }]}>Permission Status</Text>
+                <Text style={[styles.rowSubtitle, { color: `${colors.onSurfaceVariant}90` }]}>
+                  System push notification access
+                </Text>
+              </View>
+            </View>
+            <Pressable
+              onPress={handleRequestPermission}
+              style={[
+                styles.statusBadge,
+                permissionStatus === 'granted' && { backgroundColor: `${colors.primaryFixed}20`, borderColor: `${colors.primaryFixed}40` },
+                permissionStatus === 'denied' && { backgroundColor: `${colors.error}20`, borderColor: `${colors.error}40` },
+                permissionStatus === 'pending' && { backgroundColor: `${colors.secondary}20`, borderColor: `${colors.secondary}40` },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.statusBadgeText,
+                  permissionStatus === 'granted' && { color: colors.primaryFixed },
+                  permissionStatus === 'denied' && { color: colors.error },
+                  permissionStatus === 'pending' && { color: colors.secondary },
+                ]}
+              >
+                {permissionStatus.toUpperCase()}
+              </Text>
+            </Pressable>
+          </View>
+
+          <View style={[styles.divider, { backgroundColor: `${colors.outlineVariant}20` }]} />
+
+          {/* 🧪 MANDATORY TEST NOTIFICATION BUTTON */}
+          <Pressable
+            style={[styles.testBtn, { backgroundColor: `${colors.primaryFixed}15`, borderColor: `${colors.primaryFixed}35` }]}
+            onPress={handleSendTestNotification}
+            disabled={testingNotification}
+          >
+            <Feather name="send" size={16} color={colors.primaryFixed} />
+            <Text style={[styles.testBtnText, { color: colors.primaryFixed }]}>
+              {testingNotification ? 'Sending...' : '🧪 Send Test Notification'}
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* ── PREFERENCES ── */}
+        <SectionHeader title={t('preferences', language)} color={`${colors.onSurfaceVariant}90`} />
+        <View style={[styles.glassCard, { backgroundColor: colors.glassBg, borderColor: colors.glassBorder }]}>
           <View style={styles.row}>
             <View style={styles.rowLeft}>
               <View style={[styles.iconWrap, { backgroundColor: `${colors.secondary}15` }]}>
@@ -540,6 +626,30 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     fontSize: 11,
     marginTop: 2,
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  statusBadgeText: {
+    fontFamily: 'JetBrainsMono_500Medium',
+    fontSize: 11,
+  },
+  testBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 11,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginVertical: 10,
+  },
+  testBtnText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 14,
   },
   langPill: {
     flexDirection: 'row',
