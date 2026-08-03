@@ -689,6 +689,9 @@ export default function ProfileScreen() {
             <Feather name="user" size={18} color={Colors.primaryFixed} />
             <Text style={styles.appBarTitle}>Profile</Text>
           </View>
+          <Pressable onPress={() => router.push('/settings' as any)} hitSlop={10}>
+            <Feather name="settings" size={20} color={Colors.onSurfaceVariant} />
+          </Pressable>
         </View>
       </BlurView>
 
