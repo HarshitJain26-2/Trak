@@ -17,9 +17,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
-import { Colors } from '../../constants/colors';
+import { Colors, getThemeColors } from '../../constants/colors';
 import { useProfileStore, Profile, SocialLink } from '../../store/useProfileStore';
 import { useProjectStore } from '../../store/useProjectStore';
+import { useSettingsStore } from '../../store/useSettingsStore';
+import { t } from '../../lib/i18n';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
@@ -687,7 +689,7 @@ export default function ProfileScreen() {
         <View style={[styles.appBarInner, { paddingTop: Math.max(insets.top, 24) + 12 }]}>
           <View style={styles.appBarLeft}>
             <Feather name="user" size={18} color={Colors.primaryFixed} />
-            <Text style={styles.appBarTitle}>Profile</Text>
+            <Text style={styles.appBarTitle}>{t('profile', useSettingsStore.getState().language)}</Text>
           </View>
           <Pressable onPress={() => router.push('/settings' as any)} hitSlop={10}>
             <Feather name="settings" size={20} color={Colors.onSurfaceVariant} />

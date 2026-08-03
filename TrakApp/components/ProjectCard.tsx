@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Animated, useColorScheme } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { Colors } from '../constants/colors';
+import { getThemeColors } from '../constants/colors';
 import { StatusDot } from './StatusDot';
 import { TechPill } from './TechPill';
 import type { Project } from '../store/useProjectStore';
@@ -15,25 +15,28 @@ interface ProjectCardProps {
   onLongPress?: () => void;
 }
 
-const PRIORITY_ACCENT_COLORS: Record<string, string> = {
-  high: Colors.error,           // Red
-  medium: Colors.statusWarning, // Yellow
-  low: Colors.primaryFixed,     // Green
-};
-
-const STATUS_ACCENT_COLORS: Record<string, string> = {
-  active: Colors.primaryFixed,
-  warning: Colors.statusWarning,
-  blocked: Colors.error,
-  idle: Colors.secondaryContainer,
-};
-
 export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }) => {
   const router = useRouter();
-  const compactCards = useSettingsStore((s) => s.compactCards);
+  const systemColorScheme = useColorScheme();
+  const { compactCards, themeMode } = useSettingsStore();
+  const colors = getThemeColors(themeMode, systemColorScheme);
   const [modalVisible, setModalVisible] = useState(false);
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
-  const accentColor = PRIORITY_ACCENT_COLORS[project.priority] ?? STATUS_ACCENT_COLORS[project.status] ?? Colors.primaryFixed;
+
+  const PRIORITY_ACCENT_COLORS: Record<string, string> = {
+    high: colors.error,
+    medium: colors.statusWarning,
+    low: colors.primaryFixed,
+  };
+
+  const STATUS_ACCENT_COLORS: Record<string, string> = {
+    active: colors.primaryFixed,
+    warning: colors.statusWarning,
+    blocked: colors.error,
+    idle: colors.secondaryContainer,
+  };
+
+  const accentColor = PRIORITY_ACCENT_COLORS[project.priority] ?? STATUS_ACCENT_COLORS[project.status] ?? colors.primaryFixed;
   
   const computedProgress = project.milestones && project.milestones.length > 0
     ? Math.round((project.milestones.filter((m) => m.completed).length / project.milestones.length) * 100)
@@ -77,7 +80,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
         onLongPress={handleLongPress}
         delayLongPress={350}
       >
-      <Animated.View style={[styles.card, { transform: [{ scale: scaleAnim }] }]}>
+      <Animated.View style={[styles.card, { backgroundColor: colors.cardBg, borderColor: colors.glassBorder, transform: [{ scale: scaleAnim }] }]}>
         {/* Progress accent bar */}
         <View style={[styles.accentBar, { width: progressWidth, backgroundColor: accentColor }]} />
 
@@ -86,14 +89,14 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
           <View style={[styles.headerRow, compactCards && styles.compactHeaderRow]}>
             <View style={styles.titleRow}>
               <StatusDot status={project.status} size={compactCards ? 6 : 8} animated={project.status === 'active'} />
-              <Text style={[styles.projectName, compactCards && styles.compactProjectName]} numberOfLines={1}>
+              <Text style={[styles.projectName, { color: colors.onSurface }, compactCards && styles.compactProjectName]} numberOfLines={1}>
                 {project.name}
               </Text>
             </View>
             {project.status === 'blocked' ? (
-              <Feather name="alert-triangle" size={compactCards ? 14 : 16} color={Colors.error} />
+              <Feather name="alert-triangle" size={compactCards ? 14 : 16} color={colors.error} />
             ) : (
-              <Text style={[styles.version, compactCards && styles.compactVersion]}>{project.version}</Text>
+              <Text style={[styles.version, { color: colors.onSurfaceVariant }, compactCards && styles.compactVersion]}>{project.version}</Text>
             )}
           </View>
 
@@ -107,12 +110,12 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
           {/* Footer row */}
           <View style={styles.footerRow}>
             <View style={{ flexDirection: compactCards ? 'row' : 'column', alignItems: compactCards ? 'center' : 'flex-start', gap: compactCards ? 6 : 0 }}>
-              <Text style={styles.deadlineLabel}>DEADLINE</Text>
+              <Text style={[styles.deadlineLabel, { color: colors.onSurfaceVariant }]}>DEADLINE</Text>
               <Text style={[styles.deadlineValue, { color: accentColor }, compactCards && styles.compactDeadlineValue]}>
                 {project.deadline}
               </Text>
             </View>
-            <Text style={[styles.lastUpdated, compactCards && styles.compactLastUpdated]}>
+            <Text style={[styles.lastUpdated, { color: compactCards ? colors.primaryFixed : colors.onSurfaceVariant }, compactCards && styles.compactLastUpdated]}>
               {compactCards ? `${computedProgress}%` : `Updated ${project.lastUpdated}`}
             </Text>
           </View>
@@ -125,25 +128,17 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#161B22',
     borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    // iOS shadow
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.15,
     shadowRadius: 6,
-    // Android shadow
-    elevation: 4,
+    elevation: 3,
   },
   accentBar: {
-    height: 2,
-    shadowColor: Colors.primaryFixed,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 6,
+    height: 2.5,
   },
   content: {
     padding: 16,
@@ -170,9 +165,8 @@ const styles = StyleSheet.create({
   },
   projectName: {
     fontFamily: 'Inter_600SemiBold',
-    fontSize: 20,
-    lineHeight: 26,
-    color: Colors.onSurface,
+    fontSize: 19,
+    lineHeight: 25,
     letterSpacing: -0.2,
   },
   compactProjectName: {
@@ -183,7 +177,6 @@ const styles = StyleSheet.create({
     fontFamily: 'JetBrainsMono_400Regular',
     fontSize: 12,
     lineHeight: 18,
-    color: Colors.onSurfaceVariant,
   },
   compactVersion: {
     fontSize: 11,
@@ -206,8 +199,7 @@ const styles = StyleSheet.create({
   deadlineLabel: {
     fontFamily: 'JetBrainsMono_500Medium',
     fontSize: 10,
-    color: Colors.onSurfaceVariant,
-    opacity: 0.4,
+    opacity: 0.5,
     letterSpacing: 2,
     marginBottom: 2,
   },
@@ -223,12 +215,10 @@ const styles = StyleSheet.create({
   lastUpdated: {
     fontFamily: 'JetBrainsMono_400Regular',
     fontSize: 12,
-    color: Colors.onSurfaceVariant,
-    opacity: 0.4,
+    opacity: 0.5,
   },
   compactLastUpdated: {
     fontSize: 11,
-    color: Colors.primaryFixed,
-    opacity: 0.8,
+    opacity: 0.9,
   },
 });
