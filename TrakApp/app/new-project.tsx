@@ -12,7 +12,7 @@ import {
   KeyboardAvoidingView,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors } from '../constants/colors';
@@ -33,6 +33,7 @@ const PRIORITY_OPTIONS: PriorityOption[] = [
 
 export default function NewProjectScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { addProject, projects } = useProjectStore();
 
   const [name, setName] = useState('');
@@ -146,7 +147,7 @@ export default function NewProjectScreen() {
 
       {/* Bottom Sheet */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.sheetWrapper}
       >
         <View style={styles.sheet}>
@@ -277,7 +278,7 @@ export default function NewProjectScreen() {
           </ScrollView>
 
           {/* Action Footer */}
-          <View style={styles.footer}>
+          <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
             <Animated.View style={{ transform: [{ scale: saveScale }], flex: 1 }}>
               <Pressable
                 onPressIn={handleSavePressIn}
@@ -305,6 +306,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#161B22',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    height: '85%',
     maxHeight: '85%',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
