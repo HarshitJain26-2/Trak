@@ -60,6 +60,14 @@ export function setupNotificationHandler() {
  * Handles permissions, Android channels, Expo Go restrictions, and token generation using EAS projectId.
  */
 export async function registerForPushNotificationsAsync(): Promise<PushRegistrationResult> {
+  if (Platform.OS === 'web') {
+    return {
+      token: null,
+      status: 'unavailable_expo_go',
+      message: 'Web browser push notifications require VAPID keys. Use an Android or iOS device for Expo push notifications.',
+    };
+  }
+
   const isExpoGo =
     Constants.appOwnership === 'expo' ||
     Constants.executionEnvironment === 'storeClient';
