@@ -5,6 +5,11 @@
 credentials.json
 token.json
 
+# Node & Server
+node_modules/
+server/node_modules/
+.env.local
+
 # Python
 __pycache__/
 *.py[cod]
