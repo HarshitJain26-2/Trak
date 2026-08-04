@@ -278,7 +278,7 @@ export default function NewProjectScreen() {
           </ScrollView>
 
           {/* Action Footer */}
-          <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+          <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom + 20, 48) }]}>
             <Animated.View style={{ transform: [{ scale: saveScale }], flex: 1 }}>
               <Pressable
                 onPressIn={handleSavePressIn}
