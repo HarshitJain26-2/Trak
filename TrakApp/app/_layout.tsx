@@ -13,16 +13,12 @@ import {
   JetBrainsMono_400Regular,
   JetBrainsMono_500Medium,
 } from '@expo-google-fonts/jetbrains-mono';
-import { View, ActivityIndicator, Platform } from 'react-native';
-import Constants from 'expo-constants';
+import { View, ActivityIndicator } from 'react-native';
 import { Colors } from '../constants/colors';
 import { useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useProjectStore } from '../store/useProjectStore';
 import { useProfileStore } from '../store/useProfileStore';
-
-import * as Notifications from 'expo-notifications';
-import { setupNotificationHandler, registerForPushNotificationsAsync } from '../lib/pushNotifications';
 
 export default function RootLayout() {
   const router = useRouter();
@@ -40,41 +36,14 @@ export default function RootLayout() {
     JetBrainsMono_500Medium,
   });
 
-  // Listen to auth state changes and notification events
+  // Listen to auth state changes to keep data in sync with the logged-in user
   useEffect(() => {
-    const isExpoGoAndroid =
-      Platform.OS === 'android' &&
-      (Constants.appOwnership === 'expo' || Constants.executionEnvironment === 'storeClient');
-
-    let receivedSub: any;
-    let responseSub: any;
-
-    if (!isExpoGoAndroid) {
-      setupNotificationHandler();
-
-      receivedSub = Notifications.addNotificationReceivedListener((notification) => {
-        console.log('[Notification Received Foreground]', notification.request.content);
-      });
-
-      responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
-        const data = response.notification.request.content.data;
-        console.log('[Notification Tap Data]', data);
-
-        if (data?.projectId) {
-          router.push(`/project/${data.projectId}` as any);
-        } else if (data?.url) {
-          router.push(data.url as any);
-        }
-      });
-    }
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === 'SIGNED_IN' && session) {
           // Load data for the newly signed-in user
           await fetchProfile();
           await fetchProjects();
-          await registerForPushNotificationsAsync();
         } else if (event === 'SIGNED_OUT') {
           // Wipe all in-memory data so next user starts clean
           clearProjects();
@@ -89,14 +58,11 @@ export default function RootLayout() {
       if (session) {
         fetchProfile();
         fetchProjects();
-        registerForPushNotificationsAsync();
       }
     });
 
     return () => {
       subscription.unsubscribe();
-      receivedSub?.remove?.();
-      responseSub?.remove?.();
     };
   }, []);
 
@@ -129,4 +95,3 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
-

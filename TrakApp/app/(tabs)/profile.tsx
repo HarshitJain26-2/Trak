@@ -29,7 +29,6 @@ import { safeStorage } from '../../lib/storage';
 import { setActiveUserId } from '../../lib/deviceUser';
 import { ConfirmDialog, useConfirmDialog } from '../../components/ConfirmDialog';
 import { ActionSheet, useActionSheet, ActionOption } from '../../components/ActionSheet';
-import { registerForPushNotificationsAsync, PushRegistrationResult } from '../../lib/pushNotifications';
 
 // ─── Platform icons ────────────────────────────────────────────────────────────
 const PLATFORM_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
@@ -564,46 +563,6 @@ export default function ProfileScreen() {
     editing: SocialLink | null;
   }>({ visible: false, editing: null });
 
-  // Push Notification state & Expo Go guard
-  const [pushResult, setPushResult] = useState<PushRegistrationResult | null>(null);
-  const [sendingTestPush, setSendingTestPush] = useState(false);
-
-  React.useEffect(() => {
-    registerForPushNotificationsAsync().then((res) => setPushResult(res));
-  }, []);
-
-  const handleTestPushNotification = async () => {
-    if (sendingTestPush) return;
-    setSendingTestPush(true);
-    try {
-      const { notificationService } = require('../../lib/notifications');
-      await notificationService.sendTestNotification();
-
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.access_token) {
-        const serverUrl = process.env.EXPO_PUBLIC_SERVER_URL || 'http://localhost:4000';
-        const res = await fetch(`${serverUrl}/api/notifications/test`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-        });
-        const json = await res.json();
-        if (json.success) {
-          Alert.alert('Push Notification Sent!', 'Server push notification was queued successfully.');
-        } else {
-          Alert.alert('Server Push Notice', json.message || 'Server returned status.');
-        }
-      }
-    } catch (err: any) {
-      console.log('[Test Push Notification Error]', err);
-      Alert.alert('Test Notification', 'Local test notification sent! (Start Express server on port 4000 for backend push).');
-    } finally {
-      setSendingTestPush(false);
-    }
-  };
-
   const openEdit = (field: keyof Profile, title: string, multiline = false) => {
     setEditModal({ visible: true, field, title, multiline });
   };
@@ -929,76 +888,6 @@ export default function ProfileScreen() {
             </Pressable>
           </View>
           <Text style={styles.skillHint}>Long-press a skill to remove it</Text>
-        </View>
-
-        {/* ── Push Notifications ── */}
-        <View style={styles.glassCard}>
-          <SectionHeader title="Push Notifications" />
-          <View style={{ gap: 12, marginTop: 4 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <View style={[infoRowStyles.iconWrap, { backgroundColor: pushResult?.token ? `${Colors.primaryFixed}15` : `${Colors.onSurfaceVariant}15` }]}>
-                  <Feather name="bell" size={15} color={pushResult?.token ? Colors.primaryFixed : Colors.onSurfaceVariant} />
-                </View>
-                <View>
-                  <Text style={{ fontFamily: 'Inter_600SemiBold', fontSize: 14, color: Colors.onSurface }}>
-                    Push Delivery Status
-                  </Text>
-                  <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 11, color: pushResult?.token ? Colors.primaryFixed : Colors.error, marginTop: 2 }}>
-                    {pushResult?.token
-                      ? 'Registered & Ready'
-                      : pushResult?.status === 'unavailable_expo_go'
-                      ? 'Expo Go Limitation'
-                      : pushResult?.status === 'simulator'
-                      ? 'Simulator (No Push)'
-                      : pushResult?.status === 'denied'
-                      ? 'Permission Denied'
-                      : 'Not Registered'}
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Expo Go Guard & Warning Message */}
-            {!pushResult?.token && (
-              <View style={{ backgroundColor: 'rgba(255,170,0,0.1)', borderWidth: 1, borderColor: 'rgba(255,170,0,0.25)', borderRadius: 10, padding: 12, flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-                <Feather name="alert-triangle" size={16} color="#FFAA00" />
-                <Text style={{ flex: 1, fontFamily: 'Inter_400Regular', fontSize: 12, color: Colors.onSurface, lineHeight: 16 }}>
-                  {pushResult?.message || 'Remote push notifications require a physical device and a standalone/development build (eas build).'}
-                </Text>
-              </View>
-            )}
-
-            {/* Test Push Button */}
-            <Pressable
-              style={({ pressed }) => [
-                {
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                  backgroundColor: pushResult?.token ? Colors.primaryFixed : Colors.surfaceContainerHighest,
-                  paddingVertical: 12,
-                  borderRadius: 10,
-                  opacity: pushResult?.token ? (pressed ? 0.8 : 1) : 0.4,
-                  marginTop: 4,
-                },
-              ]}
-              disabled={!pushResult?.token || sendingTestPush}
-              onPress={handleTestPushNotification}
-            >
-              {sendingTestPush ? (
-                <ActivityIndicator size="small" color="#002203" />
-              ) : (
-                <>
-                  <Feather name="send" size={15} color={pushResult?.token ? '#002203' : Colors.onSurfaceVariant} />
-                  <Text style={{ fontFamily: 'Inter_600SemiBold', fontSize: 13, color: pushResult?.token ? '#002203' : Colors.onSurfaceVariant }}>
-                    Send Test Push Notification
-                  </Text>
-                </>
-              )}
-            </Pressable>
-          </View>
         </View>
 
         {/* ── Account Actions (Log Out) ── */}

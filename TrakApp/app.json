@@ -31,14 +31,6 @@
         {
           "fonts": []
         }
-      ],
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/icon.png",
-          "color": "#0b0e14",
-          "mode": "production"
-        }
       ]
     ],
     "scheme": "trak",
