@@ -31,7 +31,8 @@
         {
           "fonts": []
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "scheme": "trak",
     "experiments": {
