@@ -13,7 +13,8 @@ import {
   JetBrainsMono_400Regular,
   JetBrainsMono_500Medium,
 } from '@expo-google-fonts/jetbrains-mono';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Platform } from 'react-native';
+import Constants from 'expo-constants';
 import { Colors } from '../constants/colors';
 import { useEffect } from 'react';
 import { supabase } from '../lib/supabase';
@@ -41,25 +42,31 @@ export default function RootLayout() {
 
   // Listen to auth state changes and notification events
   useEffect(() => {
-    // Setup foreground behavior
-    setupNotificationHandler();
+    const isExpoGoAndroid =
+      Platform.OS === 'android' &&
+      (Constants.appOwnership === 'expo' || Constants.executionEnvironment === 'storeClient');
 
-    // Listen for incoming foreground notifications
-    const receivedSub = Notifications.addNotificationReceivedListener((notification) => {
-      console.log('[Notification Received Foreground]', notification.request.content);
-    });
+    let receivedSub: any;
+    let responseSub: any;
 
-    // Listen for user taps on notifications
-    const responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data;
-      console.log('[Notification Tap Data]', data);
+    if (!isExpoGoAndroid) {
+      setupNotificationHandler();
 
-      if (data?.projectId) {
-        router.push(`/project/${data.projectId}` as any);
-      } else if (data?.url) {
-        router.push(data.url as any);
-      }
-    });
+      receivedSub = Notifications.addNotificationReceivedListener((notification) => {
+        console.log('[Notification Received Foreground]', notification.request.content);
+      });
+
+      responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
+        const data = response.notification.request.content.data;
+        console.log('[Notification Tap Data]', data);
+
+        if (data?.projectId) {
+          router.push(`/project/${data.projectId}` as any);
+        } else if (data?.url) {
+          router.push(data.url as any);
+        }
+      });
+    }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -88,8 +95,8 @@ export default function RootLayout() {
 
     return () => {
       subscription.unsubscribe();
-      receivedSub.remove();
-      responseSub.remove();
+      receivedSub?.remove?.();
+      responseSub?.remove?.();
     };
   }, []);
 

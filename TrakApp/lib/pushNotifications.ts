@@ -4,6 +4,24 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { supabase } from './supabase';
 
+// Suppress Expo Go SDK 53+ Android push notification RedBox error on module load
+if (
+  Platform.OS === 'android' &&
+  (Constants.appOwnership === 'expo' || Constants.executionEnvironment === 'storeClient')
+) {
+  const originalConsoleError = console.error;
+  console.error = (...args: any[]) => {
+    if (
+      typeof args[0] === 'string' &&
+      (args[0].includes('Android Push notifications') || args[0].includes('removed from Expo Go'))
+    ) {
+      console.warn('[Expo Go Notice]', args[0]);
+      return;
+    }
+    originalConsoleError(...args);
+  };
+}
+
 export interface PushRegistrationResult {
   token: string | null;
   status: 'granted' | 'denied' | 'undetermined' | 'unavailable_expo_go' | 'simulator';
@@ -14,15 +32,27 @@ export interface PushRegistrationResult {
  * Configure foreground notification behavior
  */
 export function setupNotificationHandler() {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-    }),
-  });
+  const isExpoGoAndroid =
+    Platform.OS === 'android' &&
+    (Constants.appOwnership === 'expo' || Constants.executionEnvironment === 'storeClient');
+
+  if (isExpoGoAndroid) {
+    return;
+  }
+
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      }),
+    });
+  } catch (e) {
+    console.warn('[PushNotifications] Skipping notification handler setup:', e);
+  }
 }
 
 /**
@@ -30,15 +60,17 @@ export function setupNotificationHandler() {
  * Handles permissions, Android channels, Expo Go restrictions, and token generation using EAS projectId.
  */
 export async function registerForPushNotificationsAsync(): Promise<PushRegistrationResult> {
-  // Setup Android Notification Channel first
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'Default Channel',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#0b0e14',
-      sound: 'default',
-    });
+  const isExpoGo =
+    Constants.appOwnership === 'expo' ||
+    Constants.executionEnvironment === 'storeClient';
+
+  if (isExpoGo && Platform.OS === 'android') {
+    console.warn('[PushNotifications] Expo Go on Android does not support remote push notifications');
+    return {
+      token: null,
+      status: 'unavailable_expo_go',
+      message: 'Expo Go on Android has push limitations (SDK 53+). Please use a development build (eas build).',
+    };
   }
 
   // Check if physical device
@@ -51,45 +83,42 @@ export async function registerForPushNotificationsAsync(): Promise<PushRegistrat
     };
   }
 
-  // Detect Expo Go environment (SDK 53+ Android Expo Go limitations)
-  const isExpoGo =
-    Constants.appOwnership === 'expo' ||
-    Constants.executionEnvironment === 'storeClient';
-
-  if (isExpoGo && Platform.OS === 'android') {
-    console.warn('[PushNotifications] Expo Go on Android does not support remote push notifications');
-    return {
-      token: null,
-      status: 'unavailable_expo_go',
-      message: 'Expo Go on Android has push limitations. Please use a development build (eas build).',
-    };
-  }
-
-  // Check permission status
-  let { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
-
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
-
-  if (finalStatus !== 'granted') {
-    console.warn('[PushNotifications] Permission not granted for push notifications');
-    return {
-      token: null,
-      status: 'denied',
-      message: 'Notification permissions were denied by the user.',
-    };
-  }
-
-  // Retrieve EAS Project ID
-  const projectId =
-    Constants.expoConfig?.extra?.eas?.projectId ||
-    Constants.easConfig?.projectId ||
-    'f08c49a2-de31-422d-a9b8-1fb39670bac8';
-
   try {
+    // Setup Android Notification Channel first
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'Default Channel',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#0b0e14',
+        sound: 'default',
+      });
+    }
+
+    // Check permission status
+    let { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+
+    if (finalStatus !== 'granted') {
+      console.warn('[PushNotifications] Permission not granted for push notifications');
+      return {
+        token: null,
+        status: 'denied',
+        message: 'Notification permissions were denied by the user.',
+      };
+    }
+
+    // Retrieve EAS Project ID
+    const projectId =
+      Constants.expoConfig?.extra?.eas?.projectId ||
+      Constants.easConfig?.projectId ||
+      'f08c49a2-de31-422d-a9b8-1fb39670bac8';
+
     const pushTokenData = await Notifications.getExpoPushTokenAsync({ projectId });
     const token = pushTokenData.data;
 
