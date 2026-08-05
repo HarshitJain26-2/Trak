@@ -1,14 +1,16 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Animated, useColorScheme } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, StyleSheet, Pressable, Animated, useColorScheme, PanResponder, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { getThemeColors } from '@/constants/colors';
 import { StatusDot } from '@/components/common/StatusDot';
 import { TechPill } from '@/components/common/TechPill';
-import type { Project } from '@/store/useProjectStore';
+import { useProjectStore, Project } from '@/store/useProjectStore';
 import { ProjectActionModal } from '@/components/modals/ProjectActionModal';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { triggerHaptic } from '@/utils/haptics';
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
 
 interface ProjectCardProps {
   project: Project;
@@ -20,8 +22,11 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
   const systemColorScheme = useColorScheme();
   const { compactCards, themeMode } = useSettingsStore();
   const colors = getThemeColors(themeMode, systemColorScheme);
+  const { markCompleted, deleteProject } = useProjectStore();
+
   const [modalVisible, setModalVisible] = useState(false);
-  const scaleAnim = React.useRef(new Animated.Value(1)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const panX = useRef(new Animated.Value(0)).current;
 
   const PRIORITY_ACCENT_COLORS: Record<string, string> = {
     high: colors.error,
@@ -37,12 +42,56 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
   };
 
   const accentColor = PRIORITY_ACCENT_COLORS[project.priority] ?? STATUS_ACCENT_COLORS[project.status] ?? colors.primaryFixed;
-  
+
   const computedProgress = project.milestones && project.milestones.length > 0
     ? Math.round((project.milestones.filter((m) => m.completed).length / project.milestones.length) * 100)
     : project.progress;
 
   const progressWidth = `${computedProgress}%` as any;
+
+  // Swipe pan responder
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return Math.abs(gestureState.dx) > 15 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+      },
+      onPanResponderMove: (_, gestureState) => {
+        panX.setValue(gestureState.dx);
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        const threshold = 80;
+        if (gestureState.dx > threshold) {
+          // Slide Right -> Mark Complete
+          triggerHaptic(25);
+          Animated.timing(panX, {
+            toValue: SCREEN_WIDTH,
+            duration: 250,
+            useNativeDriver: true,
+          }).start(() => {
+            markCompleted(project.id);
+          });
+        } else if (gestureState.dx < -threshold) {
+          // Slide Left -> Delete Project
+          triggerHaptic(25);
+          Animated.timing(panX, {
+            toValue: -SCREEN_WIDTH,
+            duration: 250,
+            useNativeDriver: true,
+          }).start(() => {
+            deleteProject(project.id);
+          });
+        } else {
+          // Snap back
+          Animated.spring(panX, {
+            toValue: 0,
+            useNativeDriver: true,
+            speed: 30,
+            bounciness: 8,
+          }).start();
+        }
+      },
+    })
+  ).current;
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, { toValue: 0.97, useNativeDriver: true, speed: 30 }).start();
@@ -67,62 +116,85 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
   };
 
   return (
-    <>
+    <View style={styles.containerWrapper}>
       <ProjectActionModal
         visible={modalVisible}
         project={project}
         onClose={() => setModalVisible(false)}
       />
-      <Pressable
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        onPress={handlePress}
-        onLongPress={handleLongPress}
-        delayLongPress={350}
-      >
-      <Animated.View style={[styles.card, { backgroundColor: colors.cardBg, borderColor: colors.glassBorder, transform: [{ scale: scaleAnim }] }]}>
-        {/* Progress accent bar */}
-        <View style={[styles.accentBar, { width: progressWidth, backgroundColor: accentColor }]} />
 
-        <View style={[styles.content, compactCards && styles.compactContent]}>
-          {/* Header row */}
-          <View style={[styles.headerRow, compactCards && styles.compactHeaderRow]}>
-            <View style={styles.titleRow}>
-              <StatusDot status={project.status} size={compactCards ? 6 : 8} animated={project.status === 'active'} />
-              <Text style={[styles.projectName, { color: colors.onSurface }, compactCards && styles.compactProjectName]} numberOfLines={1}>
-                {project.name}
-              </Text>
-            </View>
-            {project.status === 'blocked' ? (
-              <Feather name="alert-triangle" size={compactCards ? 14 : 16} color={colors.error} />
-            ) : (
-              <Text style={[styles.version, { color: colors.onSurfaceVariant }, compactCards && styles.compactVersion]}>{project.version}</Text>
-            )}
-          </View>
-
-          {/* Tech stack pills */}
-          <View style={[styles.pillsRow, compactCards && styles.compactPillsRow]}>
-            {project.techStack.map((tech) => (
-              <TechPill key={tech} label={tech} />
-            ))}
-          </View>
-
-          {/* Footer row */}
-          <View style={styles.footerRow}>
-            <View style={{ flexDirection: compactCards ? 'row' : 'column', alignItems: compactCards ? 'center' : 'flex-start', gap: compactCards ? 6 : 0 }}>
-              <Text style={[styles.deadlineLabel, { color: colors.onSurfaceVariant }]}>DEADLINE</Text>
-              <Text style={[styles.deadlineValue, { color: accentColor }, compactCards && styles.compactDeadlineValue]}>
-                {project.deadline}
-              </Text>
-            </View>
-            <Text style={[styles.lastUpdated, { color: compactCards ? colors.primaryFixed : colors.onSurfaceVariant }, compactCards && styles.compactLastUpdated]}>
-              {compactCards ? `${computedProgress}%` : `Updated ${project.lastUpdated}`}
-            </Text>
-          </View>
+      {/* Slide Right Action Background (Mark Complete - Green) */}
+      <View style={[styles.swipeActionBg, styles.swipeRightBg, { backgroundColor: colors.isDark ? '#00E676' : '#10B981' }]}>
+        <View style={styles.swipeContentLeft}>
+          <Feather name="check-circle" size={22} color={colors.isDark ? '#002203' : '#FFFFFF'} />
+          <Text style={[styles.swipeText, { color: colors.isDark ? '#002203' : '#FFFFFF' }]}>Complete</Text>
         </View>
+      </View>
+
+      {/* Slide Left Action Background (Delete - Red) */}
+      <View style={[styles.swipeActionBg, styles.swipeLeftBg, { backgroundColor: colors.error }]}>
+        <View style={styles.swipeContentRight}>
+          <Text style={[styles.swipeText, { color: '#FFFFFF' }]}>Delete</Text>
+          <Feather name="trash-2" size={22} color="#FFFFFF" />
+        </View>
+      </View>
+
+      {/* Swipable Card */}
+      <Animated.View
+        {...panResponder.panHandlers}
+        style={{ transform: [{ translateX: panX }] }}
+      >
+        <Pressable
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          onPress={handlePress}
+          onLongPress={handleLongPress}
+          delayLongPress={350}
+        >
+          <Animated.View style={[styles.card, { backgroundColor: colors.cardBg, borderColor: colors.glassBorder, transform: [{ scale: scaleAnim }] }]}>
+            {/* Progress accent bar */}
+            <View style={[styles.accentBar, { width: progressWidth, backgroundColor: accentColor }]} />
+
+            <View style={[styles.content, compactCards && styles.compactContent]}>
+              {/* Header row */}
+              <View style={[styles.headerRow, compactCards && styles.compactHeaderRow]}>
+                <View style={styles.titleRow}>
+                  <StatusDot status={project.status} size={compactCards ? 6 : 8} animated={project.status === 'active'} />
+                  <Text style={[styles.projectName, { color: colors.onSurface }, compactCards && styles.compactProjectName]} numberOfLines={1}>
+                    {project.name}
+                  </Text>
+                </View>
+                {project.status === 'blocked' ? (
+                  <Feather name="alert-triangle" size={compactCards ? 14 : 16} color={colors.error} />
+                ) : (
+                  <Text style={[styles.version, { color: colors.onSurfaceVariant }, compactCards && styles.compactVersion]}>{project.version}</Text>
+                )}
+              </View>
+
+              {/* Tech stack pills */}
+              <View style={[styles.pillsRow, compactCards && styles.compactPillsRow]}>
+                {project.techStack.map((tech) => (
+                  <TechPill key={tech} label={tech} />
+                ))}
+              </View>
+
+              {/* Footer row */}
+              <View style={styles.footerRow}>
+                <View style={{ flexDirection: compactCards ? 'row' : 'column', alignItems: compactCards ? 'center' : 'flex-start', gap: compactCards ? 6 : 0 }}>
+                  <Text style={[styles.deadlineLabel, { color: colors.onSurfaceVariant }]}>DEADLINE</Text>
+                  <Text style={[styles.deadlineValue, { color: accentColor }, compactCards && styles.compactDeadlineValue]}>
+                    {project.deadline}
+                  </Text>
+                </View>
+                <Text style={[styles.lastUpdated, { color: compactCards ? colors.primaryFixed : colors.onSurfaceVariant }, compactCards && styles.compactLastUpdated]}>
+                  {compactCards ? `${computedProgress}%` : `Updated ${project.lastUpdated}`}
+                </Text>
+              </View>
+            </View>
+          </Animated.View>
+        </Pressable>
       </Animated.View>
-    </Pressable>
-    </>
+    </View>
   );
 };
 
@@ -220,5 +292,38 @@ const styles = StyleSheet.create({
   compactLastUpdated: {
     fontSize: 11,
     opacity: 0.9,
+  },
+  containerWrapper: {
+    position: 'relative',
+    overflow: 'hidden',
+    borderRadius: 12,
+  },
+  swipeActionBg: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  swipeRightBg: {
+    justifyContent: 'flex-start',
+  },
+  swipeLeftBg: {
+    justifyContent: 'flex-end',
+  },
+  swipeContentLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  swipeContentRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  swipeText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 14,
+    letterSpacing: 0.5,
   },
 });
