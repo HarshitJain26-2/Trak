@@ -19,6 +19,7 @@ import { Colors, useThemeColors } from '@/constants/colors';
 import { useProjectStore, Priority, ProjectStatus } from '@/store/useProjectStore';
 import { validateDeadlineDate } from '@/utils/deadlineValidator';
 import { ReminderConfigModal, ReminderConfig } from '@/components/modals/ReminderConfigModal';
+import { CalendarPickerModal } from '@/components/modals/CalendarPickerModal';
 import { notificationService } from '@/services/notifications';
 import { triggerHaptic } from '@/utils/haptics';
 
@@ -44,6 +45,7 @@ export default function NewProjectScreen() {
   const [priority, setPriority] = useState<Priority>('low');
   const [selectedTags, setSelectedTags] = useState<string[]>(['TS']);
   const [reminderModalVisible, setReminderModalVisible] = useState(false);
+  const [calendarModalVisible, setCalendarModalVisible] = useState(false);
   const [reminderConfig, setReminderConfig] = useState<ReminderConfig>({
     preset: '1d',
     offsetMinutes: 1440,
@@ -87,7 +89,7 @@ export default function NewProjectScreen() {
       return;
     }
 
-    if (deadline.trim()) {
+    if (deadline.trim() && deadline.trim() !== 'No Deadline') {
       const validation = validateDeadlineDate(deadline);
       if (!validation.isValid) {
         Alert.alert('Invalid Deadline', validation.error || 'Please enter a valid deadline date (e.g. 2026-12-31).');
@@ -104,13 +106,13 @@ export default function NewProjectScreen() {
       version: 'v0.1.0',
       status: 'active' as ProjectStatus,
       techStack: selectedTags,
-      deadline: deadline.trim() || 'TBD',
+      deadline: deadline.trim() || 'No Deadline',
       repoUrl: repoUrl.trim(),
       priority,
     });
 
-    // Schedule reminder if deadline is valid and specified
-    if (deadline.trim() && reminderConfig) {
+    // Schedule reminder if deadline is valid date (not No Deadline) and specified
+    if (deadline.trim() && deadline.trim() !== 'No Deadline' && reminderConfig) {
       const deadlineDate = new Date(deadline.trim());
       if (!isNaN(deadlineDate.getTime())) {
         const triggerTimestamp = deadlineDate.getTime() - reminderConfig.offsetMinutes * 60 * 1000;
@@ -141,6 +143,16 @@ export default function NewProjectScreen() {
         onClose={() => setReminderModalVisible(false)}
         onSelect={(cfg) => setReminderConfig(cfg)}
         initialPreset={reminderConfig.preset}
+      />
+
+      <CalendarPickerModal
+        visible={calendarModalVisible}
+        value={deadline}
+        onClose={() => setCalendarModalVisible(false)}
+        onSelect={(d) => {
+          setDeadline(d);
+          setDeadlineError(null);
+        }}
       />
 
       {/* Backdrop */}
@@ -231,17 +243,19 @@ export default function NewProjectScreen() {
 
             {/* Deadline Date & Time */}
             <View style={styles.field}>
-              <Text style={[styles.fieldLabel, { color: colors.onSurfaceVariant }]}>DEADLINE (YYYY-MM-DD)</Text>
-              <View style={[styles.inputWrapper, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }, deadlineError ? { borderColor: colors.error } : null]}>
-                <Feather name="calendar" size={16} color={`${colors.onSurfaceVariant}80`} />
-                <TextInput
-                  style={[styles.input, { color: colors.onSurface }]}
-                  placeholder="e.g. 2026-12-31"
-                  placeholderTextColor={`${colors.onSurfaceVariant}4D`}
-                  value={deadline}
-                  onChangeText={handleDeadlineChange}
-                />
-              </View>
+              <Text style={[styles.fieldLabel, { color: colors.onSurfaceVariant }]}>DEADLINE</Text>
+              <Pressable
+                style={[styles.reminderPickerBtn, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }, deadlineError ? { borderColor: colors.error } : null]}
+                onPress={() => setCalendarModalVisible(true)}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <Feather name="calendar" size={18} color={colors.primaryFixed} />
+                  <Text style={[styles.reminderPickerText, { color: deadline ? colors.onSurface : `${colors.onSurfaceVariant}80` }]}>
+                    {deadline || 'Select Date or No Deadline'}
+                  </Text>
+                </View>
+                <Feather name="chevron-right" size={16} color={colors.onSurfaceVariant} />
+              </Pressable>
               {deadlineError && <Text style={[styles.errorText, { color: colors.error }]}>{deadlineError}</Text>}
             </View>
 

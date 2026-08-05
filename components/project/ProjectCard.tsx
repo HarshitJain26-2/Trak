@@ -7,6 +7,7 @@ import { StatusDot } from '@/components/common/StatusDot';
 import { TechPill } from '@/components/common/TechPill';
 import { useProjectStore, Project } from '@/store/useProjectStore';
 import { ProjectActionModal } from '@/components/modals/ProjectActionModal';
+import { IncompleteTasksWarningModal } from '@/components/modals/IncompleteTasksWarningModal';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { triggerHaptic } from '@/utils/haptics';
 
@@ -49,6 +50,8 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
 
   const progressWidth = `${computedProgress}%` as any;
 
+  const [warningModalVisible, setWarningModalVisible] = useState(false);
+
   // Swipe pan responder
   const panResponder = useRef(
     PanResponder.create({
@@ -61,15 +64,22 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
       onPanResponderRelease: (_, gestureState) => {
         const threshold = 80;
         if (gestureState.dx > threshold) {
-          // Slide Right -> Mark Complete
-          triggerHaptic(25);
-          Animated.timing(panX, {
-            toValue: SCREEN_WIDTH,
-            duration: 250,
-            useNativeDriver: true,
-          }).start(() => {
-            markCompleted(project.id);
-          });
+          // Slide Right -> Check for incomplete tasks before completing
+          const incomplete = project.milestones?.filter((m) => !m.completed) || [];
+          if (incomplete.length > 0) {
+            triggerHaptic(25);
+            setWarningModalVisible(true);
+            Animated.spring(panX, { toValue: 0, useNativeDriver: true }).start();
+          } else {
+            triggerHaptic(25);
+            Animated.timing(panX, {
+              toValue: SCREEN_WIDTH,
+              duration: 250,
+              useNativeDriver: true,
+            }).start(() => {
+              markCompleted(project.id);
+            });
+          }
         } else if (gestureState.dx < -threshold) {
           // Slide Left -> Delete Project
           triggerHaptic(25);
@@ -182,7 +192,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
           onLongPress={handleLongPress}
           delayLongPress={350}
         >
-          <Animated.View style={[styles.card, { backgroundColor: colors.cardBg, borderColor: colors.glassBorder, transform: [{ scale: scaleAnim }] }]}>
+          <Animated.View style={[styles.card, { backgroundColor: colors.cardBg, borderColor: cardBorderColor, transform: [{ scale: scaleAnim }] }]}>
             {/* Progress accent bar */}
             <View style={[styles.accentBar, { width: progressWidth, backgroundColor: accentColor }]} />
 
