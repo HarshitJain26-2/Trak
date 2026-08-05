@@ -17,18 +17,18 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
-import { Colors, getThemeColors } from '../../constants/colors';
-import { useProfileStore, Profile, SocialLink } from '../../store/useProfileStore';
-import { useProjectStore } from '../../store/useProjectStore';
-import { useSettingsStore } from '../../store/useSettingsStore';
-import { t } from '../../lib/i18n';
+import { Colors, getThemeColors } from '@/constants/colors';
+import { useProfileStore, Profile, SocialLink } from '@/store/useProfileStore';
+import { useProjectStore } from '@/store/useProjectStore';
+import { useSettingsStore } from '@/store/useSettingsStore';
+import { t } from '@/utils/i18n';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import { supabase } from '../../lib/supabase';
-import { safeStorage } from '../../lib/storage';
-import { setActiveUserId } from '../../lib/deviceUser';
-import { ConfirmDialog, useConfirmDialog } from '../../components/ConfirmDialog';
-import { ActionSheet, useActionSheet, ActionOption } from '../../components/ActionSheet';
+import { supabase } from '@/services/supabase';
+import { safeStorage } from '@/services/storage';
+import { setActiveUserId } from '@/utils/deviceUser';
+import { ConfirmDialog, useConfirmDialog } from '@/components/common/ConfirmDialog';
+import { ActionSheet, useActionSheet, ActionOption } from '@/components/common/ActionSheet';
 
 // ─── Platform icons ────────────────────────────────────────────────────────────
 const PLATFORM_ICONS: Record<string, keyof typeof Feather.glyphMap> = {

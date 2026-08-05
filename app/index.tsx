@@ -1,8 +1,8 @@
 import { Redirect } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
-import { supabase } from '../lib/supabase';
-import { Colors } from '../constants/colors';
+import { supabase } from '@/services/supabase';
+import { Colors } from '@/constants/colors';
 
 export default function Index() {
   const [isLoading, setIsLoading] = useState(true);

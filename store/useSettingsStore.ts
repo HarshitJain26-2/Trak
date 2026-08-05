@@ -1,8 +1,8 @@
 import { create } from 'zustand';
-import { safeStorage } from '../lib/storage';
-import { triggerHaptic } from '../lib/haptics';
-import { notificationService } from '../lib/notifications';
-import { SupportedLanguage, getDeviceLanguage } from '../lib/i18n';
+import { safeStorage } from '@/services/storage';
+import { triggerHaptic } from '@/utils/haptics';
+import { notificationService } from '@/services/notifications';
+import { SupportedLanguage, getDeviceLanguage } from '@/utils/i18n';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 

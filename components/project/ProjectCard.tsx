@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated, useColorScheme } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { getThemeColors } from '../constants/colors';
-import { StatusDot } from './StatusDot';
-import { TechPill } from './TechPill';
-import type { Project } from '../store/useProjectStore';
-import { ProjectActionModal } from './ProjectActionModal';
-import { useSettingsStore } from '../store/useSettingsStore';
-import { triggerHaptic } from '../lib/haptics';
+import { getThemeColors } from '@/constants/colors';
+import { StatusDot } from '@/components/common/StatusDot';
+import { TechPill } from '@/components/common/TechPill';
+import type { Project } from '@/store/useProjectStore';
+import { ProjectActionModal } from '@/components/modals/ProjectActionModal';
+import { useSettingsStore } from '@/store/useSettingsStore';
+import { triggerHaptic } from '@/utils/haptics';
 
 interface ProjectCardProps {
   project: Project;

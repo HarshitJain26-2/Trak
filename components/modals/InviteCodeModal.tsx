@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Feather } from '@expo/vector-icons';
-import { Colors } from '../constants/colors';
+import { Colors } from '@/constants/colors';
 
 interface InviteCodeModalProps {
   visible: boolean;

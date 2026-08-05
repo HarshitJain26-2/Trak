@@ -15,12 +15,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Colors } from '../constants/colors';
-import { useProjectStore, Priority, ProjectStatus } from '../store/useProjectStore';
-import { validateDeadlineDate } from '../lib/deadlineValidator';
-import { ReminderConfigModal, ReminderConfig } from '../components/ReminderConfigModal';
-import { notificationService } from '../lib/notifications';
-import { triggerHaptic } from '../lib/haptics';
+import { Colors } from '@/constants/colors';
+import { useProjectStore, Priority, ProjectStatus } from '@/store/useProjectStore';
+import { validateDeadlineDate } from '@/utils/deadlineValidator';
+import { ReminderConfigModal, ReminderConfig } from '@/components/modals/ReminderConfigModal';
+import { notificationService } from '@/services/notifications';
+import { triggerHaptic } from '@/utils/haptics';
 
 const AVAILABLE_TAGS = ['TS', 'Rust', 'AWS', 'Go', 'Python', 'React', 'K8s', 'Node', 'Kafka', 'Redis'];
 

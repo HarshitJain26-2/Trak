@@ -16,14 +16,14 @@ import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context'
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Colors } from '../../../constants/colors';
-import { useProjectStore, Milestone } from '../../../store/useProjectStore';
-import { TechPill } from '../../../components/TechPill';
-import { StatusDot } from '../../../components/StatusDot';
-import { ConfirmDialog, useConfirmDialog } from '../../../components/ConfirmDialog';
-import { MemberAvatar } from '../../../components/MemberAvatar';
-import { InviteCodeModal } from '../../../components/InviteCodeModal';
-import { AestheticCheckbox } from '../../../components/AestheticCheckbox';
+import { Colors } from '@/constants/colors';
+import { useProjectStore, Milestone } from '@/store/useProjectStore';
+import { TechPill } from '@/components/common/TechPill';
+import { StatusDot } from '@/components/common/StatusDot';
+import { ConfirmDialog, useConfirmDialog } from '@/components/common/ConfirmDialog';
+import { MemberAvatar } from '@/components/common/MemberAvatar';
+import { InviteCodeModal } from '@/components/modals/InviteCodeModal';
+import { AestheticCheckbox } from '@/components/common/AestheticCheckbox';
 
 // ─── Milestone Action Modal ────────────────────────────────────────────────────
 interface MilestoneActionModalProps {

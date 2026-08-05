@@ -13,9 +13,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Colors } from '../../constants/colors';
-import { useProjectStore, Project, ProjectStatus } from '../../store/useProjectStore';
-import { StatusDot } from '../../components/StatusDot';
+import { Colors } from '@/constants/colors';
+import { useProjectStore, Project, ProjectStatus } from '@/store/useProjectStore';
+import { StatusDot } from '@/components/common/StatusDot';
 
 type StatusFilter = ProjectStatus | 'all';
 const STATUS_FILTERS: { label: string; value: StatusFilter }[] = [
@@ -35,7 +35,7 @@ const STATUS_ACCENT: Record<string, string> = {
   idle: Colors.secondaryContainer,
 };
 
-import { ProjectActionModal } from '../../components/ProjectActionModal';
+import { ProjectActionModal } from '@/components/modals/ProjectActionModal';
 
 function SearchResultCard({ project }: { project: Project }) {
   const router = useRouter();

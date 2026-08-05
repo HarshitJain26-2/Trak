@@ -11,9 +11,9 @@ import {
   useColorScheme,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { getThemeColors } from '../constants/colors';
-import { useSettingsStore } from '../store/useSettingsStore';
-import { triggerHaptic } from '../lib/haptics';
+import { getThemeColors } from '@/constants/colors';
+import { useSettingsStore } from '@/store/useSettingsStore';
+import { triggerHaptic } from '@/utils/haptics';
 
 export interface ReminderConfig {
   preset: string; // e.g. '15m', '1h', '1d', '3d', 'custom'

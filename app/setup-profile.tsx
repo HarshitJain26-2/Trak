@@ -14,8 +14,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Colors } from '../constants/colors';
-import { useProfileStore } from '../store/useProfileStore';
+import { Colors } from '@/constants/colors';
+import { useProfileStore } from '@/store/useProfileStore';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 

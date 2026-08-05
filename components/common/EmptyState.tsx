@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { Colors } from '../constants/colors';
+import { Colors } from '@/constants/colors';
 
 interface EmptyStateProps {
   onCreatePress: () => void;

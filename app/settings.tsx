@@ -15,18 +15,18 @@ import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
-import { getThemeColors } from '../constants/colors';
-import { useSettingsStore, ThemeMode } from '../store/useSettingsStore';
-import { useProfileStore } from '../store/useProfileStore';
-import { useProjectStore } from '../store/useProjectStore';
-import { supabase } from '../lib/supabase';
-import { safeStorage } from '../lib/storage';
-import { setActiveUserId } from '../lib/deviceUser';
-import { ConfirmDialog, useConfirmDialog } from '../components/ConfirmDialog';
-import { ActionSheet, useActionSheet, ActionOption } from '../components/ActionSheet';
-import { triggerHaptic } from '../lib/haptics';
-import { t, SUPPORTED_LANGUAGES, SupportedLanguage } from '../lib/i18n';
-import { notificationService, PermissionStatus } from '../lib/notifications';
+import { getThemeColors } from '@/constants/colors';
+import { useSettingsStore, ThemeMode } from '@/store/useSettingsStore';
+import { useProfileStore } from '@/store/useProfileStore';
+import { useProjectStore } from '@/store/useProjectStore';
+import { supabase } from '@/services/supabase';
+import { safeStorage } from '@/services/storage';
+import { setActiveUserId } from '@/utils/deviceUser';
+import { ConfirmDialog, useConfirmDialog } from '@/components/common/ConfirmDialog';
+import { ActionSheet, useActionSheet, ActionOption } from '@/components/common/ActionSheet';
+import { triggerHaptic } from '@/utils/haptics';
+import { t, SUPPORTED_LANGUAGES, SupportedLanguage } from '@/utils/i18n';
+import { notificationService, PermissionStatus } from '@/services/notifications';
 
 function SectionHeader({ title, color }: { title: string; color: string }) {
   return (

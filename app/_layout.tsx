@@ -14,11 +14,11 @@ import {
   JetBrainsMono_500Medium,
 } from '@expo-google-fonts/jetbrains-mono';
 import { View, ActivityIndicator } from 'react-native';
-import { Colors } from '../constants/colors';
+import { Colors } from '@/constants/colors';
 import { useEffect } from 'react';
-import { supabase } from '../lib/supabase';
-import { useProjectStore } from '../store/useProjectStore';
-import { useProfileStore } from '../store/useProfileStore';
+import { supabase } from '@/services/supabase';
+import { useProjectStore } from '@/store/useProjectStore';
+import { useProfileStore } from '@/store/useProfileStore';
 
 export default function RootLayout() {
   const router = useRouter();

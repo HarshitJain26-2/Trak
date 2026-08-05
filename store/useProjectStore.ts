@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import { supabase } from '../lib/supabase';
-import { safeStorage } from '../lib/storage';
-import { getActiveUserId } from '../lib/deviceUser';
+import { supabase } from '@/services/supabase';
+import { safeStorage } from '@/services/storage';
+import { getActiveUserId } from '@/utils/deviceUser';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
 export type ProjectStatus = 'active' | 'blocked' | 'idle' | 'warning';

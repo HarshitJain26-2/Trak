@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
-import { Colors } from '../constants/colors';
+import { Colors } from '@/constants/colors';
 
 interface StatusDotProps {
   status: 'active' | 'blocked' | 'idle' | 'warning';

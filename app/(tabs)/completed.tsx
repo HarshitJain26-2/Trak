@@ -12,11 +12,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Colors } from '../../constants/colors';
-import { useProjectStore, Project } from '../../store/useProjectStore';
-import { TechPill } from '../../components/TechPill';
-import { ConfirmDialog, useConfirmDialog } from '../../components/ConfirmDialog';
-import { ProjectActionModal } from '../../components/ProjectActionModal';
+import { Colors } from '@/constants/colors';
+import { useProjectStore, Project } from '@/store/useProjectStore';
+import { TechPill } from '@/components/common/TechPill';
+import { ConfirmDialog, useConfirmDialog } from '@/components/common/ConfirmDialog';
+import { ProjectActionModal } from '@/components/modals/ProjectActionModal';
 
 // ─── Completed Project Card ────────────────────────────────────────────────────
 function CompletedCard({

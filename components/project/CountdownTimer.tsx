@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, useColorScheme } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { calculateTimeRemaining } from '../lib/deadlineValidator';
-import { getThemeColors } from '../constants/colors';
-import { useSettingsStore } from '../store/useSettingsStore';
+import { calculateTimeRemaining } from '@/utils/deadlineValidator';
+import { getThemeColors } from '@/constants/colors';
+import { useSettingsStore } from '@/store/useSettingsStore';
 
 interface CountdownTimerProps {
   targetTimestamp: number;

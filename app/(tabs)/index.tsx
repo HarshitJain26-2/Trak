@@ -4,12 +4,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Colors } from '../../constants/colors';
-import { useProjectStore, Project } from '../../store/useProjectStore';
-import { ProjectCard } from '../../components/ProjectCard';
-import EmptyState from '../../components/EmptyState';
-import { JoinProjectModal } from '../../components/JoinProjectModal';
-import { MemberAvatar } from '../../components/MemberAvatar';
+import { Colors } from '@/constants/colors';
+import { useProjectStore, Project } from '@/store/useProjectStore';
+import { ProjectCard } from '@/components/project/ProjectCard';
+import EmptyState from '@/components/common/EmptyState';
+import { JoinProjectModal } from '@/components/modals/JoinProjectModal';
+import { MemberAvatar } from '@/components/common/MemberAvatar';
 
 export default function DashboardScreen() {
   const router = useRouter();

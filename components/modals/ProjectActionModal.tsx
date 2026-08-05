@@ -8,9 +8,9 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Colors } from '../constants/colors';
-import { useProjectStore, Project } from '../store/useProjectStore';
-import { ConfirmDialog, useConfirmDialog } from './ConfirmDialog';
+import { Colors } from '@/constants/colors';
+import { useProjectStore, Project } from '@/store/useProjectStore';
+import { ConfirmDialog, useConfirmDialog } from '@/components/common/ConfirmDialog';
 
 // ─── Project Action Modal ─────────────────────────────────────────────────────
 interface ProjectActionModalProps {

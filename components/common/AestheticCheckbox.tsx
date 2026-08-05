@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, Pressable, Animated, Easing } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { Colors } from '../constants/colors';
+import { Colors } from '@/constants/colors';
 
 interface AestheticCheckboxProps {
   completed: boolean;

@@ -13,12 +13,12 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { Colors } from '../constants/colors';
-import { supabase } from '../lib/supabase';
-import { useProfileStore } from '../store/useProfileStore';
-import { useProjectStore } from '../store/useProjectStore';
+import { Colors } from '@/constants/colors';
+import { supabase } from '@/services/supabase';
+import { useProfileStore } from '@/store/useProfileStore';
+import { useProjectStore } from '@/store/useProjectStore';
 
-import { setActiveUserId, emailToUUID } from '../lib/deviceUser';
+import { setActiveUserId, emailToUUID } from '@/utils/deviceUser';
 
 type AuthMode = 'signin' | 'signup';
 

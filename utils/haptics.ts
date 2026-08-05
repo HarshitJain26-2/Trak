@@ -1,5 +1,5 @@
 import { Vibration, Platform } from 'react-native';
-import { useSettingsStore } from '../store/useSettingsStore';
+import { useSettingsStore } from '@/store/useSettingsStore';
 
 export function triggerHaptic(pattern: number | number[] = 20) {
   try {
