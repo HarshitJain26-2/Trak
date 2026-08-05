@@ -1,28 +1,43 @@
-# 3-Layer Architecture Ignored Files
-.tmp/
-!.tmp/README.md
-.env
-credentials.json
-token.json
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
-# Node & Server
+# dependencies
 node_modules/
-server/node_modules/
-.env.local
 
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
 
-# OS / IDE
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
 .DS_Store
-.vscode/
-.idea/
+*.pem
+
+# local env files
+.env
+.env*.local
+
+
+# typescript
+*.tsbuildinfo
+
+# generated native folders
+/ios
+/android
