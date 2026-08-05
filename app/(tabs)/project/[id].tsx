@@ -24,6 +24,7 @@ import { ConfirmDialog, useConfirmDialog } from '@/components/common/ConfirmDial
 import { MemberAvatar } from '@/components/common/MemberAvatar';
 import { InviteCodeModal } from '@/components/modals/InviteCodeModal';
 import { AestheticCheckbox } from '@/components/common/AestheticCheckbox';
+import { IncompleteTasksWarningModal } from '@/components/modals/IncompleteTasksWarningModal';
 
 // ─── Milestone Action Modal ────────────────────────────────────────────────────
 interface MilestoneActionModalProps {
@@ -201,6 +202,7 @@ export default function ProjectDetailsScreen() {
   // Collaboration state
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [isGeneratingCode, setIsGeneratingCode] = useState(false);
+  const [showWarningModal, setShowWarningModal] = useState(false);
 
   const toggleNotes = () => {
     const toExpand = !notesExpanded;
@@ -344,6 +346,18 @@ export default function ProjectDetailsScreen() {
         isGenerating={isGeneratingCode}
         onClose={() => setShowInviteModal(false)}
         onGenerate={handleGenerateInviteCode}
+      />
+
+      <IncompleteTasksWarningModal
+        visible={showWarningModal}
+        projectName={project.name}
+        incompleteMilestones={pendingMilestones}
+        onClose={() => setShowWarningModal(false)}
+        onIgnoreAndComplete={() => {
+          setShowWarningModal(false);
+          markCompleted(project.id);
+          router.back();
+        }}
       />
 
       {/* App Bar */}
@@ -691,14 +705,18 @@ export default function ProjectDetailsScreen() {
             <Pressable
               style={({ pressed }) => [styles.completeBtn, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder, borderWidth: 1 }, pressed && styles.completeBtnPressed]}
               onPress={async () => {
-                const ok = await ask({
-                  title: 'Mark as Completed',
-                  message: `Move "${project.name}" to Completed Projects?`,
-                  confirmLabel: 'Mark Completed',
-                  destructive: false,
-                  icon: 'check-circle',
-                });
-                if (ok) { markCompleted(project.id); router.back(); }
+                if (pendingMilestones.length > 0) {
+                  setShowWarningModal(true);
+                } else {
+                  const ok = await ask({
+                    title: 'Mark as Completed',
+                    message: `Move "${project.name}" to Completed Projects?`,
+                    confirmLabel: 'Mark Completed',
+                    destructive: false,
+                    icon: 'check-circle',
+                  });
+                  if (ok) { markCompleted(project.id); router.back(); }
+                }
               }}
             >
               <Feather name="check-circle" size={18} color={colors.primaryFixed} />

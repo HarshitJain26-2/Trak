@@ -11,6 +11,7 @@ import { useRouter } from 'expo-router';
 import { Colors, useThemeColors } from '@/constants/colors';
 import { useProjectStore, Project } from '@/store/useProjectStore';
 import { ConfirmDialog, useConfirmDialog } from '@/components/common/ConfirmDialog';
+import { IncompleteTasksWarningModal } from '@/components/modals/IncompleteTasksWarningModal';
 
 // ─── Project Action Modal ─────────────────────────────────────────────────────
 interface ProjectActionModalProps {
@@ -29,18 +30,20 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
   const { deleteProject, restoreProject, permanentlyDeleteProject, markCompleted, unmarkCompleted } =
     useProjectStore();
   const { dialogProps, ask } = useConfirmDialog();
+  const [warningModalVisible, setWarningModalVisible] = React.useState(false);
 
-  if (!project) return null;
+  if (!project && !warningModalVisible) return null;
 
-  const isDeleted = !!project.isDeleted;
-  const isCompleted = !!project.isCompleted;
+  const isDeleted = !!project?.isDeleted;
+  const isCompleted = !!project?.isCompleted;
 
   const handleViewDetails = () => {
     onClose();
-    router.push(`/project/${project.id}`);
+    if (project) router.push(`/project/${project.id}`);
   };
 
   const handleToggleComplete = async () => {
+    if (!project) return;
     if (isCompleted) {
       const ok = await ask({
         title: 'Reactivate Project',
@@ -51,18 +54,25 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
       });
       if (ok) { onClose(); unmarkCompleted(project.id); }
     } else {
-      const ok = await ask({
-        title: 'Mark as Completed',
-        message: `Move "${project.name}" to your Completed (Shipped) tab?`,
-        confirmLabel: 'Mark Completed',
-        destructive: false,
-        icon: 'check-circle',
-      });
-      if (ok) { onClose(); markCompleted(project.id); }
+      const incomplete = project.milestones?.filter((m) => !m.completed) || [];
+      if (incomplete.length > 0) {
+        onClose();
+        setWarningModalVisible(true);
+      } else {
+        const ok = await ask({
+          title: 'Mark as Completed',
+          message: `Move "${project.name}" to your Completed (Shipped) tab?`,
+          confirmLabel: 'Mark Completed',
+          destructive: false,
+          icon: 'check-circle',
+        });
+        if (ok) { onClose(); markCompleted(project.id); }
+      }
     }
   };
 
   const handleDeleteOrRestore = async () => {
+    if (!project) return;
     if (isDeleted) {
       const ok = await ask({
         title: 'Restore Project',
@@ -85,6 +95,7 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
   };
 
   const handlePermanentDelete = async () => {
+    if (!project) return;
     const ok = await ask({
       title: 'Delete Forever',
       message: `This will permanently erase "${project.name}" from your workspace.\nThis action cannot be undone.`,
@@ -96,6 +107,7 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
   };
 
   const handleCopyRepo = () => {
+    if (!project) return;
     onClose();
     if (project.repoUrl) {
       try {
@@ -110,21 +122,35 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
     <>
       <ConfirmDialog {...dialogProps} />
 
-      <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
-        <Pressable style={styles.overlay} onPress={onClose}>
-          <Pressable style={styles.sheet} onPress={() => {}}>
-            <View style={styles.handle} />
+      {project && (
+        <IncompleteTasksWarningModal
+          visible={warningModalVisible}
+          projectName={project.name}
+          incompleteMilestones={project.milestones?.filter((m) => !m.completed) || []}
+          onClose={() => setWarningModalVisible(false)}
+          onIgnoreAndComplete={() => {
+            setWarningModalVisible(false);
+            markCompleted(project.id);
+          }}
+        />
+      )}
 
-            {/* Header */}
-            <View style={styles.header}>
-              <View style={styles.titleRow}>
-                <Text style={styles.projectName} numberOfLines={1}>{project.name}</Text>
-                <Text style={styles.versionTag}>{project.version}</Text>
+      {project && (
+        <Modal transparent animationType="fade" visible={visible && !!project} onRequestClose={onClose}>
+          <Pressable style={styles.overlay} onPress={onClose}>
+            <Pressable style={styles.sheet} onPress={() => {}}>
+              <View style={styles.handle} />
+
+              {/* Header */}
+              <View style={styles.header}>
+                <View style={styles.titleRow}>
+                  <Text style={styles.projectName} numberOfLines={1}>{project.name}</Text>
+                  <Text style={styles.versionTag}>{project.version}</Text>
+                </View>
+                <Text style={styles.projectDesc} numberOfLines={1}>
+                  {project.description || 'No description provided'}
+                </Text>
               </View>
-              <Text style={styles.projectDesc} numberOfLines={1}>
-                {project.description || 'No description provided'}
-              </Text>
-            </View>
 
             <View style={styles.divider} />
 
@@ -238,6 +264,7 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
           </Pressable>
         </Pressable>
       </Modal>
+      )}
     </>
   );
 };

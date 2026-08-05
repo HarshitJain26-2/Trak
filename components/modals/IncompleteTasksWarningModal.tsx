@@ -16,6 +16,7 @@ import { triggerHaptic } from '@/utils/haptics';
 interface IncompleteTasksWarningModalProps {
   visible: boolean;
   projectName: string;
+  progress?: number;
   incompleteMilestones: Milestone[];
   onClose: () => void;
   onIgnoreAndComplete: () => void;
@@ -24,13 +25,12 @@ interface IncompleteTasksWarningModalProps {
 export const IncompleteTasksWarningModal: React.FC<IncompleteTasksWarningModalProps> = ({
   visible,
   projectName,
+  progress = 0,
   incompleteMilestones,
   onClose,
   onIgnoreAndComplete,
 }) => {
   const colors = useThemeColors();
-
-  if (!visible) return null;
 
   const count = incompleteMilestones.length;
 
@@ -52,28 +52,33 @@ export const IncompleteTasksWarningModal: React.FC<IncompleteTasksWarningModalPr
 
               {/* Title */}
               <Text style={[styles.title, { color: colors.onSurface }]}>
-                Unfinished Features ({count})
+                {count > 0 ? `Unfinished Tasks (${count})` : `Project Incomplete (${progress}%)`}
               </Text>
 
               {/* Message */}
               <Text style={[styles.message, { color: colors.onSurfaceVariant }]}>
-                <Text style={{ fontFamily: 'Inter_600SemiBold', color: colors.onSurface }}>"{projectName}"</Text> still has {count} feature{count > 1 ? 's' : ''} in progress.
+                <Text style={{ fontFamily: 'Inter_600SemiBold', color: colors.onSurface }}>"{projectName}"</Text>{' '}
+                {count > 0
+                  ? `still has ${count} feature${count > 1 ? 's' : ''} in progress.`
+                  : `is currently at ${progress}% progress.`}
               </Text>
 
-              {/* List of Remaining Tasks */}
-              <View style={[styles.listContainer, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]}>
-                <Text style={[styles.listLabel, { color: colors.onSurfaceVariant }]}>REMAINING TASKS:</Text>
-                <ScrollView style={{ maxHeight: 150 }} showsVerticalScrollIndicator={true}>
-                  {incompleteMilestones.map((milestone) => (
-                    <View key={milestone.id} style={styles.taskItem}>
-                      <Feather name="circle" size={14} color={colors.statusWarning} style={{ marginTop: 2 }} />
-                      <Text style={[styles.taskText, { color: colors.onSurface }]} numberOfLines={2}>
-                        {milestone.title}
-                      </Text>
-                    </View>
-                  ))}
-                </ScrollView>
-              </View>
+              {/* List of Remaining Tasks if any */}
+              {count > 0 && (
+                <View style={[styles.listContainer, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]}>
+                  <Text style={[styles.listLabel, { color: colors.onSurfaceVariant }]}>REMAINING TASKS:</Text>
+                  <ScrollView style={{ maxHeight: 150 }} showsVerticalScrollIndicator={true}>
+                    {incompleteMilestones.map((milestone) => (
+                      <View key={milestone.id} style={styles.taskItem}>
+                        <Feather name="circle" size={14} color={colors.statusWarning} style={{ marginTop: 2 }} />
+                        <Text style={[styles.taskText, { color: colors.onSurface }]} numberOfLines={2}>
+                          {milestone.title}
+                        </Text>
+                      </View>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
 
               {/* Actions */}
               <View style={styles.actionsColumn}>

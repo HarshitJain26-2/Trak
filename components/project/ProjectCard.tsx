@@ -64,9 +64,10 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
       onPanResponderRelease: (_, gestureState) => {
         const threshold = 80;
         if (gestureState.dx > threshold) {
-          // Slide Right -> Check for incomplete tasks before completing
+          // Slide Right -> Check for incomplete tasks or progress < 100 before completing
           const incomplete = project.milestones?.filter((m) => !m.completed) || [];
-          if (incomplete.length > 0) {
+          const isNotFullyDone = incomplete.length > 0 || computedProgress < 100;
+          if (isNotFullyDone) {
             triggerHaptic(25);
             setWarningModalVisible(true);
             Animated.spring(panX, { toValue: 0, useNativeDriver: true }).start();
@@ -162,6 +163,18 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
         visible={modalVisible}
         project={project}
         onClose={() => setModalVisible(false)}
+      />
+
+      <IncompleteTasksWarningModal
+        visible={warningModalVisible}
+        projectName={project.name}
+        progress={computedProgress}
+        incompleteMilestones={project.milestones?.filter((m) => !m.completed) || []}
+        onClose={() => setWarningModalVisible(false)}
+        onIgnoreAndComplete={() => {
+          setWarningModalVisible(false);
+          markCompleted(project.id);
+        }}
       />
 
       {/* Slide Right Action Background (Mark Complete - Vibrant Green) */}
