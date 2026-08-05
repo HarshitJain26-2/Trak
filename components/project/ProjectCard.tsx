@@ -93,6 +93,37 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
     })
   ).current;
 
+  // Dynamic animations for swipe gesture
+  const rightScale = panX.interpolate({
+    inputRange: [0, 80],
+    outputRange: [0.6, 1.15],
+    extrapolate: 'clamp',
+  });
+
+  const rightOpacity = panX.interpolate({
+    inputRange: [0, 20, 80],
+    outputRange: [0, 0.6, 1],
+    extrapolate: 'clamp',
+  });
+
+  const leftScale = panX.interpolate({
+    inputRange: [-80, 0],
+    outputRange: [1.15, 0.6],
+    extrapolate: 'clamp',
+  });
+
+  const leftOpacity = panX.interpolate({
+    inputRange: [-80, -20, 0],
+    outputRange: [1, 0.6, 0],
+    extrapolate: 'clamp',
+  });
+
+  const cardBorderColor = panX.interpolate({
+    inputRange: [-80, 0, 80],
+    outputRange: ['#EF4444', colors.glassBorder, '#22C55E'],
+    extrapolate: 'clamp',
+  });
+
   const handlePressIn = () => {
     Animated.spring(scaleAnim, { toValue: 0.97, useNativeDriver: true, speed: 30 }).start();
   };
@@ -123,20 +154,20 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
         onClose={() => setModalVisible(false)}
       />
 
-      {/* Slide Right Action Background (Mark Complete - Green) */}
-      <View style={[styles.swipeActionBg, styles.swipeRightBg, { backgroundColor: colors.isDark ? '#00E676' : '#10B981' }]}>
-        <View style={styles.swipeContentLeft}>
-          <Feather name="check-circle" size={22} color={colors.isDark ? '#002203' : '#FFFFFF'} />
-          <Text style={[styles.swipeText, { color: colors.isDark ? '#002203' : '#FFFFFF' }]}>Complete</Text>
-        </View>
+      {/* Slide Right Action Background (Mark Complete - Vibrant Green) */}
+      <View style={[styles.swipeActionBg, styles.swipeRightBg, { backgroundColor: '#22C55E' }]}>
+        <Animated.View style={[styles.swipeContentLeft, { opacity: rightOpacity, transform: [{ scale: rightScale }] }]}>
+          <Feather name="check-circle" size={24} color="#FFFFFF" />
+          <Text style={[styles.swipeText, { color: '#FFFFFF' }]}>Mark Complete</Text>
+        </Animated.View>
       </View>
 
       {/* Slide Left Action Background (Delete - Red) */}
-      <View style={[styles.swipeActionBg, styles.swipeLeftBg, { backgroundColor: colors.error }]}>
-        <View style={styles.swipeContentRight}>
+      <View style={[styles.swipeActionBg, styles.swipeLeftBg, { backgroundColor: '#EF4444' }]}>
+        <Animated.View style={[styles.swipeContentRight, { opacity: leftOpacity, transform: [{ scale: leftScale }] }]}>
           <Text style={[styles.swipeText, { color: '#FFFFFF' }]}>Delete</Text>
-          <Feather name="trash-2" size={22} color="#FFFFFF" />
-        </View>
+          <Feather name="trash-2" size={24} color="#FFFFFF" />
+        </Animated.View>
       </View>
 
       {/* Swipable Card */}
