@@ -1,5 +1,5 @@
-import { safeStorage } from './storage';
-import { supabase } from './supabase';
+import { safeStorage } from '@/services/storage';
+import { supabase } from '@/services/supabase';
 
 const DEVICE_ID_KEY = 'trak_device_id';
 

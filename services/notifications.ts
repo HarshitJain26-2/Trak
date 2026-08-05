@@ -1,6 +1,6 @@
 import { Alert, Platform } from 'react-native';
 import { safeStorage } from './storage';
-import { triggerHaptic } from './haptics';
+import { triggerHaptic } from '@/utils/haptics';
 
 export type PermissionStatus = 'granted' | 'denied' | 'pending';
 
