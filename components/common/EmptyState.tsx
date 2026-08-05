@@ -1,13 +1,14 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { Colors } from '@/constants/colors';
+import { Colors, useThemeColors } from '@/constants/colors';
 
 interface EmptyStateProps {
   onCreatePress: () => void;
 }
 
 export default function EmptyState({ onCreatePress }: EmptyStateProps) {
+  const colors = useThemeColors();
   // Terminal cursor blink
   const cursorOpacity = useRef(new Animated.Value(1)).current;
   // Loading bar scan
@@ -40,16 +41,17 @@ export default function EmptyState({ onCreatePress }: EmptyStateProps) {
   return (
     <View style={styles.container}>
       {/* Icon box with glassmorphism effect */}
-      <View style={styles.iconBox}>
-        <View style={styles.iconGlow} />
-        <Feather name="folder-minus" size={48} color={Colors.primaryFixed} />
+      <View style={[styles.iconBox, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]}>
+        <View style={[styles.iconGlow, { backgroundColor: `${colors.primaryFixed}0D` }]} />
+        <Feather name="folder-minus" size={48} color={colors.primaryFixed} />
 
         {/* Loading progress bar */}
-        <View style={styles.loadingTrack}>
+        <View style={[styles.loadingTrack, { backgroundColor: colors.outlineVariant }]}>
           <Animated.View
             style={[
               styles.loadingBar,
               {
+                backgroundColor: colors.primaryFixed,
                 transform: [
                   {
                     translateX: loadingX.interpolate({
@@ -66,39 +68,39 @@ export default function EmptyState({ onCreatePress }: EmptyStateProps) {
 
       {/* Message */}
       <View style={styles.messageBlock}>
-        <Text style={styles.headline}>No projects yet</Text>
-        <Text style={styles.subtext}>
+        <Text style={[styles.headline, { color: colors.onSurface }]}>No projects yet</Text>
+        <Text style={[styles.subtext, { color: colors.onSurfaceVariant }]}>
           Start tracking your dev workflow today.
         </Text>
         <View style={styles.terminalLine}>
-          <Text style={styles.terminalText}>~/trak --init_workspace</Text>
-          <Animated.View style={[styles.cursor, { opacity: cursorOpacity }]} />
+          <Text style={[styles.terminalText, { color: colors.primaryFixed }]}>~/trak --init_workspace</Text>
+          <Animated.View style={[styles.cursor, { backgroundColor: colors.primaryFixed, opacity: cursorOpacity }]} />
         </View>
       </View>
 
       {/* CTA */}
       <Animated.View style={{ transform: [{ scale: btnScale }] }}>
         <Pressable
-          style={styles.ctaButton}
+          style={[styles.ctaButton, { backgroundColor: colors.primaryFixed }]}
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
           onPress={onCreatePress}
         >
-          <Feather name="plus-circle" size={20} color={Colors.onPrimaryFixed} />
-          <Text style={styles.ctaButtonText}>+ Create your first project</Text>
+          <Feather name="plus-circle" size={20} color={colors.onPrimaryFixed} />
+          <Text style={[styles.ctaButtonText, { color: colors.onPrimaryFixed }]}>+ Create your first project</Text>
         </Pressable>
       </Animated.View>
 
       {/* Secondary actions */}
       <View style={styles.secondaryRow}>
         <Pressable style={styles.secondaryBtn}>
-          <Feather name="help-circle" size={14} color={`${Colors.onSurfaceVariant}66`} />
-          <Text style={styles.secondaryBtnText}>Documentation</Text>
+          <Feather name="help-circle" size={14} color={`${colors.onSurfaceVariant}66`} />
+          <Text style={[styles.secondaryBtnText, { color: colors.onSurfaceVariant }]}>Documentation</Text>
         </Pressable>
-        <View style={styles.secondarySeparator} />
+        <View style={[styles.secondarySeparator, { backgroundColor: colors.outlineVariant }]} />
         <Pressable style={styles.secondaryBtn}>
-          <Feather name="terminal" size={14} color={`${Colors.onSurfaceVariant}66`} />
-          <Text style={styles.secondaryBtnText}>CLI Tools</Text>
+          <Feather name="terminal" size={14} color={`${colors.onSurfaceVariant}66`} />
+          <Text style={[styles.secondaryBtnText, { color: colors.onSurfaceVariant }]}>CLI Tools</Text>
         </Pressable>
       </View>
     </View>

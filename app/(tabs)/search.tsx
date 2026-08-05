@@ -13,9 +13,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Colors } from '@/constants/colors';
+import { Colors, useThemeColors } from '@/constants/colors';
 import { useProjectStore, Project, ProjectStatus } from '@/store/useProjectStore';
 import { StatusDot } from '@/components/common/StatusDot';
+import { ProjectActionModal } from '@/components/modals/ProjectActionModal';
 
 type StatusFilter = ProjectStatus | 'all';
 const STATUS_FILTERS: { label: string; value: StatusFilter }[] = [
@@ -28,20 +29,20 @@ const STATUS_FILTERS: { label: string; value: StatusFilter }[] = [
 const TECH_FILTERS = ['React', 'Python', 'Go', 'Typescript', 'Rust', 'Kafka'];
 const SORT_OPTIONS = ['Relevance', 'Name', 'Deadline', 'Updated'];
 
-const STATUS_ACCENT: Record<string, string> = {
-  active: Colors.primaryFixed,
-  blocked: Colors.error,
-  warning: Colors.statusWarning,
-  idle: Colors.secondaryContainer,
-};
-
-import { ProjectActionModal } from '@/components/modals/ProjectActionModal';
-
 function SearchResultCard({ project }: { project: Project }) {
   const router = useRouter();
+  const colors = useThemeColors();
   const [modalVisible, setModalVisible] = useState(false);
   const scaleAnim = useRef(new Animated.Value(1)).current;
-  const accentColor = STATUS_ACCENT[project.status] ?? Colors.primaryFixed;
+
+  const STATUS_ACCENT: Record<string, string> = {
+    active: colors.primaryFixed,
+    blocked: colors.error,
+    warning: colors.statusWarning,
+    idle: colors.secondaryContainer,
+  };
+
+  const accentColor = STATUS_ACCENT[project.status] ?? colors.primaryFixed;
 
   return (
     <>
@@ -61,15 +62,15 @@ function SearchResultCard({ project }: { project: Project }) {
         onLongPress={() => setModalVisible(true)}
         delayLongPress={350}
       >
-      <Animated.View style={[styles.resultCard, { transform: [{ scale: scaleAnim }] }]}>
+      <Animated.View style={[styles.resultCard, { backgroundColor: colors.surfaceContainerLow, borderColor: colors.glassBorder, transform: [{ scale: scaleAnim }] }]}>
         <View style={styles.resultLeft}>
           {/* Status accent bar */}
           <View style={[styles.resultAccentBar, { backgroundColor: accentColor }]} />
           <View style={styles.resultInfo}>
-            <Text style={styles.resultTitle}>{project.name}</Text>
+            <Text style={[styles.resultTitle, { color: colors.onSurface }]}>{project.name}</Text>
             <View style={styles.resultMeta}>
-              <View style={styles.resultBadge}>
-                <Text style={styles.resultBadgeText}>
+              <View style={[styles.resultBadge, { backgroundColor: colors.surfaceContainerHighest }]}>
+                <Text style={[styles.resultBadgeText, { color: colors.onSurfaceVariant }]}>
                   {project.id.padStart(2, '0').toUpperCase()}
                 </Text>
               </View>
@@ -86,14 +87,14 @@ function SearchResultCard({ project }: { project: Project }) {
                     },
                   ]}
                 />
-                <Text style={styles.resultStatusText}>
+                <Text style={[styles.resultStatusText, { color: colors.onSurfaceVariant }]}>
                   {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
                 </Text>
               </View>
             </View>
           </View>
         </View>
-        <Feather name="chevron-right" size={20} color={`${Colors.onSurfaceVariant}4D`} />
+        <Feather name="chevron-right" size={20} color={`${colors.onSurfaceVariant}4D`} />
       </Animated.View>
     </Pressable>
     </>
@@ -102,6 +103,7 @@ function SearchResultCard({ project }: { project: Project }) {
 
 export default function SearchScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
   const { projects } = useProjectStore();
   const [query, setQuery] = useState('');
   const [activeStatus, setActiveStatus] = useState<StatusFilter>('all');
@@ -133,23 +135,24 @@ export default function SearchScreen() {
   }, [projects, query, activeStatus, activeTechs]);
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* App Bar */}
       <BlurView
         intensity={60}
-        tint="dark"
+        tint={colors.isDark ? 'dark' : 'light'}
         style={[
           styles.appBar,
-          Platform.OS === 'android' && { backgroundColor: `${Colors.surface}E6` },
+          { borderBottomColor: colors.glassBorder },
+          Platform.OS === 'android' && { backgroundColor: colors.surface },
         ]}
       >
         <SafeAreaView edges={['top']} style={styles.appBarInner}>
           <View style={styles.appBarLeft}>
-            <Feather name="terminal" size={20} color={Colors.primaryFixed} />
-            <Text style={styles.appBarTitle}>Trak</Text>
+            <Feather name="terminal" size={20} color={colors.primaryFixed} />
+            <Text style={[styles.appBarTitle, { color: colors.primaryFixed }]}>Trak</Text>
           </View>
           <Pressable style={styles.iconBtn} hitSlop={8}>
-            <Feather name="search" size={20} color={`${Colors.onSurfaceVariant}80`} />
+            <Feather name="search" size={20} color={`${colors.onSurfaceVariant}80`} />
           </Pressable>
         </SafeAreaView>
       </BlurView>
@@ -164,12 +167,12 @@ export default function SearchScreen() {
         ListHeaderComponent={
           <View style={styles.searchHeader}>
             {/* Search input */}
-            <View style={styles.searchInputWrapper}>
-              <Feather name="search" size={18} color={`${Colors.onSurfaceVariant}80`} />
+            <View style={[styles.searchInputWrapper, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
+              <Feather name="search" size={18} color={`${colors.onSurfaceVariant}80`} />
               <TextInput
-                style={styles.searchInput}
+                style={[styles.searchInput, { color: colors.onSurface }]}
                 placeholder="Search projects..."
-                placeholderTextColor={`${Colors.onSurfaceVariant}4D`}
+                placeholderTextColor={`${colors.onSurfaceVariant}4D`}
                 value={query}
                 onChangeText={setQuery}
                 autoCorrect={false}
@@ -178,7 +181,7 @@ export default function SearchScreen() {
               />
               {query.length > 0 && (
                 <Pressable onPress={() => setQuery('')} hitSlop={8}>
-                  <Feather name="x" size={16} color={`${Colors.onSurfaceVariant}80`} />
+                  <Feather name="x" size={16} color={`${colors.onSurfaceVariant}80`} />
                 </Pressable>
               )}
             </View>
@@ -186,8 +189,8 @@ export default function SearchScreen() {
             {/* Status filters */}
             <View style={styles.filterGroup}>
               <View style={styles.filterGroupHeader}>
-                <View style={styles.filterAccent} />
-                <Text style={styles.filterGroupLabel}>Status</Text>
+                <View style={[styles.filterAccent, { backgroundColor: colors.primaryFixed }]} />
+                <Text style={[styles.filterGroupLabel, { color: colors.onSurfaceVariant }]}>Status</Text>
               </View>
               <View style={styles.filterChips}>
                 {STATUS_FILTERS.map(({ label, value }) => (
@@ -195,14 +198,16 @@ export default function SearchScreen() {
                     key={value}
                     style={[
                       styles.filterChip,
-                      activeStatus === value && styles.filterChipActive,
+                      { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder },
+                      activeStatus === value && { backgroundColor: colors.primaryFixed, borderColor: colors.primaryFixed },
                     ]}
                     onPress={() => setActiveStatus(value)}
                   >
                     <Text
                       style={[
                         styles.filterChipText,
-                        activeStatus === value && styles.filterChipTextActive,
+                        { color: colors.onSurfaceVariant },
+                        activeStatus === value && { color: colors.onPrimaryFixed },
                       ]}
                     >
                       {label}
@@ -215,8 +220,8 @@ export default function SearchScreen() {
             {/* Tech stack filters */}
             <View style={styles.filterGroup}>
               <View style={styles.filterGroupHeader}>
-                <View style={[styles.filterAccent, { backgroundColor: Colors.secondaryContainer }]} />
-                <Text style={styles.filterGroupLabel}>Tech Stack</Text>
+                <View style={[styles.filterAccent, { backgroundColor: colors.secondaryContainer }]} />
+                <Text style={[styles.filterGroupLabel, { color: colors.onSurfaceVariant }]}>Tech Stack</Text>
               </View>
               <View style={styles.filterChips}>
                 {TECH_FILTERS.map((tech) => {
@@ -224,14 +229,18 @@ export default function SearchScreen() {
                   return (
                     <Pressable
                       key={tech}
-                      style={[styles.techChip, isActive && styles.techChipActive]}
+                      style={[
+                        styles.techChip,
+                        { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder },
+                        isActive && { borderColor: colors.primaryFixed },
+                      ]}
                       onPress={() => toggleTech(tech)}
                     >
-                      <Text style={[styles.techChipText, isActive && styles.techChipTextActive]}>
+                      <Text style={[styles.techChipText, { color: colors.onSurfaceVariant }, isActive && { color: colors.primaryFixed }]}>
                         {tech}
                       </Text>
                       {isActive && (
-                        <Feather name="x" size={14} color={Colors.primaryFixed} />
+                        <Feather name="x" size={14} color={colors.primaryFixed} />
                       )}
                     </Pressable>
                   );
@@ -241,28 +250,28 @@ export default function SearchScreen() {
 
             {/* Results header */}
             <View style={styles.resultsHeader}>
-              <Text style={styles.resultCount}>
+              <Text style={[styles.resultCount, { color: colors.onSurfaceVariant }]}>
                 {filteredProjects.length} RESULTS FOUND
               </Text>
               <Pressable
                 style={styles.sortButton}
                 onPress={() => setShowSortOptions(!showSortOptions)}
               >
-                <Feather name="list" size={16} color={Colors.primaryFixed} />
-                <Text style={styles.sortButtonText}>{sortBy}</Text>
+                <Feather name="list" size={16} color={colors.primaryFixed} />
+                <Text style={[styles.sortButtonText, { color: colors.primaryFixed }]}>{sortBy}</Text>
               </Pressable>
             </View>
 
             {/* Sort options dropdown */}
             {showSortOptions && (
-              <View style={styles.sortDropdown}>
+              <View style={[styles.sortDropdown, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]}>
                 {SORT_OPTIONS.map((opt) => (
                   <Pressable
                     key={opt}
-                    style={[styles.sortOption, sortBy === opt && styles.sortOptionActive]}
+                    style={[styles.sortOption, sortBy === opt && { backgroundColor: `${colors.primaryFixed}1A` }]}
                     onPress={() => { setSortBy(opt); setShowSortOptions(false); }}
                   >
-                    <Text style={[styles.sortOptionText, sortBy === opt && styles.sortOptionTextActive]}>
+                    <Text style={[styles.sortOptionText, { color: colors.onSurfaceVariant }, sortBy === opt && { color: colors.primaryFixed }]}>
                       {opt}
                     </Text>
                   </Pressable>
@@ -273,9 +282,9 @@ export default function SearchScreen() {
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Feather name="search" size={48} color={`${Colors.onSurfaceVariant}33`} />
-            <Text style={styles.emptyText}>No results match your search</Text>
-            <Text style={styles.emptySubtext}>Try adjusting your filters</Text>
+            <Feather name="search" size={48} color={`${colors.onSurfaceVariant}33`} />
+            <Text style={[styles.emptyText, { color: colors.onSurfaceVariant }]}>No results match your search</Text>
+            <Text style={[styles.emptySubtext, { color: colors.onSurfaceVariant }]}>Try adjusting your filters</Text>
           </View>
         }
       />

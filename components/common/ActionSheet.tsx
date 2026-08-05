@@ -7,7 +7,7 @@ import {
   Pressable,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { Colors } from '@/constants/colors';
+import { Colors, useThemeColors } from '@/constants/colors';
 
 export interface ActionOption {
   label: string;
@@ -31,18 +31,21 @@ export function ActionSheet({
   options,
   onClose,
 }: ActionSheetProps) {
+  const colors = useThemeColors();
+  if (!visible) return null;
+
   return (
     <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={() => {}}>
+        <Pressable style={[styles.sheet, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]} onPress={() => {}}>
           {/* Drag indicator / Handle */}
-          <View style={styles.handle} />
+          <View style={[styles.handle, { backgroundColor: colors.outlineVariant }]} />
 
           {/* Header */}
           {(title || message) && (
             <View style={styles.header}>
-              {title && <Text style={styles.title}>{title}</Text>}
-              {message && <Text style={styles.message}>{message}</Text>}
+              {title && <Text style={[styles.title, { color: colors.onSurface }]}>{title}</Text>}
+              {message && <Text style={[styles.message, { color: colors.onSurfaceVariant }]}>{message}</Text>}
             </View>
           )}
 

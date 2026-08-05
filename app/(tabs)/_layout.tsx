@@ -3,7 +3,7 @@ import { View, StyleSheet, Pressable, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
-import { Colors } from '@/constants/colors';
+import { useThemeColors } from '@/constants/colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type TabBarProps = {
@@ -22,16 +22,20 @@ const TAB_ITEMS: { name: string; icon: keyof typeof Feather.glyphMap }[] = [
 
 function CustomTabBar({ state, navigation }: TabBarProps) {
   const insets = useSafeAreaInsets();
-
+  const colors = useThemeColors();
   const router = useRouter();
 
   return (
     <BlurView
       intensity={80}
-      tint="dark"
+      tint={colors.isDark ? 'dark' : 'light'}
       style={[
         styles.tabBar,
-        { paddingBottom: insets.bottom + 4 },
+        {
+          paddingBottom: insets.bottom + 4,
+          borderTopColor: colors.outlineVariant,
+          backgroundColor: Platform.OS === 'android' ? colors.surfaceContainer : colors.glassBg,
+        },
       ]}
     >
       {TAB_ITEMS.map((tabItem, index) => {
@@ -54,9 +58,9 @@ function CustomTabBar({ state, navigation }: TabBarProps) {
               <Feather
                 name={tabItem.icon}
                 size={index === 2 ? 28 : 22}
-                color={isActive ? Colors.primaryFixed : `${Colors.onSurfaceVariant}80`}
+                color={isActive ? colors.primaryFixed : `${colors.onSurfaceVariant}80`}
               />
-              {isActive && <View style={styles.activeIndicator} />}
+              {isActive && <View style={[styles.activeIndicator, { backgroundColor: colors.primaryFixed }]} />}
             </View>
           </Pressable>
         );
@@ -89,13 +93,10 @@ const styles = StyleSheet.create({
     right: 0,
     flexDirection: 'row',
     borderTopWidth: 1,
-    borderTopColor: `${Colors.outlineVariant}33`,
     paddingTop: 8,
     overflow: 'hidden',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
-    // Fallback bg for Android (BlurView is iOS-biased)
-    backgroundColor: Platform.OS === 'android' ? `${Colors.surfaceContainer}F0` : 'transparent',
   },
   tabItem: {
     flex: 1,
@@ -111,6 +112,5 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: Colors.primaryFixed,
   },
 });

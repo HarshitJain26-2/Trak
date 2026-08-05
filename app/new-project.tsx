@@ -15,7 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Colors } from '@/constants/colors';
+import { Colors, useThemeColors } from '@/constants/colors';
 import { useProjectStore, Priority, ProjectStatus } from '@/store/useProjectStore';
 import { validateDeadlineDate } from '@/utils/deadlineValidator';
 import { ReminderConfigModal, ReminderConfig } from '@/components/modals/ReminderConfigModal';
@@ -33,6 +33,7 @@ const PRIORITY_OPTIONS: PriorityOption[] = [
 
 export default function NewProjectScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
   const insets = useSafeAreaInsets();
   const { addProject, projects } = useProjectStore();
 
@@ -150,14 +151,14 @@ export default function NewProjectScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.sheetWrapper}
       >
-        <View style={styles.sheet}>
-          <View style={styles.handle} />
+        <View style={[styles.sheet, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
+          <View style={[styles.handle, { backgroundColor: `${colors.onSurfaceVariant}40` }]} />
 
           {/* Header */}
-          <View style={styles.sheetHeader}>
-            <Text style={styles.sheetTitle}>New Project</Text>
+          <View style={[styles.sheetHeader, { borderBottomColor: colors.glassBorder }]}>
+            <Text style={[styles.sheetTitle, { color: colors.onSurface }]}>New Project</Text>
             <Pressable onPress={handleClose} style={styles.closeBtn} hitSlop={8}>
-              <Feather name="x" size={22} color={Colors.onSurfaceVariant} />
+              <Feather name="x" size={22} color={colors.onSurfaceVariant} />
             </Pressable>
           </View>
 
@@ -170,13 +171,13 @@ export default function NewProjectScreen() {
           >
             {/* Project Name */}
             <View style={styles.field}>
-              <Text style={styles.fieldLabel}>PROJECT NAME</Text>
-              <View style={styles.inputWrapper}>
-                <Feather name="tag" size={16} color={`${Colors.onSurfaceVariant}80`} />
+              <Text style={[styles.fieldLabel, { color: colors.onSurfaceVariant }]}>PROJECT NAME</Text>
+              <View style={[styles.inputWrapper, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]}>
+                <Feather name="tag" size={16} color={`${colors.onSurfaceVariant}80`} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: colors.onSurface }]}
                   placeholder="e.g. Apollo Infrastructure"
-                  placeholderTextColor={`${Colors.onSurfaceVariant}4D`}
+                  placeholderTextColor={`${colors.onSurfaceVariant}4D`}
                   value={name}
                   onChangeText={setName}
                   returnKeyType="next"
@@ -187,12 +188,12 @@ export default function NewProjectScreen() {
 
             {/* Description */}
             <View style={styles.field}>
-              <Text style={styles.fieldLabel}>DESCRIPTION</Text>
-              <View style={[styles.inputWrapper, { alignItems: 'flex-start', paddingTop: 12 }]}>
+              <Text style={[styles.fieldLabel, { color: colors.onSurfaceVariant }]}>DESCRIPTION</Text>
+              <View style={[styles.inputWrapper, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder, alignItems: 'flex-start', paddingTop: 12 }]}>
                 <TextInput
-                  style={[styles.input, styles.multilineInput]}
+                  style={[styles.input, styles.multilineInput, { color: colors.onSurface }]}
                   placeholder="Brief technical summary of the project scope..."
-                  placeholderTextColor={`${Colors.onSurfaceVariant}4D`}
+                  placeholderTextColor={`${colors.onSurfaceVariant}4D`}
                   value={description}
                   onChangeText={setDescription}
                   multiline
@@ -204,7 +205,7 @@ export default function NewProjectScreen() {
 
             {/* Tech Stack */}
             <View style={styles.field}>
-              <Text style={styles.fieldLabel}>TECH STACK</Text>
+              <Text style={[styles.fieldLabel, { color: colors.onSurfaceVariant }]}>TECH STACK</Text>
               <View style={styles.tagsContainer}>
                 {AVAILABLE_TAGS.map((tag) => {
                   const isSelected = selectedTags.includes(tag);
@@ -212,12 +213,16 @@ export default function NewProjectScreen() {
                     <Pressable
                       key={tag}
                       onPress={() => toggleTag(tag)}
-                      style={[styles.tagChip, isSelected && styles.tagChipSelected]}
+                      style={[
+                        styles.tagChip,
+                        { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder },
+                        isSelected && { backgroundColor: colors.primaryFixed, borderColor: colors.primaryFixed },
+                      ]}
                     >
-                      <Text style={[styles.tagChipText, isSelected && styles.tagChipTextSelected]}>
+                      <Text style={[styles.tagChipText, { color: colors.onSurfaceVariant }, isSelected && { color: colors.onPrimaryFixed }]}>
                         {tag}
                       </Text>
-                      {isSelected && <Feather name="x" size={12} color={Colors.onPrimaryFixed} />}
+                      {isSelected && <Feather name="x" size={12} color={colors.onPrimaryFixed} />}
                     </Pressable>
                   );
                 })}
@@ -226,38 +231,38 @@ export default function NewProjectScreen() {
 
             {/* Deadline Date & Time */}
             <View style={styles.field}>
-              <Text style={styles.fieldLabel}>DEADLINE (YYYY-MM-DD)</Text>
-              <View style={[styles.inputWrapper, deadlineError ? { borderColor: Colors.error } : null]}>
-                <Feather name="calendar" size={16} color={`${Colors.onSurfaceVariant}80`} />
+              <Text style={[styles.fieldLabel, { color: colors.onSurfaceVariant }]}>DEADLINE (YYYY-MM-DD)</Text>
+              <View style={[styles.inputWrapper, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }, deadlineError ? { borderColor: colors.error } : null]}>
+                <Feather name="calendar" size={16} color={`${colors.onSurfaceVariant}80`} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: colors.onSurface }]}
                   placeholder="e.g. 2026-12-31"
-                  placeholderTextColor={`${Colors.onSurfaceVariant}4D`}
+                  placeholderTextColor={`${colors.onSurfaceVariant}4D`}
                   value={deadline}
                   onChangeText={handleDeadlineChange}
                 />
               </View>
-              {deadlineError && <Text style={styles.errorText}>{deadlineError}</Text>}
+              {deadlineError && <Text style={[styles.errorText, { color: colors.error }]}>{deadlineError}</Text>}
             </View>
 
             {/* Smart Reminder Trigger Selector */}
             <View style={styles.field}>
-              <Text style={styles.fieldLabel}>REMINDER SCHEDULE</Text>
+              <Text style={[styles.fieldLabel, { color: colors.onSurfaceVariant }]}>REMINDER SCHEDULE</Text>
               <Pressable
-                style={styles.reminderPickerBtn}
+                style={[styles.reminderPickerBtn, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]}
                 onPress={() => setReminderModalVisible(true)}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Feather name="bell" size={16} color={Colors.primaryFixed} />
-                  <Text style={styles.reminderPickerText}>{reminderConfig.label}</Text>
+                  <Feather name="bell" size={16} color={colors.primaryFixed} />
+                  <Text style={[styles.reminderPickerText, { color: colors.onSurface }]}>{reminderConfig.label}</Text>
                 </View>
-                <Feather name="chevron-right" size={16} color={Colors.onSurfaceVariant} />
+                <Feather name="chevron-right" size={16} color={colors.onSurfaceVariant} />
               </Pressable>
             </View>
 
             {/* Priority */}
             <View style={styles.field}>
-              <Text style={styles.fieldLabel}>PRIORITY LEVEL</Text>
+              <Text style={[styles.fieldLabel, { color: colors.onSurfaceVariant }]}>PRIORITY LEVEL</Text>
               <View style={styles.priorityRow}>
                 {PRIORITY_OPTIONS.map((opt) => {
                   const isSelected = priority === opt.value;
@@ -265,9 +270,13 @@ export default function NewProjectScreen() {
                     <Pressable
                       key={opt.value}
                       onPress={() => setPriority(opt.value)}
-                      style={[styles.priorityChip, isSelected && styles.priorityChipSelected]}
+                      style={[
+                        styles.priorityChip,
+                        { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder },
+                        isSelected && { backgroundColor: `${colors.primaryFixed}20`, borderColor: colors.primaryFixed },
+                      ]}
                     >
-                      <Text style={[styles.priorityText, isSelected && styles.priorityTextSelected]}>
+                      <Text style={[styles.priorityText, { color: colors.onSurfaceVariant }, isSelected && { color: colors.primaryFixed }]}>
                         {opt.label}
                       </Text>
                     </Pressable>
@@ -278,14 +287,14 @@ export default function NewProjectScreen() {
           </ScrollView>
 
           {/* Action Footer */}
-          <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom + 20, 48) }]}>
+          <View style={[styles.footer, { borderTopColor: colors.glassBorder, paddingBottom: Math.max(insets.bottom + 20, 48) }]}>
             <Animated.View style={{ transform: [{ scale: saveScale }], flex: 1 }}>
               <Pressable
                 onPressIn={handleSavePressIn}
                 onPressOut={handleSavePressOut}
                 onPress={handleSave}
                 disabled={!name.trim()}
-                style={[styles.saveBtn, !name.trim() && styles.saveBtnDisabled]}
+                style={[styles.saveBtn, { backgroundColor: colors.primaryFixed }, !name.trim() && styles.saveBtnDisabled]}
               >
                 <Feather name="plus" size={18} color="#002203" />
                 <Text style={styles.saveBtnText}>Create Project</Text>

@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { Colors } from '@/constants/colors';
+import { Colors, useThemeColors } from '@/constants/colors';
 
 interface JoinProjectModalProps {
   visible: boolean;
@@ -21,6 +21,7 @@ interface JoinProjectModalProps {
 }
 
 export function JoinProjectModal({ visible, onClose, onJoin }: JoinProjectModalProps) {
+  const colors = useThemeColors();
   const [code, setCode] = useState('');
   const [isJoining, setIsJoining] = useState(false);
   const [result, setResult] = useState<{ success: boolean; projectName?: string; error?: string } | null>(null);
@@ -56,34 +57,34 @@ export function JoinProjectModal({ visible, onClose, onJoin }: JoinProjectModalP
         <TouchableWithoutFeedback onPress={handleClose}>
           <View style={styles.overlay}>
             <TouchableWithoutFeedback>
-              <View style={styles.card}>
+              <View style={[styles.card, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
                 {/* Header */}
                 <View style={styles.header}>
-                  <View style={styles.iconCircle}>
-                    <Feather name="user-plus" size={22} color={Colors.secondaryContainer} />
+                  <View style={[styles.iconCircle, { backgroundColor: `${colors.secondaryContainer}1A`, borderColor: `${colors.secondaryContainer}30` }]}>
+                    <Feather name="user-plus" size={22} color={colors.secondaryContainer} />
                   </View>
-                  <Text style={styles.title}>Join a Project</Text>
-                  <Text style={styles.subtitle}>
+                  <Text style={[styles.title, { color: colors.onSurface }]}>Join a Project</Text>
+                  <Text style={[styles.subtitle, { color: colors.onSurfaceVariant }]}>
                     Enter the invite code shared by a project owner to start collaborating.
                   </Text>
                 </View>
 
                 {/* Code input */}
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { backgroundColor: colors.surfaceContainerHigh, borderColor: `${colors.primaryFixed}33`, color: colors.onSurface }]}
                   value={code}
                   onChangeText={(text) => {
                     setCode(text.toUpperCase());
                     setResult(null);
                   }}
                   placeholder="e.g. TRK-A4F9"
-                  placeholderTextColor={`${Colors.onSurfaceVariant}40`}
+                  placeholderTextColor={`${colors.onSurfaceVariant}40`}
                   autoCapitalize="characters"
                   autoCorrect={false}
                   autoFocus
                   returnKeyType="go"
                   onSubmitEditing={handleJoin}
-                  selectionColor={Colors.primaryFixed}
+                  selectionColor={colors.primaryFixed}
                   editable={!isJoining}
                 />
 
@@ -92,18 +93,18 @@ export function JoinProjectModal({ visible, onClose, onJoin }: JoinProjectModalP
                   <View
                     style={[
                       styles.resultRow,
-                      result.success ? styles.resultSuccess : styles.resultError,
+                      result.success ? { backgroundColor: `${colors.primaryFixed}1A`, borderColor: `${colors.primaryFixed}30` } : { backgroundColor: `${colors.error}1A`, borderColor: `${colors.error}30` },
                     ]}
                   >
                     <Feather
                       name={result.success ? 'check-circle' : 'alert-circle'}
                       size={16}
-                      color={result.success ? Colors.primaryFixed : Colors.error}
+                      color={result.success ? colors.primaryFixed : colors.error}
                     />
                     <Text
                       style={[
                         styles.resultText,
-                        { color: result.success ? Colors.primaryFixed : Colors.error },
+                        { color: result.success ? colors.primaryFixed : colors.error },
                       ]}
                     >
                       {result.success
@@ -118,17 +119,17 @@ export function JoinProjectModal({ visible, onClose, onJoin }: JoinProjectModalP
                   <Pressable
                     style={({ pressed }) => [
                       styles.btn,
-                      styles.btnCancel,
+                      { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder, borderWidth: 1 },
                       pressed && styles.btnPressed,
                     ]}
                     onPress={handleClose}
                   >
-                    <Text style={styles.btnCancelText}>Cancel</Text>
+                    <Text style={[styles.btnCancelText, { color: colors.onSurfaceVariant }]}>Cancel</Text>
                   </Pressable>
                   <Pressable
                     style={({ pressed }) => [
                       styles.btn,
-                      styles.btnConfirm,
+                      { backgroundColor: colors.primaryFixed },
                       pressed && styles.btnPressed,
                       (code.trim().length === 0 || isJoining) && styles.btnDisabled,
                     ]}
@@ -136,9 +137,9 @@ export function JoinProjectModal({ visible, onClose, onJoin }: JoinProjectModalP
                     disabled={code.trim().length === 0 || isJoining}
                   >
                     {isJoining ? (
-                      <ActivityIndicator size="small" color={Colors.onPrimaryFixed} />
+                      <ActivityIndicator size="small" color={colors.onPrimaryFixed} />
                     ) : (
-                      <Text style={styles.btnConfirmText}>Join</Text>
+                      <Text style={[styles.btnConfirmText, { color: colors.onPrimaryFixed }]}>Join</Text>
                     )}
                   </Pressable>
                 </View>

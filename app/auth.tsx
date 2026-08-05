@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { Colors } from '@/constants/colors';
+import { Colors, useThemeColors } from '@/constants/colors';
 import { supabase } from '@/services/supabase';
 import { useProfileStore } from '@/store/useProfileStore';
 import { useProjectStore } from '@/store/useProjectStore';
@@ -24,6 +24,7 @@ type AuthMode = 'signin' | 'signup';
 
 export default function AuthScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
 
   const [mode, setMode] = useState<AuthMode>('signin');
   const [fullName, setFullName] = useState('');
@@ -199,7 +200,7 @@ export default function AuthScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.surface }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -212,16 +213,16 @@ export default function AuthScreen() {
           {/* Header Section */}
           <View style={styles.header}>
             <View style={styles.logoContainer}>
-              <View style={styles.logoIconBox}>
-                <Feather name="terminal" size={20} color="#00E676" />
+              <View style={[styles.logoIconBox, { backgroundColor: `${colors.primaryFixed}1A`, borderColor: `${colors.primaryFixed}4D` }]}>
+                <Feather name="terminal" size={20} color={colors.primaryFixed} />
               </View>
-              <Text style={styles.logoText}>Trak</Text>
+              <Text style={[styles.logoText, { color: colors.onSurface }]}>Trak</Text>
             </View>
 
-            <Text style={styles.mainTitle}>
+            <Text style={[styles.mainTitle, { color: colors.onSurface }]}>
               {mode === 'signin' ? 'Welcome back' : 'Create account'}
             </Text>
-            <Text style={styles.subtitle}>
+            <Text style={[styles.subtitle, { color: colors.onSurfaceVariant }]}>
               {mode === 'signin'
                 ? 'Welcome back, developer. Authenticate to sync your workspace.'
                 : 'Initialize your developer profile.'}
@@ -229,11 +230,11 @@ export default function AuthScreen() {
           </View>
 
           {/* Form Card */}
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
             {errorMessage ? (
-              <View style={styles.errorBanner}>
-                <Feather name="alert-circle" size={16} color="#FF5252" />
-                <Text style={styles.errorBannerText}>{errorMessage}</Text>
+              <View style={[styles.errorBanner, { backgroundColor: `${colors.error}1A`, borderColor: `${colors.error}4D` }]}>
+                <Feather name="alert-circle" size={16} color={colors.error} />
+                <Text style={[styles.errorBannerText, { color: colors.error }]}>{errorMessage}</Text>
               </View>
             ) : null}
 
@@ -241,13 +242,13 @@ export default function AuthScreen() {
             {mode === 'signup' && (
               <View style={styles.fieldContainer}>
                 <View style={styles.labelRow}>
-                  <Feather name="user" size={14} color="#8B949E" style={styles.fieldIcon} />
-                  <Text style={styles.fieldLabel}>FULL NAME</Text>
+                  <Feather name="user" size={14} color={colors.onSurfaceVariant} style={styles.fieldIcon} />
+                  <Text style={[styles.fieldLabel, { color: colors.onSurfaceVariant }]}>FULL NAME</Text>
                 </View>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder, color: colors.onSurface }]}
                   placeholder="e.g. Linus Torvalds"
-                  placeholderTextColor="#484F58"
+                  placeholderTextColor={`${colors.onSurfaceVariant}70`}
                   value={fullName}
                   onChangeText={setFullName}
                   autoCapitalize="words"
@@ -258,13 +259,13 @@ export default function AuthScreen() {
             {/* WORK EMAIL */}
             <View style={styles.fieldContainer}>
               <View style={styles.labelRow}>
-                <Feather name="at-sign" size={14} color="#8B949E" style={styles.fieldIcon} />
-                <Text style={styles.fieldLabel}>WORK EMAIL</Text>
+                <Feather name="at-sign" size={14} color={colors.onSurfaceVariant} style={styles.fieldIcon} />
+                <Text style={[styles.fieldLabel, { color: colors.onSurfaceVariant }]}>WORK EMAIL</Text>
               </View>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder, color: colors.onSurface }]}
                 placeholder={mode === 'signin' ? 'name@company.dev' : 'dev@company.io'}
-                placeholderTextColor="#484F58"
+                placeholderTextColor={`${colors.onSurfaceVariant}70`}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -276,21 +277,21 @@ export default function AuthScreen() {
             <View style={styles.fieldContainer}>
               <View style={styles.labelRowBetween}>
                 <View style={styles.labelRow}>
-                  <Feather name="lock" size={14} color="#8B949E" style={styles.fieldIcon} />
-                  <Text style={styles.fieldLabel}>PASSWORD</Text>
+                  <Feather name="lock" size={14} color={colors.onSurfaceVariant} style={styles.fieldIcon} />
+                  <Text style={[styles.fieldLabel, { color: colors.onSurfaceVariant }]}>PASSWORD</Text>
                 </View>
                 {mode === 'signin' && (
                   <Pressable onPress={() => setErrorMessage('Password reset link sent to your email.')}>
-                    <Text style={styles.forgotLink}>Forgot?</Text>
+                    <Text style={[styles.forgotLink, { color: colors.primaryFixed }]}>Forgot?</Text>
                   </Pressable>
                 )}
               </View>
 
-              <View style={styles.passwordInputWrapper}>
+              <View style={[styles.passwordInputWrapper, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]}>
                 <TextInput
-                  style={styles.passwordInput}
+                  style={[styles.passwordInput, { color: colors.onSurface }]}
                   placeholder="••••••••"
-                  placeholderTextColor="#484F58"
+                  placeholderTextColor={`${colors.onSurfaceVariant}70`}
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
@@ -303,7 +304,7 @@ export default function AuthScreen() {
                   <Feather
                     name={showPassword ? 'eye-off' : 'eye'}
                     size={16}
-                    color="#8B949E"
+                    color={colors.onSurfaceVariant}
                   />
                 </Pressable>
               </View>
@@ -311,13 +312,13 @@ export default function AuthScreen() {
 
             {/* SECURITY CONSTRAINTS (Sign Up only) */}
             {mode === 'signup' && (
-              <View style={styles.constraintsCard}>
+              <View style={[styles.constraintsCard, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]}>
                 <View style={styles.constraintsHeader}>
-                  <Text style={styles.constraintsTitle}>SECURITY CONSTRAINTS</Text>
-                  <View style={styles.statusBadge}>
+                  <Text style={[styles.constraintsTitle, { color: colors.onSurfaceVariant }]}>SECURITY CONSTRAINTS</Text>
+                  <View style={[styles.statusBadge, { backgroundColor: isPasswordValid ? `${colors.primaryFixed}1A` : `${colors.secondary}1A` }]}>
                     <Text style={[
                       styles.statusBadgeText,
-                      { color: isPasswordValid ? '#00E676' : '#FF9800' }
+                      { color: isPasswordValid ? colors.primaryFixed : colors.secondary }
                     ]}>
                       STATUS: {isPasswordValid ? 'READY' : 'WEAK'}
                     </Text>
@@ -329,9 +330,9 @@ export default function AuthScreen() {
                     <Feather
                       name={hasMinChars ? 'check-circle' : 'circle'}
                       size={14}
-                      color={hasMinChars ? '#00E676' : '#484F58'}
+                      color={hasMinChars ? colors.primaryFixed : colors.onSurfaceVariant}
                     />
-                    <Text style={[styles.constraintText, hasMinChars && styles.constraintTextActive]}>
+                    <Text style={[styles.constraintText, { color: `${colors.onSurfaceVariant}70` }, hasMinChars && { color: colors.onSurface }]}>
                       min 8 chars
                     </Text>
                   </View>
@@ -340,9 +341,9 @@ export default function AuthScreen() {
                     <Feather
                       name={hasSpecialChar ? 'check-circle' : 'circle'}
                       size={14}
-                      color={hasSpecialChar ? '#00E676' : '#484F58'}
+                      color={hasSpecialChar ? colors.primaryFixed : colors.onSurfaceVariant}
                     />
-                    <Text style={[styles.constraintText, hasSpecialChar && styles.constraintTextActive]}>
+                    <Text style={[styles.constraintText, { color: `${colors.onSurfaceVariant}70` }, hasSpecialChar && { color: colors.onSurface }]}>
                       1 special
                     </Text>
                   </View>
@@ -351,9 +352,9 @@ export default function AuthScreen() {
                     <Feather
                       name={hasNumericChar ? 'check-circle' : 'circle'}
                       size={14}
-                      color={hasNumericChar ? '#00E676' : '#484F58'}
+                      color={hasNumericChar ? colors.primaryFixed : colors.onSurfaceVariant}
                     />
-                    <Text style={[styles.constraintText, hasNumericChar && styles.constraintTextActive]}>
+                    <Text style={[styles.constraintText, { color: `${colors.onSurfaceVariant}70` }, hasNumericChar && { color: colors.onSurface }]}>
                       1 numeric
                     </Text>
                   </View>
@@ -362,9 +363,9 @@ export default function AuthScreen() {
                     <Feather
                       name={hasMixedCase ? 'check-circle' : 'circle'}
                       size={14}
-                      color={hasMixedCase ? '#00E676' : '#484F58'}
+                      color={hasMixedCase ? colors.primaryFixed : colors.onSurfaceVariant}
                     />
-                    <Text style={[styles.constraintText, hasMixedCase && styles.constraintTextActive]}>
+                    <Text style={[styles.constraintText, { color: `${colors.onSurfaceVariant}70` }, hasMixedCase && { color: colors.onSurface }]}>
                       case mixed
                     </Text>
                   </View>
@@ -376,6 +377,7 @@ export default function AuthScreen() {
             <Pressable
               style={({ pressed }) => [
                 styles.primaryBtn,
+                { backgroundColor: colors.primaryFixed },
                 pressed && styles.primaryBtnPressed,
                 loading && styles.primaryBtnDisabled,
               ]}
@@ -383,36 +385,37 @@ export default function AuthScreen() {
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator color="#0A0C10" />
+                <ActivityIndicator color={colors.onPrimaryFixed} />
               ) : (
                 <View style={styles.btnRow}>
-                  <Text style={styles.primaryBtnText}>
+                  <Text style={[styles.primaryBtnText, { color: colors.onPrimaryFixed }]}>
                     {mode === 'signin' ? 'Sign In' : 'Create Account'}
                   </Text>
-                  <Feather name="arrow-right" size={18} color="#0A0C10" style={{ marginLeft: 6 }} />
+                  <Feather name="arrow-right" size={18} color={colors.onPrimaryFixed} style={{ marginLeft: 6 }} />
                 </View>
               )}
             </Pressable>
 
             {/* Divider */}
             <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>
+              <View style={[styles.dividerLine, { backgroundColor: colors.glassBorder }]} />
+              <Text style={[styles.dividerText, { color: `${colors.onSurfaceVariant}70` }]}>
                 {mode === 'signin' ? 'OR CONTINUE WITH' : 'OR PROTOCOL'}
               </Text>
-              <View style={styles.dividerLine} />
+              <View style={[styles.dividerLine, { backgroundColor: colors.glassBorder }]} />
             </View>
 
             {/* GitHub OAuth Button */}
             <Pressable
               style={({ pressed }) => [
                 styles.githubBtn,
+                { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder },
                 pressed && styles.githubBtnPressed,
               ]}
               onPress={handleGitHubAuth}
             >
-              <Feather name="github" size={18} color="#FFFFFF" style={{ marginRight: 10 }} />
-              <Text style={styles.githubBtnText}>
+              <Feather name="github" size={18} color={colors.onSurface} style={{ marginRight: 10 }} />
+              <Text style={[styles.githubBtnText, { color: colors.onSurface }]}>
                 {mode === 'signin' ? 'GitHub' : 'Sign up with GitHub'}
               </Text>
             </Pressable>
@@ -420,18 +423,18 @@ export default function AuthScreen() {
 
           {/* Toggle Footer Link */}
           <View style={styles.footerRow}>
-            <Text style={styles.footerText}>
+            <Text style={[styles.footerText, { color: colors.onSurfaceVariant }]}>
               {mode === 'signin' ? "Don't have a dev account? " : 'Already have an account? '}
             </Text>
             <Pressable onPress={toggleMode}>
-              <Text style={styles.footerLink}>
+              <Text style={[styles.footerLink, { color: colors.primaryFixed }]}>
                 {mode === 'signin' ? 'Sign up for Trak' : 'Log In'}
               </Text>
             </Pressable>
           </View>
 
           {/* Build Version Tag */}
-          <Text style={styles.buildVersion}>BUILD V2.4.0-STABLE</Text>
+          <Text style={[styles.buildVersion, { color: `${colors.onSurfaceVariant}70` }]}>BUILD V2.4.0-STABLE</Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

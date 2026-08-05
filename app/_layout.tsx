@@ -14,18 +14,21 @@ import {
   JetBrainsMono_500Medium,
 } from '@expo-google-fonts/jetbrains-mono';
 import { View, ActivityIndicator } from 'react-native';
-import { Colors } from '@/constants/colors';
+import { useThemeColors } from '@/constants/colors';
 import { useEffect } from 'react';
 import { supabase } from '@/services/supabase';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useProfileStore } from '@/store/useProfileStore';
+import { useSettingsStore } from '@/store/useSettingsStore';
 
 export default function RootLayout() {
   const router = useRouter();
+  const colors = useThemeColors();
   const fetchProjects = useProjectStore((s) => s.fetchProjects);
   const clearProjects = useProjectStore((s) => s.clearProjects);
   const fetchProfile = useProfileStore((s) => s.fetchProfile);
   const clearProfile = useProfileStore((s) => s.clearProfile);
+  const loadSettings = useSettingsStore((s) => s.loadSettings);
 
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -35,6 +38,10 @@ export default function RootLayout() {
     JetBrainsMono_400Regular,
     JetBrainsMono_500Medium,
   });
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
 
   // Listen to auth state changes to keep data in sync with the logged-in user
   useEffect(() => {
@@ -68,8 +75,8 @@ export default function RootLayout() {
 
   if (!fontsLoaded) {
     return (
-      <View style={{ flex: 1, backgroundColor: Colors.surfaceContainerLowest, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color={Colors.primaryFixed} size="large" />
+      <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color={colors.primaryFixed} size="large" />
       </View>
     );
   }
@@ -77,11 +84,11 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <StatusBar style="light" />
+        <StatusBar style={colors.isDark ? 'light' : 'dark'} />
         <Stack
           screenOptions={{
             headerShown: false,
-            contentStyle: { backgroundColor: Colors.surfaceContainerLowest },
+            contentStyle: { backgroundColor: colors.background },
             animation: 'fade',
           }}
         >

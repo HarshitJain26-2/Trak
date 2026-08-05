@@ -17,7 +17,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
-import { Colors, getThemeColors } from '@/constants/colors';
+import { Colors, getThemeColors, useThemeColors } from '@/constants/colors';
 import { useProfileStore, Profile, SocialLink } from '@/store/useProfileStore';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
@@ -41,10 +41,11 @@ const PLATFORM_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
 
 // ─── Stat Card ─────────────────────────────────────────────────────────────────
 function StatCard({ value, label, accent = false }: { value: string | number; label: string; accent?: boolean }) {
+  const colors = useThemeColors();
   return (
-    <View style={[statStyles.card, accent && statStyles.cardAccent]}>
-      <Text style={[statStyles.value, accent && statStyles.valueAccent]}>{value}</Text>
-      <Text style={statStyles.label}>{label}</Text>
+    <View style={[statStyles.card, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }, accent && { backgroundColor: `${colors.primaryFixed}15`, borderColor: `${colors.primaryFixed}30` }]}>
+      <Text style={[statStyles.value, { color: colors.onSurface }, accent && { color: colors.primaryFixed }]}>{value}</Text>
+      <Text style={[statStyles.label, { color: colors.onSurfaceVariant }]}>{label}</Text>
     </View>
   );
 }
@@ -52,31 +53,20 @@ function StatCard({ value, label, accent = false }: { value: string | number; la
 const statStyles = StyleSheet.create({
   card: {
     flex: 1,
-    backgroundColor: 'rgba(17,20,27,0.8)',
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-  },
-  cardAccent: {
-    backgroundColor: `${Colors.primaryFixed}10`,
-    borderColor: `${Colors.primaryFixed}25`,
   },
   value: {
     fontFamily: 'JetBrainsMono_500Medium',
     fontSize: 22,
-    color: Colors.onSurface,
     marginBottom: 4,
-  },
-  valueAccent: {
-    color: Colors.primaryFixed,
   },
   label: {
     fontFamily: 'Inter_400Regular',
     fontSize: 11,
-    color: Colors.onSurfaceVariant,
     opacity: 0.7,
     textAlign: 'center',
   },
@@ -94,6 +84,7 @@ interface EditModalProps {
 }
 
 function EditModal({ visible, title, field, initialValue, multiline, onClose, onSave }: EditModalProps) {
+  const colors = useThemeColors();
   const [val, setVal] = useState(initialValue);
   const [saving, setSaving] = useState(false);
   React.useEffect(() => { if (visible) setVal(initialValue); }, [visible]);
@@ -115,32 +106,32 @@ function EditModal({ visible, title, field, initialValue, multiline, onClose, on
         <TouchableWithoutFeedback onPress={onClose}>
           <View style={editStyles.overlay}>
             <TouchableWithoutFeedback>
-              <View style={editStyles.card}>
-                <Text style={editStyles.title}>Edit {title}</Text>
+              <View style={[editStyles.card, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
+                <Text style={[editStyles.title, { color: colors.onSurface }]}>Edit {title}</Text>
                 <TextInput
-                  style={[editStyles.input, multiline && editStyles.inputMulti]}
+                  style={[editStyles.input, { backgroundColor: colors.surfaceContainerHigh, borderColor: `${colors.primaryFixed}33`, color: colors.onSurface }, multiline && editStyles.inputMulti]}
                   value={val}
                   onChangeText={setVal}
                   multiline={multiline}
                   autoFocus
-                  placeholderTextColor={`${Colors.onSurfaceVariant}60`}
-                  selectionColor={Colors.primaryFixed}
+                  placeholderTextColor={`${colors.onSurfaceVariant}60`}
+                  selectionColor={colors.primaryFixed}
                   returnKeyType={multiline ? 'default' : 'done'}
                   onSubmitEditing={multiline ? undefined : handleSave}
                 />
                 <View style={editStyles.btnRow}>
-                  <Pressable style={[editStyles.btn, editStyles.btnCancel]} onPress={onClose} disabled={saving}>
-                    <Text style={editStyles.btnCancelText}>Cancel</Text>
+                  <Pressable style={[editStyles.btn, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder, borderWidth: 1 }]} onPress={onClose} disabled={saving}>
+                    <Text style={[editStyles.btnCancelText, { color: colors.onSurfaceVariant }]}>Cancel</Text>
                   </Pressable>
                   <Pressable
-                    style={[editStyles.btn, editStyles.btnSave, (!val.trim() || saving) && editStyles.btnDisabled]}
+                    style={[editStyles.btn, { backgroundColor: colors.primaryFixed }, (!val.trim() || saving) && editStyles.btnDisabled]}
                     disabled={!val.trim() || saving}
                     onPress={handleSave}
                   >
                     {saving ? (
-                      <ActivityIndicator size="small" color="#002203" />
+                      <ActivityIndicator size="small" color={colors.onPrimaryFixed} />
                     ) : (
-                      <Text style={editStyles.btnSaveText}>Save</Text>
+                      <Text style={[editStyles.btnSaveText, { color: colors.onPrimaryFixed }]}>Save</Text>
                     )}
                   </Pressable>
                 </View>
@@ -161,11 +152,9 @@ const editStyles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   card: {
-    backgroundColor: '#1A1F2B',
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.5,
@@ -175,19 +164,15 @@ const editStyles = StyleSheet.create({
   title: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 17,
-    color: Colors.onSurface,
     marginBottom: 14,
   },
   input: {
-    backgroundColor: Colors.surfaceContainerHigh,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 11,
     fontFamily: 'Inter_400Regular',
     fontSize: 15,
-    color: Colors.onSurface,
     borderWidth: 1,
-    borderColor: `${Colors.primaryFixed}33`,
     marginBottom: 16,
   },
   inputMulti: {
@@ -196,15 +181,14 @@ const editStyles = StyleSheet.create({
   },
   btnRow: { flexDirection: 'row', gap: 10 },
   btn: { flex: 1, paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
-  btnCancel: { backgroundColor: Colors.surfaceContainerHigh, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
-  btnSave: { backgroundColor: Colors.primaryFixed },
   btnDisabled: { opacity: 0.4 },
-  btnCancelText: { fontFamily: 'Inter_400Regular', fontSize: 15, color: Colors.onSurfaceVariant },
-  btnSaveText: { fontFamily: 'Inter_600SemiBold', fontSize: 15, color: '#002203' },
+  btnCancelText: { fontFamily: 'Inter_400Regular', fontSize: 15 },
+  btnSaveText: { fontFamily: 'Inter_600SemiBold', fontSize: 15 },
 });
 
 // ─── Add Skill Modal ────────────────────────────────────────────────────────────
 function AddSkillModal({ visible, onClose, onAdd }: { visible: boolean; onClose: () => void; onAdd: (s: string) => void }) {
+  const colors = useThemeColors();
   const [val, setVal] = useState('');
   React.useEffect(() => { if (visible) setVal(''); }, [visible]);
   return (
@@ -213,29 +197,29 @@ function AddSkillModal({ visible, onClose, onAdd }: { visible: boolean; onClose:
         <TouchableWithoutFeedback onPress={onClose}>
           <View style={editStyles.overlay}>
             <TouchableWithoutFeedback>
-              <View style={editStyles.card}>
-                <Text style={editStyles.title}>Add Skill</Text>
+              <View style={[editStyles.card, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
+                <Text style={[editStyles.title, { color: colors.onSurface }]}>Add Skill</Text>
                 <TextInput
-                  style={editStyles.input}
+                  style={[editStyles.input, { backgroundColor: colors.surfaceContainerHigh, borderColor: `${colors.primaryFixed}33`, color: colors.onSurface }]}
                   value={val}
                   onChangeText={setVal}
                   placeholder="e.g. GraphQL, Docker..."
-                  placeholderTextColor={`${Colors.onSurfaceVariant}60`}
+                  placeholderTextColor={`${colors.onSurfaceVariant}60`}
                   autoFocus
-                  selectionColor={Colors.primaryFixed}
+                  selectionColor={colors.primaryFixed}
                   returnKeyType="done"
                   onSubmitEditing={() => { if (val.trim()) { onAdd(val.trim()); onClose(); } }}
                 />
                 <View style={editStyles.btnRow}>
-                  <Pressable style={[editStyles.btn, editStyles.btnCancel]} onPress={onClose}>
-                    <Text style={editStyles.btnCancelText}>Cancel</Text>
+                  <Pressable style={[editStyles.btn, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder, borderWidth: 1 }]} onPress={onClose}>
+                    <Text style={[editStyles.btnCancelText, { color: colors.onSurfaceVariant }]}>Cancel</Text>
                   </Pressable>
                   <Pressable
-                    style={[editStyles.btn, editStyles.btnSave, !val.trim() && editStyles.btnDisabled]}
+                    style={[editStyles.btn, { backgroundColor: colors.primaryFixed }, !val.trim() && editStyles.btnDisabled]}
                     disabled={!val.trim()}
                     onPress={() => { onAdd(val.trim()); onClose(); }}
                   >
-                    <Text style={editStyles.btnSaveText}>Add</Text>
+                    <Text style={[editStyles.btnSaveText, { color: colors.onPrimaryFixed }]}>Add</Text>
                   </Pressable>
                 </View>
               </View>
@@ -264,6 +248,7 @@ interface LinkModalProps {
 }
 
 function LinkModal({ visible, initial, onClose, onSave }: LinkModalProps) {
+  const colors = useThemeColors();
   const [platform, setPlatform] = useState<SocialLink['platform']>('github');
   const [label, setLabel]       = useState('');
   const [url, setUrl]           = useState('');
@@ -284,13 +269,13 @@ function LinkModal({ visible, initial, onClose, onSave }: LinkModalProps) {
         <TouchableWithoutFeedback onPress={onClose}>
           <View style={linkStyles.overlay}>
             <TouchableWithoutFeedback>
-              <View style={linkStyles.sheet}>
+              <View style={[linkStyles.sheet, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
                 {/* Handle */}
-                <View style={linkStyles.handle} />
-                <Text style={linkStyles.title}>{initial ? 'Edit Link' : 'Add Link'}</Text>
+                <View style={[linkStyles.handle, { backgroundColor: `${colors.onSurfaceVariant}40` }]} />
+                <Text style={[linkStyles.title, { color: colors.onSurface }]}>{initial ? 'Edit Link' : 'Add Link'}</Text>
 
                 {/* Platform picker */}
-                <Text style={linkStyles.fieldLabel}>PLATFORM</Text>
+                <Text style={[linkStyles.fieldLabel, { color: colors.onSurfaceVariant }]}>PLATFORM</Text>
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -300,15 +285,15 @@ function LinkModal({ visible, initial, onClose, onSave }: LinkModalProps) {
                   {PLATFORM_OPTIONS.map((opt) => (
                     <Pressable
                       key={opt.value}
-                      style={[linkStyles.platformChip, platform === opt.value && linkStyles.platformChipActive]}
+                      style={[linkStyles.platformChip, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }, platform === opt.value && { backgroundColor: colors.primaryFixed, borderColor: colors.primaryFixed }]}
                       onPress={() => setPlatform(opt.value)}
                     >
                       <Feather
                         name={PLATFORM_ICONS[opt.value] ?? 'link'}
                         size={13}
-                        color={platform === opt.value ? '#002203' : Colors.onSurfaceVariant}
+                        color={platform === opt.value ? colors.onPrimaryFixed : colors.onSurfaceVariant}
                       />
-                      <Text style={[linkStyles.platformChipText, platform === opt.value && linkStyles.platformChipTextActive]}>
+                      <Text style={[linkStyles.platformChipText, { color: colors.onSurfaceVariant }, platform === opt.value && { color: colors.onPrimaryFixed }]}>
                         {opt.label}
                       </Text>
                     </Pressable>
@@ -316,26 +301,26 @@ function LinkModal({ visible, initial, onClose, onSave }: LinkModalProps) {
                 </ScrollView>
 
                 {/* Label */}
-                <Text style={linkStyles.fieldLabel}>LABEL</Text>
+                <Text style={[linkStyles.fieldLabel, { color: colors.onSurfaceVariant }]}>LABEL</Text>
                 <TextInput
-                  style={linkStyles.input}
+                  style={[linkStyles.input, { backgroundColor: colors.surfaceContainerHigh, borderColor: `${colors.primaryFixed}33`, color: colors.onSurface }]}
                   value={label}
                   onChangeText={setLabel}
                   placeholder="e.g. My GitHub"
-                  placeholderTextColor={`${Colors.onSurfaceVariant}50`}
-                  selectionColor={Colors.primaryFixed}
+                  placeholderTextColor={`${colors.onSurfaceVariant}50`}
+                  selectionColor={colors.primaryFixed}
                   returnKeyType="next"
                 />
 
                 {/* URL */}
-                <Text style={linkStyles.fieldLabel}>URL / ADDRESS</Text>
+                <Text style={[linkStyles.fieldLabel, { color: colors.onSurfaceVariant }]}>URL / ADDRESS</Text>
                 <TextInput
-                  style={[linkStyles.input, { marginBottom: 20 }]}
+                  style={[linkStyles.input, { backgroundColor: colors.surfaceContainerHigh, borderColor: `${colors.primaryFixed}33`, color: colors.onSurface, marginBottom: 20 }]}
                   value={url}
                   onChangeText={setUrl}
                   placeholder={platform === 'email' ? 'you@example.com' : 'https://...'}
-                  placeholderTextColor={`${Colors.onSurfaceVariant}50`}
-                  selectionColor={Colors.primaryFixed}
+                  placeholderTextColor={`${colors.onSurfaceVariant}50`}
+                  selectionColor={colors.primaryFixed}
                   autoCapitalize="none"
                   keyboardType={platform === 'email' ? 'email-address' : 'url'}
                   returnKeyType="done"
@@ -343,15 +328,15 @@ function LinkModal({ visible, initial, onClose, onSave }: LinkModalProps) {
                 />
 
                 <View style={editStyles.btnRow}>
-                  <Pressable style={[editStyles.btn, editStyles.btnCancel]} onPress={onClose}>
-                    <Text style={editStyles.btnCancelText}>Cancel</Text>
+                  <Pressable style={[editStyles.btn, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder, borderWidth: 1 }]} onPress={onClose}>
+                    <Text style={[editStyles.btnCancelText, { color: colors.onSurfaceVariant }]}>Cancel</Text>
                   </Pressable>
                   <Pressable
-                    style={[editStyles.btn, editStyles.btnSave, !isValid && editStyles.btnDisabled]}
+                    style={[editStyles.btn, { backgroundColor: colors.primaryFixed }, !isValid && editStyles.btnDisabled]}
                     disabled={!isValid}
                     onPress={() => { onSave({ platform, label: label.trim(), url: url.trim() }); onClose(); }}
                   >
-                    <Text style={editStyles.btnSaveText}>{initial ? 'Save' : 'Add Link'}</Text>
+                    <Text style={[editStyles.btnSaveText, { color: colors.onPrimaryFixed }]}>{initial ? 'Save' : 'Add Link'}</Text>
                   </Pressable>
                 </View>
               </View>
@@ -370,56 +355,42 @@ const linkStyles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: '#1A1F2B',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
     paddingBottom: 36,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
   },
   handle: {
     width: 36, height: 4, borderRadius: 2,
-    backgroundColor: `${Colors.onSurfaceVariant}40`,
     alignSelf: 'center',
     marginBottom: 18,
   },
   title: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 17,
-    color: Colors.onSurface,
     marginBottom: 16,
   },
   fieldLabel: {
     fontFamily: 'JetBrainsMono_400Regular',
     fontSize: 10,
-    color: `${Colors.onSurfaceVariant}80`,
     letterSpacing: 1.5,
     marginBottom: 8,
   },
   platformChip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 12, paddingVertical: 7,
-    backgroundColor: Colors.surfaceContainerHigh,
     borderRadius: 999,
-    borderWidth: 1, borderColor: `${Colors.outlineVariant}33`,
-  },
-  platformChipActive: {
-    backgroundColor: Colors.primaryFixed,
-    borderColor: Colors.primaryFixed,
+    borderWidth: 1,
   },
   platformChipText: {
     fontFamily: 'Inter_400Regular', fontSize: 13,
-    color: Colors.onSurfaceVariant,
   },
-  platformChipTextActive: { color: '#002203', fontFamily: 'Inter_600SemiBold' },
   input: {
-    backgroundColor: Colors.surfaceContainerHigh,
     borderRadius: 8,
     paddingHorizontal: 12, paddingVertical: 11,
     fontFamily: 'Inter_400Regular', fontSize: 15,
-    color: Colors.onSurface,
-    borderWidth: 1, borderColor: `${Colors.primaryFixed}33`,
+    borderWidth: 1,
     marginBottom: 14,
   },
 });
@@ -440,19 +411,20 @@ function InfoRow({
   placeholder?: string;
   mono?: boolean;
 }) {
+  const colors = useThemeColors();
   const isEmpty = !value;
   return (
     <Pressable style={infoRowStyles.row} onPress={onEdit}>
-      <View style={infoRowStyles.iconWrap}>
-        <Feather name={icon} size={15} color={Colors.onSurfaceVariant} />
+      <View style={[infoRowStyles.iconWrap, { backgroundColor: colors.surfaceContainerHigh }]}>
+        <Feather name={icon} size={15} color={colors.onSurfaceVariant} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={infoRowStyles.label}>{label}</Text>
-        <Text style={[infoRowStyles.value, mono && infoRowStyles.mono, isEmpty && infoRowStyles.placeholder]}>
+        <Text style={[infoRowStyles.label, { color: colors.onSurfaceVariant }]}>{label}</Text>
+        <Text style={[infoRowStyles.value, { color: colors.onSurface }, mono && { color: colors.secondary }, isEmpty && { color: `${colors.onSurfaceVariant}50`, fontStyle: 'italic' }]}>
           {isEmpty ? placeholder : value}
         </Text>
       </View>
-      <Feather name="edit-2" size={14} color={`${Colors.onSurfaceVariant}50`} />
+      <Feather name="edit-2" size={14} color={`${colors.onSurfaceVariant}50`} />
     </Pressable>
   );
 }
@@ -468,14 +440,12 @@ const infoRowStyles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: Colors.surfaceContainerHigh,
     alignItems: 'center',
     justifyContent: 'center',
   },
   label: {
     fontFamily: 'JetBrainsMono_400Regular',
     fontSize: 10,
-    color: `${Colors.onSurfaceVariant}80`,
     letterSpacing: 1,
     textTransform: 'uppercase',
     marginBottom: 2,
@@ -483,25 +453,23 @@ const infoRowStyles = StyleSheet.create({
   value: {
     fontFamily: 'Inter_400Regular',
     fontSize: 14,
-    color: Colors.onSurface,
   },
-  mono: {
-    fontFamily: 'JetBrainsMono_400Regular',
-    color: Colors.secondary,
-  },
-  placeholder: {
-    color: `${Colors.onSurfaceVariant}50`,
-    fontStyle: 'italic',
-  },
+});
+
+const linkRowStyles = StyleSheet.create({
+  iconBtn: { padding: 4 },
+  addRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12 },
+  addRowText: { fontFamily: 'Inter_500Medium', fontSize: 13, color: Colors.primaryFixed },
 });
 
 // ─── Section Header ────────────────────────────────────────────────────────────
 function SectionHeader({ title }: { title: string }) {
+  const colors = useThemeColors();
   return (
     <Text style={{
       fontFamily: 'JetBrainsMono_500Medium',
       fontSize: 11,
-      color: `${Colors.onSurfaceVariant}80`,
+      color: colors.onSurfaceVariant,
       letterSpacing: 2,
       textTransform: 'uppercase',
       marginBottom: 10,
@@ -515,6 +483,7 @@ function SectionHeader({ title }: { title: string }) {
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
   const insets = useSafeAreaInsets();
   const { profile, updateProfile, addSkill, removeSkill, addLink, updateLink, removeLink } = useProfileStore();
   const { projects } = useProjectStore();
@@ -646,7 +615,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: colors.surface }]}>
       {/* Themed Dialogs */}
       <ConfirmDialog {...dialogProps} />
       <ActionSheet {...actionSheetProps} />
@@ -683,16 +652,16 @@ export default function ProfileScreen() {
       {/* App Bar */}
       <BlurView
         intensity={60}
-        tint="dark"
-        style={[styles.appBar, Platform.OS === 'android' && { backgroundColor: `${Colors.surface}E6` }]}
+        tint={colors.isDark ? 'dark' : 'light'}
+        style={[styles.appBar, { borderBottomColor: colors.glassBorder }, Platform.OS === 'android' && { backgroundColor: colors.surface }]}
       >
         <View style={[styles.appBarInner, { paddingTop: Math.max(insets.top, 24) + 12 }]}>
           <View style={styles.appBarLeft}>
-            <Feather name="user" size={18} color={Colors.primaryFixed} />
-            <Text style={styles.appBarTitle}>{t('profile', useSettingsStore.getState().language)}</Text>
+            <Feather name="user" size={18} color={colors.primaryFixed} />
+            <Text style={[styles.appBarTitle, { color: colors.primaryFixed }]}>{t('profile', useSettingsStore.getState().language)}</Text>
           </View>
           <Pressable onPress={() => router.push('/settings' as any)} hitSlop={10}>
-            <Feather name="settings" size={20} color={Colors.onSurfaceVariant} />
+            <Feather name="settings" size={20} color={colors.onSurfaceVariant} />
           </Pressable>
         </View>
       </BlurView>
@@ -703,31 +672,31 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* ── Avatar + Name Hero ── */}
-        <View style={styles.heroCard}>
+        <View style={[styles.heroCard, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
           {/* Avatar */}
           <Pressable style={styles.avatarWrap} onPress={handleAvatarPress}>
             {profile.avatarUrl ? (
-              <Image source={{ uri: profile.avatarUrl }} style={styles.avatar} />
+              <Image source={{ uri: profile.avatarUrl }} style={[styles.avatar, { borderColor: colors.primaryFixed }]} />
             ) : (
-              <View style={styles.avatarFallback}>
-                <Text style={styles.avatarInitials}>{getInitials(profile.name)}</Text>
+              <View style={[styles.avatarFallback, { backgroundColor: `${colors.primaryFixed}20`, borderColor: `${colors.primaryFixed}50` }]}>
+                <Text style={[styles.avatarInitials, { color: colors.primaryFixed }]}>{getInitials(profile.name)}</Text>
               </View>
             )}
-            <View style={styles.avatarEditBadge}>
-              <Feather name="camera" size={10} color="#002203" />
+            <View style={[styles.avatarEditBadge, { backgroundColor: colors.primaryFixed, borderColor: colors.surface }]}>
+              <Feather name="camera" size={10} color={colors.onPrimaryFixed} />
             </View>
           </Pressable>
 
           {/* Name + role */}
           <Pressable onPress={() => openEdit('name', 'Name')} style={styles.nameRow}>
-            <Text style={styles.heroName}>{profile.name || 'Your Name'}</Text>
-            <Feather name="edit-2" size={14} color={`${Colors.primaryFixed}80`} />
+            <Text style={[styles.heroName, { color: colors.onSurface }]}>{profile.name || 'Your Name'}</Text>
+            <Feather name="edit-2" size={14} color={`${colors.primaryFixed}80`} />
           </Pressable>
           <Pressable onPress={() => openEdit('role', 'Role')} style={styles.roleRow}>
-            <Text style={styles.heroRole}>{profile.role || 'Your Role'}</Text>
+            <Text style={[styles.heroRole, { color: colors.secondaryFixed }]}>{profile.role || 'Your Role'}</Text>
           </Pressable>
           <Pressable onPress={() => openEdit('bio', 'Bio', true)} style={styles.bioWrap}>
-            <Text style={styles.heroBio} numberOfLines={3}>
+            <Text style={[styles.heroBio, { color: colors.onSurfaceVariant }]} numberOfLines={3}>
               {profile.bio || 'Tap to add a bio...'}
             </Text>
           </Pressable>
@@ -735,20 +704,20 @@ export default function ProfileScreen() {
           {/* Location + company pill row */}
           <View style={styles.pillMeta}>
             {profile.location ? (
-              <View style={styles.metaPill}>
-                <Feather name="map-pin" size={11} color={Colors.onSurfaceVariant} />
-                <Text style={styles.metaPillText}>{profile.location}</Text>
+              <View style={[styles.metaPill, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]}>
+                <Feather name="map-pin" size={11} color={colors.onSurfaceVariant} />
+                <Text style={[styles.metaPillText, { color: colors.onSurfaceVariant }]}>{profile.location}</Text>
               </View>
             ) : null}
             {profile.company ? (
-              <View style={styles.metaPill}>
-                <Feather name="briefcase" size={11} color={Colors.onSurfaceVariant} />
-                <Text style={styles.metaPillText}>{profile.company}</Text>
+              <View style={[styles.metaPill, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]}>
+                <Feather name="briefcase" size={11} color={colors.onSurfaceVariant} />
+                <Text style={[styles.metaPillText, { color: colors.onSurfaceVariant }]}>{profile.company}</Text>
               </View>
             ) : null}
-            <View style={styles.metaPill}>
-              <Feather name="calendar" size={11} color={Colors.onSurfaceVariant} />
-              <Text style={styles.metaPillText}>Since {profile.joinedDate}</Text>
+            <View style={[styles.metaPill, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]}>
+              <Feather name="calendar" size={11} color={colors.onSurfaceVariant} />
+              <Text style={[styles.metaPillText, { color: colors.onSurfaceVariant }]}>Since {profile.joinedDate}</Text>
             </View>
           </View>
         </View>
@@ -762,7 +731,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* ── Developer Info ── */}
-        <View style={styles.glassCard}>
+        <View style={[styles.glassCard, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
           <SectionHeader title="Developer Info" />
           <InfoRow
             icon="user"
@@ -770,7 +739,7 @@ export default function ProfileScreen() {
             value={profile.name}
             onEdit={() => openEdit('name', 'Name')}
           />
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: colors.glassBorder }]} />
           <InfoRow
             icon="at-sign"
             label="Username"
@@ -778,14 +747,14 @@ export default function ProfileScreen() {
             onEdit={() => openEdit('username', 'Username')}
             mono
           />
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: colors.glassBorder }]} />
           <InfoRow
             icon="briefcase"
             label="Role"
             value={profile.role}
             onEdit={() => openEdit('role', 'Role')}
           />
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: colors.glassBorder }]} />
           <InfoRow
             icon="home"
             label="Company"
@@ -793,7 +762,7 @@ export default function ProfileScreen() {
             onEdit={() => openEdit('company', 'Company')}
             placeholder="No company set"
           />
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: colors.glassBorder }]} />
           <InfoRow
             icon="map-pin"
             label="Location"
@@ -803,7 +772,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* ── Links ── */}
-        <View style={styles.glassCard}>
+        <View style={[styles.glassCard, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
           <SectionHeader title="Links" />
 
           {/* GitHub is always first, non-removable */}
@@ -819,14 +788,14 @@ export default function ProfileScreen() {
           {/* Social links — editable & removable */}
           {profile.socialLinks.map((link) => (
             <React.Fragment key={link.id}>
-              <View style={styles.divider} />
+              <View style={[styles.divider, { backgroundColor: colors.glassBorder }]} />
               <View style={infoRowStyles.row}>
-                <View style={infoRowStyles.iconWrap}>
-                  <Feather name={PLATFORM_ICONS[link.platform] ?? 'link'} size={15} color={Colors.onSurfaceVariant} />
+                <View style={[infoRowStyles.iconWrap, { backgroundColor: colors.surfaceContainerHigh }]}>
+                  <Feather name={PLATFORM_ICONS[link.platform] ?? 'link'} size={15} color={colors.onSurfaceVariant} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={infoRowStyles.label}>{link.label}</Text>
-                  <Text style={[infoRowStyles.value, infoRowStyles.mono]} numberOfLines={1}>{link.url}</Text>
+                  <Text style={[infoRowStyles.label, { color: colors.onSurfaceVariant }]}>{link.label}</Text>
+                  <Text style={[infoRowStyles.value, { color: colors.secondary, fontFamily: 'JetBrainsMono_400Regular' }]} numberOfLines={1}>{link.url}</Text>
                 </View>
                 {/* Edit button */}
                 <Pressable
@@ -834,7 +803,7 @@ export default function ProfileScreen() {
                   style={linkRowStyles.iconBtn}
                   onPress={() => setLinkModal({ visible: true, editing: link })}
                 >
-                  <Feather name="edit-2" size={14} color={`${Colors.onSurfaceVariant}60`} />
+                  <Feather name="edit-2" size={14} color={`${colors.onSurfaceVariant}60`} />
                 </Pressable>
                 {/* Delete button */}
                 <Pressable
@@ -847,31 +816,31 @@ export default function ProfileScreen() {
                     ])
                   }
                 >
-                  <Feather name="trash-2" size={14} color={`${Colors.error}80`} />
+                  <Feather name="trash-2" size={14} color={`${colors.error}80`} />
                 </Pressable>
               </View>
             </React.Fragment>
           ))}
 
           {/* Add link button at bottom */}
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: colors.glassBorder }]} />
           <Pressable
             style={linkRowStyles.addRow}
             onPress={() => setLinkModal({ visible: true, editing: null })}
           >
-            <Feather name="plus-circle" size={15} color={`${Colors.primaryFixed}80`} />
-            <Text style={linkRowStyles.addRowText}>Add a new link</Text>
+            <Feather name="plus-circle" size={15} color={colors.primaryFixed} />
+            <Text style={[linkRowStyles.addRowText, { color: colors.primaryFixed }]}>Add a new link</Text>
           </Pressable>
         </View>
 
         {/* ── Tech Skills ── */}
-        <View style={styles.glassCard}>
+        <View style={[styles.glassCard, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
           <SectionHeader title="Tech Stack & Skills" />
           <View style={styles.skillsGrid}>
             {profile.skills.map((skill) => (
               <Pressable
                 key={skill}
-                style={styles.skillChip}
+                style={[styles.skillChip, { backgroundColor: `${colors.primaryFixed}15`, borderColor: `${colors.primaryFixed}30` }]}
                 onLongPress={() =>
                   Alert.alert('Remove Skill', `Remove "${skill}"?`, [
                     { text: 'Cancel', style: 'cancel' },
@@ -879,22 +848,22 @@ export default function ProfileScreen() {
                   ])
                 }
               >
-                <Text style={styles.skillChipText}>{skill}</Text>
+                <Text style={[styles.skillChipText, { color: colors.primaryFixed }]}>{skill}</Text>
               </Pressable>
             ))}
-            <Pressable style={styles.skillChipAdd} onPress={() => setShowAddSkill(true)}>
-              <Feather name="plus" size={13} color={`${Colors.primaryFixed}80`} />
-              <Text style={styles.skillChipAddText}>Add skill</Text>
+            <Pressable style={[styles.skillChipAdd, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]} onPress={() => setShowAddSkill(true)}>
+              <Feather name="plus" size={13} color={colors.primaryFixed} />
+              <Text style={[styles.skillChipAddText, { color: colors.primaryFixed }]}>Add skill</Text>
             </Pressable>
           </View>
-          <Text style={styles.skillHint}>Long-press a skill to remove it</Text>
+          <Text style={[styles.skillHint, { color: colors.onSurfaceVariant }]}>Long-press a skill to remove it</Text>
         </View>
 
         {/* ── Account Actions (Log Out) ── */}
-        <View style={[styles.glassCard, styles.logoutCard]}>
+        <View style={[styles.glassCard, styles.logoutCard, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
           <Pressable style={styles.logoutBtn} onPress={handleLogOut}>
-            <Feather name="log-out" size={16} color="#FF5252" style={{ marginRight: 8 }} />
-            <Text style={styles.logoutBtnText}>Log Out of Trak</Text>
+            <Feather name="log-out" size={16} color={colors.error} style={{ marginRight: 8 }} />
+            <Text style={[styles.logoutBtnText, { color: colors.error }]}>Log Out of Trak</Text>
           </Pressable>
         </View>
 
@@ -1091,29 +1060,5 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_600SemiBold',
     fontSize: 15,
     color: '#FF5252',
-  },
-});
-
-
-const linkRowStyles = StyleSheet.create({
-  iconBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    backgroundColor: Colors.surfaceContainerHigh,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 4,
-  },
-  addRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 12,
-  },
-  addRowText: {
-    fontFamily: 'Inter_400Regular',
-    fontSize: 14,
-    color: `${Colors.primaryFixed}80`,
   },
 });

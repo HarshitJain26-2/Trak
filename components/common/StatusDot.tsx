@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
-import { Colors } from '@/constants/colors';
+import { useThemeColors } from '@/constants/colors';
 
 interface StatusDotProps {
   status: 'active' | 'blocked' | 'idle' | 'warning';
@@ -8,15 +8,16 @@ interface StatusDotProps {
   animated?: boolean;
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  active: Colors.statusActive,
-  blocked: Colors.statusBlocked,
-  idle: Colors.statusIdle,
-  warning: Colors.statusWarning,
-};
-
 export const StatusDot: React.FC<StatusDotProps> = ({ status, size = 8, animated = false }) => {
+  const colors = useThemeColors();
   const pulseAnim = React.useRef(new Animated.Value(1)).current;
+
+  const STATUS_COLORS: Record<string, string> = {
+    active: colors.statusActive,
+    blocked: colors.statusBlocked,
+    idle: colors.statusIdle,
+    warning: colors.statusWarning,
+  };
 
   React.useEffect(() => {
     if (animated) {
@@ -29,7 +30,7 @@ export const StatusDot: React.FC<StatusDotProps> = ({ status, size = 8, animated
     }
   }, [animated]);
 
-  const color = STATUS_COLORS[status] ?? Colors.onSurfaceVariant;
+  const color = STATUS_COLORS[status] ?? colors.onSurfaceVariant;
 
   if (animated) {
     return (

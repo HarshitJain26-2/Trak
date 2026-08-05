@@ -14,13 +14,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Colors } from '@/constants/colors';
+import { Colors, useThemeColors } from '@/constants/colors';
 import { useProfileStore } from '@/store/useProfileStore';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function SetupProfileScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
   const { profile, updateProfile, isLoading } = useProfileStore();
 
   // Pre-fill with existing profile data for returning users
@@ -104,8 +105,8 @@ export default function SetupProfileScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.loadingWrap}>
-        <ActivityIndicator color={Colors.primaryFixed} size="large" />
+      <View style={[styles.loadingWrap, { backgroundColor: colors.background }]}>
+        <ActivityIndicator color={colors.primaryFixed} size="large" />
       </View>
     );
   }
@@ -113,10 +114,10 @@ export default function SetupProfileScreen() {
   const isNewUser = !profile.name;
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Ambient blobs */}
-      <View style={[styles.blob, styles.blobTL]} pointerEvents="none" />
-      <View style={[styles.blob, styles.blobBR]} pointerEvents="none" />
+      <View style={[styles.blob, styles.blobTL, { backgroundColor: `${colors.primaryFixed}07` }]} pointerEvents="none" />
+      <View style={[styles.blob, styles.blobBR, { backgroundColor: `${colors.secondaryContainer}07` }]} pointerEvents="none" />
 
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
         <KeyboardAvoidingView
@@ -124,16 +125,16 @@ export default function SetupProfileScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           {/* ── Header bar ── */}
-          <View style={styles.topBar}>
+          <View style={[styles.topBar, { borderBottomColor: colors.glassBorder }]}>
             <View style={styles.topBarLeft}>
-              <View style={styles.topIconBox}>
-                <Feather name="user" size={16} color={Colors.primaryFixed} />
+              <View style={[styles.topIconBox, { backgroundColor: `${colors.primaryFixed}15`, borderColor: `${colors.primaryFixed}25` }]}>
+                <Feather name="user" size={16} color={colors.primaryFixed} />
               </View>
               <View>
-                <Text style={styles.topTitle}>
+                <Text style={[styles.topTitle, { color: colors.onSurface }]}>
                   {isNewUser ? 'Complete your profile' : 'Update your profile'}
                 </Text>
-                <Text style={styles.topSubtitle}>
+                <Text style={[styles.topSubtitle, { color: colors.onSurfaceVariant }]}>
                   {isNewUser
                     ? 'Fill in your details to get started'
                     : 'All fields are optional'}
@@ -142,9 +143,9 @@ export default function SetupProfileScreen() {
             </View>
 
             {/* Skip button */}
-            <Pressable style={styles.skipBtn} onPress={handleSkip} hitSlop={8}>
-              <Text style={styles.skipText}>Skip</Text>
-              <Feather name="chevron-right" size={14} color={`${Colors.onSurfaceVariant}80`} />
+            <Pressable style={[styles.skipBtn, { backgroundColor: colors.surfaceContainerHigh }]} onPress={handleSkip} hitSlop={8}>
+              <Text style={[styles.skipText, { color: colors.onSurfaceVariant }]}>Skip</Text>
+              <Feather name="chevron-right" size={14} color={`${colors.onSurfaceVariant}80`} />
             </Pressable>
           </View>
 

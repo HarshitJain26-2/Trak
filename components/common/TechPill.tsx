@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Colors } from '@/constants/colors';
+import { useThemeColors } from '@/constants/colors';
 
 interface TechPillProps {
   label: string;
@@ -8,9 +8,27 @@ interface TechPillProps {
 }
 
 export const TechPill: React.FC<TechPillProps> = ({ label, variant = 'default' }) => {
+  const colors = useThemeColors();
+
   return (
-    <View style={[styles.pill, variant === 'highlighted' && styles.pillHighlighted]}>
-      <Text style={[styles.label, variant === 'highlighted' && styles.labelHighlighted]}>
+    <View
+      style={[
+        styles.pill,
+        { backgroundColor: `${colors.surfaceContainerHighest}80` },
+        variant === 'highlighted' && {
+          backgroundColor: `${colors.primaryFixed}1A`,
+          borderWidth: 1,
+          borderColor: `${colors.primaryFixed}4D`,
+        },
+      ]}
+    >
+      <Text
+        style={[
+          styles.label,
+          { color: colors.secondaryFixed },
+          variant === 'highlighted' && { color: colors.primaryFixed },
+        ]}
+      >
         {label}
       </Text>
     </View>
@@ -21,22 +39,12 @@ const styles = StyleSheet.create({
   pill: {
     paddingHorizontal: 8,
     paddingVertical: 2,
-    backgroundColor: `${Colors.surfaceContainerHighest}80`,
     borderRadius: 4,
-  },
-  pillHighlighted: {
-    backgroundColor: `${Colors.primaryFixed}1A`,
-    borderWidth: 1,
-    borderColor: `${Colors.primaryFixed}4D`,
   },
   label: {
     fontFamily: 'JetBrainsMono_400Regular',
     fontSize: 12,
     lineHeight: 18,
-    color: Colors.secondaryFixed,
-    letterSpacing: 0.02 * 12,
-  },
-  labelHighlighted: {
-    color: Colors.primaryFixed,
+    letterSpacing: 0.24,
   },
 });

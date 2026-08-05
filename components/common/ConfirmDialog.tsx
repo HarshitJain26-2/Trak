@@ -7,7 +7,7 @@ import {
   Pressable,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { Colors } from '@/constants/colors';
+import { Colors, useThemeColors } from '@/constants/colors';
 
 export type ConfirmIcon =
   | 'trash-2'
@@ -41,44 +41,45 @@ export function ConfirmDialog({
   onCancel,
   onConfirm,
 }: ConfirmDialogProps) {
+  const colors = useThemeColors();
   if (!visible) return null;
 
-  const accentColor = destructive ? Colors.error : Colors.primaryFixed;
-  const iconBg = destructive ? 'rgba(255,180,171,0.12)' : 'rgba(114,255,112,0.10)';
+  const accentColor = destructive ? colors.error : colors.primaryFixed;
+  const iconBg = destructive ? `${colors.error}1A` : `${colors.primaryFixed}1A`;
 
   return (
     <Modal transparent animationType="fade" visible={visible} onRequestClose={onCancel}>
       <Pressable style={styles.overlay} onPress={onCancel}>
-        <Pressable style={styles.card} onPress={() => {}}>
+        <Pressable style={[styles.card, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]} onPress={() => {}}>
           {/* Icon badge */}
           <View style={[styles.iconWrap, { backgroundColor: iconBg }]}>
             <Feather name={icon as any} size={26} color={accentColor} />
           </View>
 
           {/* Title */}
-          <Text style={styles.title}>{title}</Text>
+          <Text style={[styles.title, { color: colors.onSurface }]}>{title}</Text>
 
           {/* Message */}
-          <Text style={styles.message}>{message}</Text>
+          <Text style={[styles.message, { color: colors.onSurfaceVariant }]}>{message}</Text>
 
           {/* Buttons */}
           <View style={styles.btnRow}>
             <Pressable
-              style={({ pressed }) => [styles.btn, styles.btnCancel, pressed && styles.btnPressed]}
+              style={({ pressed }) => [styles.btn, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder, borderWidth: 1 }, pressed && styles.btnPressed]}
               onPress={onCancel}
             >
-              <Text style={styles.btnCancelText}>Cancel</Text>
+              <Text style={[styles.btnCancelText, { color: colors.onSurfaceVariant }]}>Cancel</Text>
             </Pressable>
 
             <Pressable
               style={({ pressed }) => [
                 styles.btn,
-                destructive ? styles.btnDestructive : styles.btnConfirm,
+                { backgroundColor: destructive ? colors.error : colors.primaryFixed },
                 pressed && styles.btnPressed,
               ]}
               onPress={onConfirm}
             >
-              <Text style={[styles.btnConfirmText, { color: '#0b0e14' }]}>
+              <Text style={[styles.btnConfirmText, { color: colors.onPrimaryFixed }]}>
                 {confirmLabel}
               </Text>
             </Pressable>

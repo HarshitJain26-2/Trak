@@ -1,4 +1,5 @@
 import { useColorScheme } from 'react-native';
+import { useSettingsStore } from '@/store/useSettingsStore';
 
 export interface ColorTheme {
   surface: string;
@@ -180,7 +181,6 @@ export const LightColors: ColorTheme = {
   isDark: false,
 };
 
-// Default fallback export
 export const Colors = DarkColors;
 export type ColorKey = keyof ColorTheme;
 
@@ -188,4 +188,10 @@ export function getThemeColors(mode: 'light' | 'dark' | 'system', systemScheme?:
   if (mode === 'light') return LightColors;
   if (mode === 'dark') return DarkColors;
   return systemScheme === 'light' ? LightColors : DarkColors;
+}
+
+export function useThemeColors(): ColorTheme {
+  const systemScheme = useColorScheme();
+  const themeMode = useSettingsStore((s) => s.themeMode);
+  return getThemeColors(themeMode, systemScheme);
 }

@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Colors } from '@/constants/colors';
+import { Colors, useThemeColors } from '@/constants/colors';
 import { useProjectStore, Project } from '@/store/useProjectStore';
 import { TechPill } from '@/components/common/TechPill';
 import { ConfirmDialog, useConfirmDialog } from '@/components/common/ConfirmDialog';
@@ -27,6 +27,7 @@ function CompletedCard({
   onReactivate: () => void;
 }) {
   const router = useRouter();
+  const colors = useThemeColors();
   const [modalVisible, setModalVisible] = React.useState(false);
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -52,23 +53,23 @@ function CompletedCard({
         onLongPress={() => setModalVisible(true)}
         delayLongPress={350}
       >
-      <Animated.View style={[styles.card, { transform: [{ scale }] }]}>
+      <Animated.View style={[styles.card, { backgroundColor: colors.cardBg, borderColor: colors.glassBorder, transform: [{ scale }] }]}>
         {/* Completed accent bar — always 100% width in green */}
-        <View style={styles.accentBar} />
+        <View style={[styles.accentBar, { backgroundColor: colors.primaryFixed }]} />
 
         <View style={styles.cardContent}>
           {/* Header */}
           <View style={styles.cardHeader}>
             <View style={styles.cardTitleRow}>
-              <Feather name="check-circle" size={14} color={Colors.primaryFixed} />
-              <Text style={styles.cardName}>{project.name}</Text>
+              <Feather name="check-circle" size={14} color={colors.primaryFixed} />
+              <Text style={[styles.cardName, { color: colors.onSurface }]}>{project.name}</Text>
             </View>
-            <View style={styles.completedBadge}>
-              <Text style={styles.completedBadgeText}>DONE</Text>
+            <View style={[styles.completedBadge, { backgroundColor: `${colors.primaryFixed}1A`, borderColor: `${colors.primaryFixed}33` }]}>
+              <Text style={[styles.completedBadgeText, { color: colors.primaryFixed }]}>DONE</Text>
             </View>
           </View>
 
-          <Text style={styles.cardDesc} numberOfLines={2}>
+          <Text style={[styles.cardDesc, { color: colors.onSurfaceVariant }]} numberOfLines={2}>
             {project.description}
           </Text>
 
@@ -82,18 +83,18 @@ function CompletedCard({
           {/* Footer */}
           <View style={styles.cardFooter}>
             <View style={styles.footerLeft}>
-              <Text style={styles.footerLabel}>MILESTONES</Text>
-              <Text style={styles.footerValue}>
+              <Text style={[styles.footerLabel, { color: colors.onSurfaceVariant }]}>MILESTONES</Text>
+              <Text style={[styles.footerValue, { color: colors.onSurface }]}>
                 {completedCount}/{totalCount}
               </Text>
             </View>
             <View style={styles.footerLeft}>
-              <Text style={styles.footerLabel}>VERSION</Text>
-              <Text style={styles.footerValue}>{project.version}</Text>
+              <Text style={[styles.footerLabel, { color: colors.onSurfaceVariant }]}>VERSION</Text>
+              <Text style={[styles.footerValue, { color: colors.onSurface }]}>{project.version}</Text>
             </View>
-            <Pressable style={styles.reactivateBtn} onPress={onReactivate}>
-              <Feather name="refresh-cw" size={12} color={Colors.onSurfaceVariant} />
-              <Text style={styles.reactivateBtnText}>Reactivate</Text>
+            <Pressable style={[styles.reactivateBtn, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]} onPress={onReactivate}>
+              <Feather name="refresh-cw" size={12} color={colors.onSurfaceVariant} />
+              <Text style={[styles.reactivateBtnText, { color: colors.onSurfaceVariant }]}>Reactivate</Text>
             </Pressable>
           </View>
         </View>
@@ -105,13 +106,14 @@ function CompletedCard({
 
 // ─── Empty State ───────────────────────────────────────────────────────────────
 function CompletedEmptyState() {
+  const colors = useThemeColors();
   return (
     <View style={styles.emptyContainer}>
-      <View style={styles.emptyIconWrap}>
-        <Feather name="check-square" size={40} color={`${Colors.primaryFixed}40`} />
+      <View style={[styles.emptyIconWrap, { backgroundColor: `${colors.primaryFixed}0D`, borderColor: `${colors.primaryFixed}20` }]}>
+        <Feather name="check-square" size={40} color={`${colors.primaryFixed}40`} />
       </View>
-      <Text style={styles.emptyTitle}>No completed projects</Text>
-      <Text style={styles.emptySubtitle}>
+      <Text style={[styles.emptyTitle, { color: colors.onSurface }]}>No completed projects</Text>
+      <Text style={[styles.emptySubtitle, { color: colors.onSurfaceVariant }]}>
         Projects you mark as done will appear here.
       </Text>
     </View>
@@ -121,6 +123,7 @@ function CompletedEmptyState() {
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 export default function CompletedScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
   const insets = useSafeAreaInsets();
   const { projects, unmarkCompleted } = useProjectStore();
   const completedProjects = projects.filter((p) => p.isCompleted && !p.isDeleted);
@@ -138,25 +141,26 @@ export default function CompletedScreen() {
   };
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: colors.surface }]}>
       <ConfirmDialog {...dialogProps} />
 
       {/* App Bar */}
       <BlurView
         intensity={60}
-        tint="dark"
+        tint={colors.isDark ? 'dark' : 'light'}
         style={[
           styles.appBar,
-          Platform.OS === 'android' && { backgroundColor: `${Colors.surface}E6` },
+          { borderBottomColor: colors.glassBorder },
+          Platform.OS === 'android' && { backgroundColor: colors.surface },
         ]}
       >
         <View style={[styles.appBarInner, { paddingTop: Math.max(insets.top, 24) + 12 }]}>
           <View style={styles.appBarLeft}>
-            <Feather name="check-square" size={18} color={Colors.primaryFixed} />
-            <Text style={styles.appBarTitle}>Completed</Text>
+            <Feather name="check-square" size={18} color={colors.primaryFixed} />
+            <Text style={[styles.appBarTitle, { color: colors.primaryFixed }]}>Completed</Text>
           </View>
-          <View style={styles.countBadge}>
-            <Text style={styles.countBadgeText}>{completedProjects.length}</Text>
+          <View style={[styles.countBadge, { backgroundColor: `${colors.primaryFixed}1A`, borderColor: `${colors.primaryFixed}33` }]}>
+            <Text style={[styles.countBadgeText, { color: colors.primaryFixed }]}>{completedProjects.length}</Text>
           </View>
         </View>
       </BlurView>
@@ -182,8 +186,8 @@ export default function CompletedScreen() {
           ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
           ListHeaderComponent={
             <View style={styles.listHeader}>
-              <Text style={styles.listHeaderTitle}>Shipped Deployments</Text>
-              <Text style={styles.listHeaderSub}>
+              <Text style={[styles.listHeaderTitle, { color: colors.onSurface }]}>Shipped Deployments</Text>
+              <Text style={[styles.listHeaderSub, { color: colors.onSurfaceVariant }]}>
                 {completedProjects.length} project{completedProjects.length !== 1 ? 's' : ''} completed
               </Text>
             </View>

@@ -10,12 +10,13 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { Colors } from '@/constants/colors';
+import { Colors, useThemeColors } from '@/constants/colors';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
 
   // Ambient pulse animation (replaces CSS animate-pulse-soft)
   const pulseAnim = useRef(new Animated.Value(0.3)).current;
@@ -68,16 +69,16 @@ export default function OnboardingScreen() {
   });
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Grid dot pattern background */}
       <View style={styles.gridPattern} pointerEvents="none" />
 
       {/* Ambient top-left blob */}
-      <Animated.View style={[styles.ambientBlobTL, { opacity: pulseAnim }]} pointerEvents="none" />
+      <Animated.View style={[styles.ambientBlobTL, { backgroundColor: `${colors.primaryFixed}0D`, opacity: pulseAnim }]} pointerEvents="none" />
 
       {/* Ambient bottom-right blob */}
       <Animated.View
-        style={[styles.ambientBlobBR, { opacity: pulseAnim }]}
+        style={[styles.ambientBlobBR, { backgroundColor: `${colors.secondaryContainer}0D`, opacity: pulseAnim }]}
         pointerEvents="none"
       />
 
@@ -85,8 +86,8 @@ export default function OnboardingScreen() {
         {/* Top: version tag */}
         <View style={styles.topBar}>
           <View style={styles.versionBadge}>
-            <View style={styles.versionDot} />
-            <Text style={styles.versionText}>v1.0.4-stable</Text>
+            <View style={[styles.versionDot, { backgroundColor: colors.primaryFixed }]} />
+            <Text style={[styles.versionText, { color: colors.primaryFixed }]}>v1.0.4-stable</Text>
           </View>
         </View>
 
@@ -94,16 +95,16 @@ export default function OnboardingScreen() {
         <View style={styles.centerContent}>
           {/* Logo */}
           <View style={styles.logoWrapper}>
-            <Animated.View style={[styles.logoGlow, { opacity: glowAnim }]} />
-            <View style={styles.logoBox}>
-              <Feather name="terminal" size={40} color={Colors.primaryFixed} />
+            <Animated.View style={[styles.logoGlow, { backgroundColor: `${colors.primaryFixed}33`, opacity: glowAnim }]} />
+            <View style={[styles.logoBox, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
+              <Feather name="terminal" size={40} color={colors.primaryFixed} />
             </View>
           </View>
 
           {/* Identity */}
           <View style={styles.identityBlock}>
-            <Text style={styles.title}>Trak</Text>
-            <Text style={styles.tagline}>Trak — track what matters</Text>
+            <Text style={[styles.title, { color: colors.onSurface }]}>Trak</Text>
+            <Text style={[styles.tagline, { color: colors.onSurfaceVariant }]}>Trak — track what matters</Text>
           </View>
         </View>
 
@@ -111,31 +112,31 @@ export default function OnboardingScreen() {
         <View style={styles.ctaSection}>
           {/* Feature pills grid (2-col) */}
           <View style={styles.pillsGrid}>
-            <View style={styles.featurePill}>
-              <Feather name="zap" size={14} color={Colors.primaryFixed} />
-              <Text style={styles.featurePillText}>Real-time</Text>
+            <View style={[styles.featurePill, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
+              <Feather name="zap" size={14} color={colors.primaryFixed} />
+              <Text style={[styles.featurePillText, { color: colors.onSurfaceVariant }]}>Real-time</Text>
             </View>
-            <View style={styles.featurePill}>
-              <Feather name="lock" size={14} color={Colors.secondary} />
-              <Text style={styles.featurePillText}>Encrypted</Text>
+            <View style={[styles.featurePill, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
+              <Feather name="lock" size={14} color={colors.secondary} />
+              <Text style={[styles.featurePillText, { color: colors.onSurfaceVariant }]}>Encrypted</Text>
             </View>
           </View>
 
           {/* Primary CTA */}
           <Animated.View style={{ transform: [{ scale: btnScale }] }}>
             <Pressable
-              style={styles.ctaButton}
+              style={[styles.ctaButton, { backgroundColor: colors.primaryFixed }]}
               onPressIn={handlePressIn}
               onPressOut={handlePressOut}
               onPress={handleGetStarted}
             >
-              <Text style={styles.ctaButtonText}>Get Started</Text>
-              <Feather name="chevron-right" size={20} color={Colors.onPrimaryFixed} />
+              <Text style={[styles.ctaButtonText, { color: colors.onPrimaryFixed }]}>Get Started</Text>
+              <Feather name="chevron-right" size={20} color={colors.onPrimaryFixed} />
             </Pressable>
           </Animated.View>
 
           {/* Legal text */}
-          <Text style={styles.legalText}>
+          <Text style={[styles.legalText, { color: colors.onSurfaceVariant }]}>
             By continuing, you agree to our{' '}
             <Text style={styles.legalLink}>Terms of Service</Text>
             {' '}and{' '}
@@ -145,8 +146,8 @@ export default function OnboardingScreen() {
       </SafeAreaView>
 
       {/* Footer progress bar */}
-      <View style={styles.progressTrack}>
-        <Animated.View style={[styles.progressBar, { width: progressWidth }]} />
+      <View style={[styles.progressTrack, { backgroundColor: `${colors.surfaceContainerHighest}33` }]}>
+        <Animated.View style={[styles.progressBar, { backgroundColor: colors.primaryFixed, width: progressWidth }]} />
       </View>
     </View>
   );

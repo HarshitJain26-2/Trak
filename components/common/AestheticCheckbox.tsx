@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, Pressable, Animated, Easing } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { Colors } from '@/constants/colors';
+import { Colors, useThemeColors } from '@/constants/colors';
 
 interface AestheticCheckboxProps {
   completed: boolean;
@@ -16,6 +16,7 @@ export function AestheticCheckbox({
   size = 20,
   disabled = false,
 }: AestheticCheckboxProps) {
+  const colors = useThemeColors();
   const [loading, setLoading] = useState(false);
 
   // Animation values
@@ -118,9 +119,9 @@ export function AestheticCheckbox({
       <View
         style={[
           styles.box,
-          { width: size, height: size, borderRadius: size > 22 ? 8 : 6 },
-          completed && styles.boxChecked,
-          loading && styles.boxLoading,
+          { width: size, height: size, borderRadius: size > 22 ? 8 : 6, backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder },
+          completed && { backgroundColor: colors.primaryFixed, borderColor: colors.primaryFixed },
+          loading && { borderColor: `${colors.primaryFixed}99`, backgroundColor: `${colors.primaryFixed}1A` },
         ]}
       >
         {loading ? (
@@ -134,14 +135,15 @@ export function AestheticCheckbox({
                 },
               ]}
             >
-              <View style={styles.orbitDot} />
-              <View style={styles.orbitDotOpposite} />
+              <View style={[styles.orbitDot, { backgroundColor: colors.primaryFixed }]} />
+              <View style={[styles.orbitDotOpposite, { backgroundColor: `${colors.primaryFixed}66` }]} />
             </Animated.View>
 
             <Animated.View
               style={[
                 styles.pulseCore,
                 {
+                  backgroundColor: colors.primaryFixed,
                   transform: [{ scale: pulseAnim }],
                 },
               ]}
@@ -157,7 +159,7 @@ export function AestheticCheckbox({
             }}
           >
             {completed && (
-              <Feather name="check" size={size * 0.65} color={Colors.onPrimaryFixed} />
+              <Feather name="check" size={size * 0.65} color={colors.onPrimaryFixed} />
             )}
           </Animated.View>
         )}

@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Colors } from '@/constants/colors';
+import { Colors, useThemeColors } from '@/constants/colors';
 import { useProjectStore, Project } from '@/store/useProjectStore';
 import { ConfirmDialog, useConfirmDialog } from '@/components/common/ConfirmDialog';
 
@@ -24,6 +24,7 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
   project,
   onClose,
 }) => {
+  const colors = useThemeColors();
   const router = useRouter();
   const { deleteProject, restoreProject, permanentlyDeleteProject, markCompleted, unmarkCompleted } =
     useProjectStore();

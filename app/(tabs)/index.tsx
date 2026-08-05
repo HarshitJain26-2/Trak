@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Colors } from '@/constants/colors';
+import { Colors, useThemeColors } from '@/constants/colors';
 import { useProjectStore, Project } from '@/store/useProjectStore';
 import { ProjectCard } from '@/components/project/ProjectCard';
 import EmptyState from '@/components/common/EmptyState';
@@ -13,6 +13,7 @@ import { MemberAvatar } from '@/components/common/MemberAvatar';
 
 export default function DashboardScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
   const { projects, joinProjectByCode, subscribeToRealtime, unsubscribeFromRealtime } = useProjectStore();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -84,8 +85,8 @@ export default function DashboardScreen() {
             {activeProjects.length > 0 && (
               <>
                 <View style={styles.listHeader}>
-                  <Text style={styles.sectionTitle}>Active Deployments</Text>
-                  <Text style={styles.sessionId}>Session ID: 49fa-122k-trak</Text>
+                  <Text style={[styles.sectionTitle, { color: colors.onSurface }]}>Active Deployments</Text>
+                  <Text style={[styles.sessionId, { color: colors.onSurfaceVariant }]}>Session ID: 49fa-122k-trak</Text>
                 </View>
                 {activeProjects.map((project, index) => (
                   <View key={project.id} style={index < activeProjects.length - 1 ? { marginBottom: 16 } : undefined}>
@@ -100,12 +101,12 @@ export default function DashboardScreen() {
               <>
                 <View style={[styles.listHeader, { marginTop: activeProjects.length > 0 ? 32 : 0 }]}>
                   <View style={styles.sharedTitleRow}>
-                    <Feather name="users" size={18} color={Colors.secondaryContainer} />
-                    <Text style={[styles.sectionTitle, { color: Colors.secondaryFixedDim }]}>
+                    <Feather name="users" size={18} color={colors.secondaryContainer} />
+                    <Text style={[styles.sectionTitle, { color: colors.secondaryFixedDim }]}>
                       Shared with me
                     </Text>
                   </View>
-                  <Text style={styles.sharedCount}>{sharedProjects.length} project{sharedProjects.length !== 1 ? 's' : ''}</Text>
+                  <Text style={[styles.sharedCount, { color: colors.onSurfaceVariant }]}>{sharedProjects.length} project{sharedProjects.length !== 1 ? 's' : ''}</Text>
                 </View>
                 {sharedProjects.map((project, index) => (
                   <View key={project.id} style={index < sharedProjects.length - 1 ? { marginBottom: 16 } : undefined}>
@@ -113,7 +114,7 @@ export default function DashboardScreen() {
                       {project.ownerName && (
                         <View style={styles.ownerTag}>
                           <MemberAvatar name={project.ownerName} size={18} />
-                          <Text style={styles.ownerTagText}>from {project.ownerName}</Text>
+                          <Text style={[styles.ownerTagText, { color: colors.onSurfaceVariant }]}>from {project.ownerName}</Text>
                         </View>
                       )}
                       <ProjectCard project={project} />
@@ -131,7 +132,7 @@ export default function DashboardScreen() {
   };
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: colors.surface }]}>
       {/* Join Project Modal */}
       <JoinProjectModal
         visible={showJoinModal}
@@ -142,24 +143,25 @@ export default function DashboardScreen() {
       {/* App Bar */}
       <BlurView
         intensity={60}
-        tint="dark"
+        tint={colors.isDark ? 'dark' : 'light'}
         style={[
           styles.appBar,
-          Platform.OS === 'android' && { backgroundColor: `${Colors.surface}E6` },
+          { borderBottomColor: colors.glassBorder },
+          Platform.OS === 'android' && { backgroundColor: colors.surface },
         ]}
       >
         <View style={[styles.appBarInner, { paddingTop: Math.max(insets.top, 24) + 12 }]}>
           {isSearchOpen ? (
-            <View style={styles.searchBarContainer}>
-              <Feather name="search" size={18} color={Colors.primaryFixed} style={{ marginRight: 8 }} />
+            <View style={[styles.searchBarContainer, { backgroundColor: colors.surfaceContainerHigh, borderColor: `${colors.primaryFixed}33` }]}>
+              <Feather name="search" size={18} color={colors.primaryFixed} style={{ marginRight: 8 }} />
               <TextInput
-                style={styles.searchInput}
+                style={[styles.searchInput, { color: colors.onSurface }]}
                 placeholder="Search active projects..."
-                placeholderTextColor={`${Colors.onSurfaceVariant}70`}
+                placeholderTextColor={`${colors.onSurfaceVariant}70`}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 autoFocus
-                selectionColor={Colors.primaryFixed}
+                selectionColor={colors.primaryFixed}
               />
               <Pressable
                 onPress={() => {
@@ -169,14 +171,14 @@ export default function DashboardScreen() {
                 style={styles.iconBtn}
                 hitSlop={8}
               >
-                <Feather name="x" size={20} color={Colors.onSurfaceVariant} />
+                <Feather name="x" size={20} color={colors.onSurfaceVariant} />
               </Pressable>
             </View>
           ) : (
             <>
               <View style={styles.appBarLeft}>
-                <Feather name="terminal" size={20} color={Colors.primaryFixed} />
-                <Text style={styles.appBarTitle}>Trak</Text>
+                <Feather name="terminal" size={20} color={colors.primaryFixed} />
+                <Text style={[styles.appBarTitle, { color: colors.primaryFixed }]}>Trak</Text>
               </View>
               <View style={styles.appBarRight}>
                 <Pressable
@@ -184,7 +186,7 @@ export default function DashboardScreen() {
                   style={styles.iconBtn}
                   hitSlop={8}
                 >
-                  <Feather name="search" size={20} color={`${Colors.onSurfaceVariant}80`} />
+                  <Feather name="search" size={20} color={`${colors.onSurfaceVariant}80`} />
                 </Pressable>
               </View>
             </>
@@ -201,29 +203,29 @@ export default function DashboardScreen() {
           <View style={styles.fabMenuContainer}>
             {/* Join Project option */}
             <Pressable
-              style={({ pressed }) => [styles.fabMenuItem, pressed && styles.fabMenuItemPressed]}
+              style={({ pressed }) => [styles.fabMenuItem, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }, pressed && styles.fabMenuItemPressed]}
               onPress={() => {
                 setFabMenuOpen(false);
                 setShowJoinModal(true);
               }}
             >
-              <View style={[styles.fabMenuIcon, { backgroundColor: `${Colors.secondaryContainer}1A`, borderColor: `${Colors.secondaryContainer}30` }]}>
-                <Feather name="user-plus" size={18} color={Colors.secondaryContainer} />
+              <View style={[styles.fabMenuIcon, { backgroundColor: `${colors.secondaryContainer}1A`, borderColor: `${colors.secondaryContainer}30` }]}>
+                <Feather name="user-plus" size={18} color={colors.secondaryContainer} />
               </View>
-              <Text style={styles.fabMenuLabel}>Join Project</Text>
+              <Text style={[styles.fabMenuLabel, { color: colors.onSurface }]}>Join Project</Text>
             </Pressable>
             {/* New Project option */}
             <Pressable
-              style={({ pressed }) => [styles.fabMenuItem, pressed && styles.fabMenuItemPressed]}
+              style={({ pressed }) => [styles.fabMenuItem, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }, pressed && styles.fabMenuItemPressed]}
               onPress={() => {
                 setFabMenuOpen(false);
                 router.push('/new-project');
               }}
             >
-              <View style={[styles.fabMenuIcon, { backgroundColor: `${Colors.primaryFixed}1A`, borderColor: `${Colors.primaryFixed}30` }]}>
-                <Feather name="plus" size={18} color={Colors.primaryFixed} />
+              <View style={[styles.fabMenuIcon, { backgroundColor: `${colors.primaryFixed}1A`, borderColor: `${colors.primaryFixed}30` }]}>
+                <Feather name="plus" size={18} color={colors.primaryFixed} />
               </View>
-              <Text style={styles.fabMenuLabel}>New Project</Text>
+              <Text style={[styles.fabMenuLabel, { color: colors.onSurface }]}>New Project</Text>
             </Pressable>
           </View>
         </Pressable>
@@ -235,9 +237,9 @@ export default function DashboardScreen() {
           onPressIn={handleFabPressIn}
           onPressOut={handleFabPressOut}
           onPress={handleFabPress}
-          style={[styles.fab, fabMenuOpen && styles.fabActive]}
+          style={[styles.fab, { backgroundColor: colors.primaryContainer }, fabMenuOpen && { backgroundColor: colors.surfaceContainerHighest }]}
         >
-          <Feather name={fabMenuOpen ? 'x' : 'plus'} size={32} color="#11141B" />
+          <Feather name={fabMenuOpen ? 'x' : 'plus'} size={32} color={colors.onPrimary} />
         </Pressable>
       </Animated.View>
     </View>

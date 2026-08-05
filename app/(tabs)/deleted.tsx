@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Colors } from '@/constants/colors';
+import { Colors, useThemeColors } from '@/constants/colors';
 import { useProjectStore, Project } from '@/store/useProjectStore';
 import { TechPill } from '@/components/common/TechPill';
 import { ConfirmDialog, useConfirmDialog } from '@/components/common/ConfirmDialog';
@@ -28,6 +28,7 @@ function DeletedCard({
   onRestore: () => void;
   onPermanentDelete: () => void;
 }) {
+  const colors = useThemeColors();
   const [modalVisible, setModalVisible] = React.useState(false);
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -49,20 +50,20 @@ function DeletedCard({
         onLongPress={() => setModalVisible(true)}
         delayLongPress={350}
       >
-      <Animated.View style={[styles.card, { transform: [{ scale }] }]}>
+      <Animated.View style={[styles.card, { backgroundColor: colors.cardBg, borderColor: `${colors.error}33`, transform: [{ scale }] }]}>
         <View style={styles.cardContent}>
           {/* Header */}
           <View style={styles.cardHeader}>
             <View style={styles.cardTitleRow}>
-              <Feather name="trash-2" size={15} color={Colors.error} />
-              <Text style={styles.cardName}>{project.name}</Text>
+              <Feather name="trash-2" size={15} color={colors.error} />
+              <Text style={[styles.cardName, { color: colors.onSurface }]}>{project.name}</Text>
             </View>
-            <View style={styles.deletedBadge}>
-              <Text style={styles.deletedBadgeText}>DELETED</Text>
+            <View style={[styles.deletedBadge, { backgroundColor: `${colors.error}1A`, borderColor: `${colors.error}33` }]}>
+              <Text style={[styles.deletedBadgeText, { color: colors.error }]}>DELETED</Text>
             </View>
           </View>
 
-          <Text style={styles.cardDesc} numberOfLines={2}>
+          <Text style={[styles.cardDesc, { color: colors.onSurfaceVariant }]} numberOfLines={2}>
             {project.description}
           </Text>
 
@@ -75,14 +76,14 @@ function DeletedCard({
 
           {/* Action buttons footer */}
           <View style={styles.cardFooter}>
-            <Pressable style={styles.restoreBtn} onPress={onRestore}>
-              <Feather name="rotate-ccw" size={13} color={Colors.primaryFixed} />
-              <Text style={styles.restoreBtnText}>Restore</Text>
+            <Pressable style={[styles.restoreBtn, { backgroundColor: `${colors.primaryFixed}1A`, borderColor: `${colors.primaryFixed}40` }]} onPress={onRestore}>
+              <Feather name="rotate-ccw" size={13} color={colors.primaryFixed} />
+              <Text style={[styles.restoreBtnText, { color: colors.primaryFixed }]}>Restore</Text>
             </Pressable>
 
-            <Pressable style={styles.permDeleteBtn} onPress={onPermanentDelete}>
-              <Feather name="trash-2" size={13} color={Colors.error} />
-              <Text style={styles.permDeleteBtnText}>Delete Permanently</Text>
+            <Pressable style={[styles.permDeleteBtn, { backgroundColor: `${colors.error}1A`, borderColor: `${colors.error}40` }]} onPress={onPermanentDelete}>
+              <Feather name="trash-2" size={13} color={colors.error} />
+              <Text style={[styles.permDeleteBtnText, { color: colors.error }]}>Delete Permanently</Text>
             </Pressable>
           </View>
         </View>
@@ -94,13 +95,14 @@ function DeletedCard({
 
 // ─── Empty State ───────────────────────────────────────────────────────────────
 function DeletedEmptyState() {
+  const colors = useThemeColors();
   return (
     <View style={styles.emptyContainer}>
-      <View style={styles.emptyIconWrap}>
-        <Feather name="trash-2" size={40} color={`${Colors.onSurfaceVariant}40`} />
+      <View style={[styles.emptyIconWrap, { backgroundColor: `${colors.onSurfaceVariant}10`, borderColor: `${colors.onSurfaceVariant}20` }]}>
+        <Feather name="trash-2" size={40} color={`${colors.onSurfaceVariant}40`} />
       </View>
-      <Text style={styles.emptyTitle}>Trash is empty</Text>
-      <Text style={styles.emptySubtitle}>
+      <Text style={[styles.emptyTitle, { color: colors.onSurface }]}>Trash is empty</Text>
+      <Text style={[styles.emptySubtitle, { color: colors.onSurfaceVariant }]}>
         Projects you delete will be moved here before permanent removal.
       </Text>
     </View>
@@ -109,6 +111,7 @@ function DeletedEmptyState() {
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 export default function DeletedScreen() {
+  const colors = useThemeColors();
   const insets = useSafeAreaInsets();
   const { projects, restoreProject, permanentlyDeleteProject } = useProjectStore();
   const deletedProjects = projects.filter((p) => p.isDeleted);
@@ -137,25 +140,26 @@ export default function DeletedScreen() {
   };
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: colors.surface }]}>
       <ConfirmDialog {...dialogProps} />
 
       {/* App Bar */}
       <BlurView
         intensity={60}
-        tint="dark"
+        tint={colors.isDark ? 'dark' : 'light'}
         style={[
           styles.appBar,
-          Platform.OS === 'android' && { backgroundColor: `${Colors.surface}E6` },
+          { borderBottomColor: colors.glassBorder },
+          Platform.OS === 'android' && { backgroundColor: colors.surface },
         ]}
       >
         <View style={[styles.appBarInner, { paddingTop: Math.max(insets.top, 24) + 12 }]}>
           <View style={styles.appBarLeft}>
-            <Feather name="trash-2" size={18} color={Colors.error} />
-            <Text style={styles.appBarTitle}>Deleted Projects</Text>
+            <Feather name="trash-2" size={18} color={colors.error} />
+            <Text style={[styles.appBarTitle, { color: colors.onSurface }]}>Deleted Projects</Text>
           </View>
-          <View style={styles.countBadge}>
-            <Text style={styles.countBadgeText}>{deletedProjects.length}</Text>
+          <View style={[styles.countBadge, { backgroundColor: `${colors.error}1A`, borderColor: `${colors.error}33` }]}>
+            <Text style={[styles.countBadgeText, { color: colors.error }]}>{deletedProjects.length}</Text>
           </View>
         </View>
       </BlurView>
@@ -182,8 +186,8 @@ export default function DeletedScreen() {
           ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
           ListHeaderComponent={
             <View style={styles.listHeader}>
-              <Text style={styles.listHeaderTitle}>Recently Deleted</Text>
-              <Text style={styles.listHeaderSub}>
+              <Text style={[styles.listHeaderTitle, { color: colors.onSurface }]}>Recently Deleted</Text>
+              <Text style={[styles.listHeaderSub, { color: colors.onSurfaceVariant }]}>
                 {deletedProjects.length} project{deletedProjects.length !== 1 ? 's' : ''} in trash
               </Text>
             </View>

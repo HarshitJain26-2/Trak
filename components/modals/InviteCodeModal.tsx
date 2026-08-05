@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Feather } from '@expo/vector-icons';
-import { Colors } from '@/constants/colors';
+import { Colors, useThemeColors } from '@/constants/colors';
 
 interface InviteCodeModalProps {
   visible: boolean;
@@ -27,6 +27,7 @@ export function InviteCodeModal({
   onClose,
   onGenerate,
 }: InviteCodeModalProps) {
+  const colors = useThemeColors();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -50,14 +51,14 @@ export function InviteCodeModal({
       <TouchableWithoutFeedback onPress={handleClose}>
         <View style={styles.overlay}>
           <TouchableWithoutFeedback>
-            <View style={styles.card}>
+            <View style={[styles.card, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
               {/* Header */}
               <View style={styles.header}>
-                <View style={styles.iconCircle}>
-                  <Feather name="link" size={22} color={Colors.primaryFixed} />
+                <View style={[styles.iconCircle, { backgroundColor: `${colors.primaryFixed}1A`, borderColor: `${colors.primaryFixed}30` }]}>
+                  <Feather name="link" size={22} color={colors.primaryFixed} />
                 </View>
-                <Text style={styles.title}>Invite to Project</Text>
-                <Text style={styles.subtitle}>
+                <Text style={[styles.title, { color: colors.onSurface }]}>Invite to Project</Text>
+                <Text style={[styles.subtitle, { color: colors.onSurfaceVariant }]}>
                   Share this code with your teammates so they can join your project.
                 </Text>
               </View>
@@ -65,22 +66,23 @@ export function InviteCodeModal({
               {/* Code display */}
               {inviteCode ? (
                 <View>
-                  <View style={styles.codeContainer}>
-                    <Text style={styles.codeText}>{inviteCode}</Text>
+                  <View style={[styles.codeContainer, { backgroundColor: colors.surfaceContainerHigh, borderColor: `${colors.primaryFixed}30` }]}>
+                    <Text style={[styles.codeText, { color: colors.primaryFixed }]}>{inviteCode}</Text>
                     <Pressable
                       style={({ pressed }) => [
                         styles.copyBtn,
+                        { backgroundColor: colors.surfaceContainerHighest, borderColor: colors.glassBorder },
                         pressed && styles.copyBtnPressed,
-                        copied && styles.copyBtnCopied,
+                        copied && { backgroundColor: `${colors.primaryFixed}1A`, borderColor: `${colors.primaryFixed}30` },
                       ]}
                       onPress={handleCopy}
                     >
                       <Feather
                         name={copied ? 'check' : 'copy'}
                         size={16}
-                        color={copied ? Colors.primaryFixed : Colors.onSurfaceVariant}
+                        color={copied ? colors.primaryFixed : colors.onSurfaceVariant}
                       />
-                      <Text style={[styles.copyBtnText, copied && styles.copyBtnTextCopied]}>
+                      <Text style={[styles.copyBtnText, { color: colors.onSurfaceVariant }, copied && { color: colors.primaryFixed }]}>
                         {copied ? 'Copied!' : 'Copy'}
                       </Text>
                     </Pressable>
@@ -89,14 +91,15 @@ export function InviteCodeModal({
                   <Pressable
                     style={({ pressed }) => [
                       styles.regenerateBtn,
+                      { backgroundColor: `${colors.primaryFixed}10`, borderColor: `${colors.primaryFixed}30` },
                       pressed && styles.regenerateBtnPressed,
                       isGenerating && styles.regenerateBtnDisabled,
                     ]}
                     onPress={onGenerate}
                     disabled={isGenerating}
                   >
-                    <Feather name="refresh-cw" size={14} color={Colors.primaryFixed} />
-                    <Text style={styles.regenerateBtnText}>
+                    <Feather name="refresh-cw" size={14} color={colors.primaryFixed} />
+                    <Text style={[styles.regenerateBtnText, { color: colors.primaryFixed }]}>
                       {isGenerating ? 'Regenerating...' : 'Change Code'}
                     </Text>
                   </Pressable>
@@ -105,14 +108,15 @@ export function InviteCodeModal({
                 <Pressable
                   style={({ pressed }) => [
                     styles.generateBtn,
+                    { backgroundColor: colors.primaryFixed },
                     pressed && styles.generateBtnPressed,
                     isGenerating && styles.generateBtnDisabled,
                   ]}
                   onPress={onGenerate}
                   disabled={isGenerating}
                 >
-                  <Feather name="zap" size={18} color={Colors.onPrimaryFixed} />
-                  <Text style={styles.generateBtnText}>
+                  <Feather name="zap" size={18} color={colors.onPrimaryFixed} />
+                  <Text style={[styles.generateBtnText, { color: colors.onPrimaryFixed }]}>
                     {isGenerating ? 'Generating...' : 'Generate Invite Code'}
                   </Text>
                 </Pressable>
@@ -120,18 +124,18 @@ export function InviteCodeModal({
 
               {/* Info */}
               <View style={styles.infoRow}>
-                <Feather name="info" size={14} color={`${Colors.onSurfaceVariant}60`} />
-                <Text style={styles.infoText}>
+                <Feather name="info" size={14} color={`${colors.onSurfaceVariant}60`} />
+                <Text style={[styles.infoText, { color: colors.onSurfaceVariant }]}>
                   Anyone with this code can join your project and collaborate on features.
                 </Text>
               </View>
 
               {/* Close */}
               <Pressable
-                style={({ pressed }) => [styles.closeBtn, pressed && styles.closeBtnPressed]}
+                style={({ pressed }) => [styles.closeBtn, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }, pressed && styles.closeBtnPressed]}
                 onPress={handleClose}
               >
-                <Text style={styles.closeBtnText}>Done</Text>
+                <Text style={[styles.closeBtnText, { color: colors.onSurfaceVariant }]}>Done</Text>
               </Pressable>
             </View>
           </TouchableWithoutFeedback>
