@@ -16,7 +16,7 @@ import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context'
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Colors } from '@/constants/colors';
+import { Colors, useThemeColors } from '@/constants/colors';
 import { useProjectStore, Milestone } from '@/store/useProjectStore';
 import { TechPill } from '@/components/common/TechPill';
 import { StatusDot } from '@/components/common/StatusDot';
@@ -41,34 +41,35 @@ function MilestoneActionModal({
   onRename,
   onDelete,
 }: MilestoneActionModalProps) {
+  const colors = useThemeColors();
   if (!milestone) return null;
   return (
     <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={actionStyles.overlay}>
           <TouchableWithoutFeedback>
-            <View style={actionStyles.sheet}>
-              <View style={actionStyles.handle} />
-              <Text style={actionStyles.sheetTitle} numberOfLines={1}>
+            <View style={[actionStyles.sheet, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
+              <View style={[actionStyles.handle, { backgroundColor: `${colors.onSurfaceVariant}40` }]} />
+              <Text style={[actionStyles.sheetTitle, { color: colors.onSurfaceVariant, borderBottomColor: colors.glassBorder }]} numberOfLines={1}>
                 {milestone.title}
               </Text>
 
               <Pressable
-                style={({ pressed }) => [actionStyles.option, pressed && actionStyles.optionPressed]}
+                style={({ pressed }) => [actionStyles.option, pressed && { backgroundColor: colors.surfaceContainerHigh }]}
                 onPress={() => { onClose(); onRename(milestone); }}
               >
-                <Feather name="edit-2" size={18} color={Colors.primaryFixed} />
-                <Text style={actionStyles.optionText}>Rename Feature</Text>
+                <Feather name="edit-2" size={18} color={colors.primaryFixed} />
+                <Text style={[actionStyles.optionText, { color: colors.onSurface }]}>Rename Feature</Text>
               </Pressable>
 
-              <View style={actionStyles.divider} />
+              <View style={[actionStyles.divider, { backgroundColor: colors.glassBorder }]} />
 
               <Pressable
-                style={({ pressed }) => [actionStyles.option, pressed && actionStyles.optionPressed]}
+                style={({ pressed }) => [actionStyles.option, pressed && { backgroundColor: colors.surfaceContainerHigh }]}
                 onPress={() => { onClose(); onDelete(milestone); }}
               >
-                <Feather name="trash-2" size={18} color={Colors.error} />
-                <Text style={[actionStyles.optionText, { color: Colors.error }]}>Delete Feature</Text>
+                <Feather name="trash-2" size={18} color={colors.error} />
+                <Text style={[actionStyles.optionText, { color: colors.error }]}>Delete Feature</Text>
               </Pressable>
             </View>
           </TouchableWithoutFeedback>
@@ -98,6 +99,7 @@ function TextInputModal({
   onClose,
   onConfirm,
 }: TextInputModalProps) {
+  const colors = useThemeColors();
   const [value, setValue] = useState(initialValue);
 
   // Reset when modal opens with a new initialValue
@@ -120,41 +122,41 @@ function TextInputModal({
         <TouchableWithoutFeedback onPress={onClose}>
           <View style={inputStyles.overlay}>
             <TouchableWithoutFeedback>
-              <View style={inputStyles.card}>
-                <Text style={inputStyles.title}>{title}</Text>
+              <View style={[inputStyles.card, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
+                <Text style={[inputStyles.title, { color: colors.onSurface }]}>{title}</Text>
                 <TextInput
-                  style={inputStyles.input}
+                  style={[inputStyles.input, { backgroundColor: colors.surfaceContainerHigh, borderColor: `${colors.primaryFixed}33`, color: colors.onSurface }]}
                   value={value}
                   onChangeText={setValue}
                   placeholder={placeholder}
-                  placeholderTextColor={`${Colors.onSurfaceVariant}60`}
+                  placeholderTextColor={`${colors.onSurfaceVariant}60`}
                   autoFocus
                   returnKeyType="done"
                   onSubmitEditing={handleConfirm}
-                  selectionColor={Colors.primaryFixed}
+                  selectionColor={colors.primaryFixed}
                 />
                 <View style={inputStyles.btnRow}>
                   <Pressable
                     style={({ pressed }) => [
                       inputStyles.btn,
-                      inputStyles.btnCancel,
+                      { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder, borderWidth: 1 },
                       pressed && inputStyles.btnPressed,
                     ]}
                     onPress={onClose}
                   >
-                    <Text style={inputStyles.btnCancelText}>Cancel</Text>
+                    <Text style={[inputStyles.btnCancelText, { color: colors.onSurfaceVariant }]}>Cancel</Text>
                   </Pressable>
                   <Pressable
                     style={({ pressed }) => [
                       inputStyles.btn,
-                      inputStyles.btnConfirm,
+                      { backgroundColor: colors.primaryFixed },
                       pressed && inputStyles.btnPressed,
                       value.trim().length === 0 && inputStyles.btnDisabled,
                     ]}
                     onPress={handleConfirm}
                     disabled={value.trim().length === 0}
                   >
-                    <Text style={inputStyles.btnConfirmText}>{confirmLabel}</Text>
+                    <Text style={[inputStyles.btnConfirmText, { color: colors.onPrimaryFixed }]}>{confirmLabel}</Text>
                   </Pressable>
                 </View>
               </View>
@@ -170,6 +172,7 @@ function TextInputModal({
 export default function ProjectDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const colors = useThemeColors();
   const {
     getProject,
     toggleMilestone,
@@ -261,14 +264,14 @@ export default function ProjectDetailsScreen() {
 
   if (!project) {
     return (
-      <View style={styles.root}>
+      <View style={[styles.root, { backgroundColor: colors.surface }]}>
         <SafeAreaView>
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Feather name="arrow-left" size={24} color={Colors.primaryFixed} />
+            <Feather name="arrow-left" size={24} color={colors.primaryFixed} />
           </Pressable>
         </SafeAreaView>
         <View style={styles.notFound}>
-          <Text style={styles.notFoundText}>Project not found</Text>
+          <Text style={[styles.notFoundText, { color: colors.onSurface }]}>Project not found</Text>
         </View>
       </View>
     );
@@ -280,10 +283,10 @@ export default function ProjectDetailsScreen() {
   const totalCount = project.milestones.length;
 
   const STATUS_COLORS: Record<string, string> = {
-    active: Colors.primaryFixed,
-    blocked: Colors.error,
-    warning: Colors.statusWarning,
-    idle: Colors.secondaryContainer,
+    active: colors.primaryFixed,
+    blocked: colors.error,
+    warning: colors.statusWarning,
+    idle: colors.secondaryContainer,
   };
 
   const chevronDeg = chevronRotation.interpolate({
@@ -301,7 +304,7 @@ export default function ProjectDetailsScreen() {
   const allMembers = project.members || [];
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: colors.surface }]}>
       <ConfirmDialog {...dialogProps} />
 
       {/* Modals */}
@@ -346,45 +349,46 @@ export default function ProjectDetailsScreen() {
       {/* App Bar */}
       <BlurView
         intensity={60}
-        tint="dark"
+        tint={colors.isDark ? 'dark' : 'light'}
         style={[
           styles.appBar,
-          Platform.OS === 'android' && { backgroundColor: `${Colors.surface}E6` },
+          { borderBottomColor: colors.glassBorder },
+          Platform.OS === 'android' && { backgroundColor: colors.surface },
         ]}
       >
         <View style={[styles.appBarInner, { paddingTop: Math.max(insets.top, 24) + 12 }]}>
           <View style={styles.appBarLeft}>
             <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={8}>
-              <Feather name="arrow-left" size={24} color={Colors.primaryFixed} />
+              <Feather name="arrow-left" size={24} color={colors.primaryFixed} />
             </Pressable>
-            <Text style={styles.appBarTitle}>Trak</Text>
+            <Text style={[styles.appBarTitle, { color: colors.primaryFixed }]}>Trak</Text>
           </View>
           <View style={styles.appBarRight}>
             {/* Invite button (owner only) */}
             {!isSharedProject && (
               <Pressable
                 hitSlop={8}
-                style={styles.inviteBtn}
+                style={[styles.inviteBtn, { backgroundColor: `${colors.primaryFixed}1A`, borderColor: `${colors.primaryFixed}30` }]}
                 onPress={() => setShowInviteModal(true)}
               >
-                <Feather name="user-plus" size={16} color={Colors.primaryFixed} />
+                <Feather name="user-plus" size={16} color={colors.primaryFixed} />
               </Pressable>
             )}
             {/* Leave button (member only) */}
             {isSharedProject && (
               <Pressable
                 hitSlop={8}
-                style={styles.leaveBtn}
+                style={[styles.leaveBtn, { backgroundColor: `${colors.statusWarning}1A`, borderColor: `${colors.statusWarning}30` }]}
                 onPress={handleLeaveProject}
               >
-                <Feather name="log-out" size={16} color={Colors.statusWarning} />
+                <Feather name="log-out" size={16} color={colors.statusWarning} />
               </Pressable>
             )}
             {/* Delete button (owner only) */}
             {!isSharedProject && (
               <Pressable
                 hitSlop={8}
-                style={styles.deleteBtn}
+                style={[styles.deleteBtn, { backgroundColor: `${colors.error}1A` }]}
                 onPress={async () => {
                   const ok = await ask({
                     title: 'Move to Trash',
@@ -396,22 +400,22 @@ export default function ProjectDetailsScreen() {
                   if (ok) { deleteProject(project.id); router.back(); }
                 }}
               >
-                <Feather name="trash-2" size={18} color={`${Colors.error}CC`} />
+                <Feather name="trash-2" size={18} color={colors.error} />
               </Pressable>
             )}
             {/* Status chip */}
-            <View style={styles.statusChip}>
+            <View style={[styles.statusChip, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]}>
               <StatusDot status={project.status} size={6} />
-              <Text style={styles.statusChipText}>
+              <Text style={[styles.statusChipText, { color: colors.onSurfaceVariant }]}>
                 {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
               </Text>
-              <Feather name="chevron-down" size={14} color={Colors.onSurfaceVariant} />
+              <Feather name="chevron-down" size={14} color={colors.onSurfaceVariant} />
             </View>
             {/* Priority badge */}
             {project.priority === 'high' && (
-              <View style={styles.priorityBadge}>
-                <Feather name="alert-circle" size={10} color={Colors.error} />
-                <Text style={styles.priorityText}>HIGH</Text>
+              <View style={[styles.priorityBadge, { backgroundColor: `${colors.error}1A`, borderColor: `${colors.error}4D` }]}>
+                <Feather name="alert-circle" size={10} color={colors.error} />
+                <Text style={[styles.priorityText, { color: colors.error }]}>HIGH</Text>
               </View>
             )}
           </View>
@@ -424,32 +428,32 @@ export default function ProjectDetailsScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Progress Section */}
-        <View style={styles.glassCard}>
+        <View style={[styles.glassCard, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
           <View style={styles.progressHeader}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.projectTitle}>{project.name}</Text>
-              <Text style={styles.projectDesc}>{project.description}</Text>
+              <Text style={[styles.projectTitle, { color: colors.onSurface }]}>{project.name}</Text>
+              <Text style={[styles.projectDesc, { color: colors.onSurfaceVariant }]}>{project.description}</Text>
               {/* Shared project badge */}
               {isSharedProject && project.ownerName && (
                 <View style={styles.sharedBadge}>
-                  <Feather name="users" size={12} color={Colors.secondaryContainer} />
-                  <Text style={styles.sharedBadgeText}>
+                  <Feather name="users" size={12} color={colors.secondaryContainer} />
+                  <Text style={[styles.sharedBadgeText, { color: colors.secondaryContainer }]}>
                     Shared by {project.ownerName}
                   </Text>
                 </View>
               )}
             </View>
-            <Text style={styles.progressPct}>{project.progress}%</Text>
+            <Text style={[styles.progressPct, { color: colors.primaryFixed }]}>{project.progress}%</Text>
           </View>
 
           {/* Progress bar */}
-          <View style={styles.progressTrack}>
+          <View style={[styles.progressTrack, { backgroundColor: colors.surfaceContainerHigh }]}>
             <View
               style={[
                 styles.progressFill,
                 {
                   width: `${project.progress}%`,
-                  backgroundColor: STATUS_COLORS[project.status] ?? Colors.primaryFixed,
+                  backgroundColor: STATUS_COLORS[project.status] ?? colors.primaryFixed,
                 },
               ]}
             />
@@ -457,13 +461,13 @@ export default function ProjectDetailsScreen() {
 
           {/* Meta pills */}
           <View style={styles.metaRow}>
-            <View style={styles.metaPill}>
-              <Feather name="clock" size={12} color={Colors.onSurfaceVariant} />
-              <Text style={styles.metaPillText}>04d 12h 41m</Text>
+            <View style={[styles.metaPill, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]}>
+              <Feather name="clock" size={12} color={colors.onSurfaceVariant} />
+              <Text style={[styles.metaPillText, { color: colors.onSurfaceVariant }]}>04d 12h 41m</Text>
             </View>
-            <View style={styles.metaPill}>
-              <Feather name="terminal" size={12} color={Colors.secondaryFixed} />
-              <Text style={[styles.metaPillText, { color: Colors.secondaryFixed }]}>
+            <View style={[styles.metaPill, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]}>
+              <Feather name="terminal" size={12} color={colors.secondaryFixed} />
+              <Text style={[styles.metaPillText, { color: colors.secondaryFixed }]}>
                 {project.version}
               </Text>
             </View>
@@ -472,32 +476,32 @@ export default function ProjectDetailsScreen() {
 
         {/* ── Team Section ── */}
         {allMembers.length > 0 && (
-          <View style={styles.glassCard}>
+          <View style={[styles.glassCard, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
             <View style={styles.teamHeader}>
-              <Text style={styles.teamTitle}>Team</Text>
-              <View style={styles.teamCount}>
-                <Text style={styles.teamCountText}>{allMembers.length + 1}</Text>
+              <Text style={[styles.teamTitle, { color: colors.onSurface }]}>Team</Text>
+              <View style={[styles.teamCount, { backgroundColor: `${colors.primaryFixed}1A`, borderColor: `${colors.primaryFixed}30` }]}>
+                <Text style={[styles.teamCountText, { color: colors.primaryFixed }]}>{allMembers.length + 1}</Text>
               </View>
             </View>
             <View style={styles.teamAvatars}>
               {/* Owner avatar (always shown) */}
               {!isSharedProject && (
-                <View style={styles.memberChip}>
+                <View style={[styles.memberChip, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]}>
                   <MemberAvatar name="You" size={28} />
-                  <Text style={styles.memberName}>You (Owner)</Text>
+                  <Text style={[styles.memberName, { color: colors.onSurface }]}>You (Owner)</Text>
                 </View>
               )}
               {isSharedProject && project.ownerName && (
-                <View style={styles.memberChip}>
+                <View style={[styles.memberChip, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]}>
                   <MemberAvatar name={project.ownerName} size={28} />
-                  <Text style={styles.memberName}>{project.ownerName} (Owner)</Text>
+                  <Text style={[styles.memberName, { color: colors.onSurface }]}>{project.ownerName} (Owner)</Text>
                 </View>
               )}
               {/* Member avatars */}
               {allMembers.map((member) => (
-                <View key={member.id} style={styles.memberChip}>
+                <View key={member.id} style={[styles.memberChip, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]}>
                   <MemberAvatar name={member.name} size={28} />
-                  <Text style={styles.memberName}>{member.name}</Text>
+                  <Text style={[styles.memberName, { color: colors.onSurface }]}>{member.name}</Text>
                 </View>
               ))}
             </View>
@@ -505,22 +509,22 @@ export default function ProjectDetailsScreen() {
         )}
 
         {/* Repo link */}
-        <Pressable style={styles.glassCard} onPress={() => {}}>
+        <Pressable style={[styles.glassCard, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]} onPress={() => {}}>
           <View style={styles.repoRow}>
             <View style={styles.repoLeft}>
-              <Feather name="github" size={20} color={Colors.onSurfaceVariant} />
+              <Feather name="github" size={20} color={colors.onSurfaceVariant} />
               <View>
-                <Text style={styles.repoLabel}>Repository</Text>
-                <Text style={styles.repoUrl}>{project.repoUrl}</Text>
+                <Text style={[styles.repoLabel, { color: colors.onSurfaceVariant }]}>Repository</Text>
+                <Text style={[styles.repoUrl, { color: colors.secondary }]}>{project.repoUrl}</Text>
               </View>
             </View>
-            <Feather name="external-link" size={16} color={Colors.onSurfaceVariant} />
+            <Feather name="external-link" size={16} color={colors.onSurfaceVariant} />
           </View>
         </Pressable>
 
         {/* Tech Stack */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>ENVIRONMENT</Text>
+          <Text style={[styles.sectionLabel, { color: colors.onSurfaceVariant }]}>ENVIRONMENT</Text>
           <View style={styles.techRow}>
             {project.techStack.map((tech) => (
               <TechPill key={tech} label={tech} />
@@ -529,36 +533,36 @@ export default function ProjectDetailsScreen() {
         </View>
 
         {/* ── Features / Milestones ── */}
-        <View style={styles.glassCardNoPad}>
-          <View style={styles.milestonesHeader}>
-            <Text style={styles.milestonesTitle}>Features</Text>
+        <View style={[styles.glassCardNoPad, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
+          <View style={[styles.milestonesHeader, { borderBottomColor: colors.glassBorder }]}>
+            <Text style={[styles.milestonesTitle, { color: colors.onSurface }]}>Features</Text>
             <View style={styles.milestonesHeaderRight}>
-              <View style={styles.milestonesCount}>
-                <Text style={styles.milestonesCountText}>
+              <View style={[styles.milestonesCount, { backgroundColor: colors.surfaceContainerHigh }]}>
+                <Text style={[styles.milestonesCountText, { color: colors.onSurfaceVariant }]}>
                   {completedCount}/{totalCount}
                 </Text>
               </View>
               {/* Add milestone button */}
               <Pressable
-                style={({ pressed }) => [styles.addBtn, pressed && styles.addBtnPressed]}
+                style={({ pressed }) => [styles.addBtn, { backgroundColor: `${colors.primaryFixed}1A`, borderColor: `${colors.primaryFixed}30` }, pressed && styles.addBtnPressed]}
                 onPress={() => setShowAddModal(true)}
                 hitSlop={6}
               >
-                <Feather name="plus" size={16} color={Colors.primaryFixed} />
+                <Feather name="plus" size={16} color={colors.primaryFixed} />
               </Pressable>
             </View>
           </View>
 
           {totalCount === 0 && (
             <Pressable style={styles.emptyMilestone} onPress={() => setShowAddModal(true)}>
-              <Feather name="flag" size={20} color={`${Colors.primaryFixed}60`} />
-              <Text style={styles.emptyMilestoneText}>No features yet — tap + to add one</Text>
+              <Feather name="flag" size={20} color={`${colors.primaryFixed}60`} />
+              <Text style={[styles.emptyMilestoneText, { color: colors.onSurfaceVariant }]}>No features yet — tap + to add one</Text>
             </Pressable>
           )}
 
           {pendingMilestones.length > 0 && (
-            <View style={styles.subSectionHeader}>
-              <Text style={styles.subSectionTitle}>To be done</Text>
+            <View style={[styles.subSectionHeader, { backgroundColor: colors.surfaceContainerHigh }]}>
+              <Text style={[styles.subSectionTitle, { color: colors.onSurfaceVariant }]}>To be done</Text>
             </View>
           )}
           {pendingMilestones.map((milestone, index) => (
@@ -566,7 +570,7 @@ export default function ProjectDetailsScreen() {
               key={milestone.id}
               style={[
                 styles.milestoneRow,
-                index < pendingMilestones.length - 1 && styles.milestoneRowBorder,
+                index < pendingMilestones.length - 1 && { borderBottomColor: colors.glassBorder, borderBottomWidth: 1 },
               ]}
             >
               {/* Aesthetic Checkbox with fancy loading spinner */}
@@ -581,11 +585,11 @@ export default function ProjectDetailsScreen() {
                 onLongPress={() => handleMilestoneLongPress(milestone)}
                 delayLongPress={400}
               >
-                <Text style={styles.milestoneText}>
+                <Text style={[styles.milestoneText, { color: colors.onSurface }]}>
                   {milestone.title}
                 </Text>
                 {milestone.addedBy && (
-                  <Text style={styles.addedByText}>Added by {milestone.addedBy}</Text>
+                  <Text style={[styles.addedByText, { color: colors.onSurfaceVariant }]}>Added by {milestone.addedBy}</Text>
                 )}
               </Pressable>
               <Pressable
@@ -593,14 +597,14 @@ export default function ProjectDetailsScreen() {
                 onPress={() => handleMilestoneLongPress(milestone)}
                 hitSlop={8}
               >
-                <Feather name="more-horizontal" size={16} color={`${Colors.onSurfaceVariant}50`} />
+                <Feather name="more-horizontal" size={16} color={`${colors.onSurfaceVariant}50`} />
               </Pressable>
             </View>
           ))}
 
           {completedMilestones.length > 0 && (
-            <View style={styles.subSectionHeader}>
-              <Text style={styles.subSectionTitle}>Completed</Text>
+            <View style={[styles.subSectionHeader, { backgroundColor: colors.surfaceContainerHigh }]}>
+              <Text style={[styles.subSectionTitle, { color: colors.onSurfaceVariant }]}>Completed</Text>
             </View>
           )}
           {completedMilestones.map((milestone, index) => (
@@ -608,7 +612,7 @@ export default function ProjectDetailsScreen() {
               key={milestone.id}
               style={[
                 styles.milestoneRow,
-                index < completedMilestones.length - 1 && styles.milestoneRowBorder,
+                index < completedMilestones.length - 1 && { borderBottomColor: colors.glassBorder, borderBottomWidth: 1 },
               ]}
             >
               {/* Aesthetic Checkbox with fancy loading spinner */}
@@ -623,13 +627,13 @@ export default function ProjectDetailsScreen() {
                 onLongPress={() => handleMilestoneLongPress(milestone)}
                 delayLongPress={400}
               >
-                <Text style={[styles.milestoneText, styles.milestoneTextDone]}>
+                <Text style={[styles.milestoneText, { color: colors.onSurfaceVariant, textDecorationLine: 'line-through' }]}>
                   {milestone.title}
                 </Text>
                 {milestone.completedBy && (
-                  <View style={styles.doneByBadge}>
-                    <Feather name="check-circle" size={10} color={Colors.primaryFixed} />
-                    <Text style={styles.doneByText}>Done by {milestone.completedBy}</Text>
+                  <View style={[styles.doneByBadge, { backgroundColor: `${colors.primaryFixed}1A`, borderColor: `${colors.primaryFixed}33` }]}>
+                    <Feather name="check-circle" size={10} color={colors.primaryFixed} />
+                    <Text style={[styles.doneByText, { color: colors.primaryFixed }]}>Done by {milestone.completedBy}</Text>
                   </View>
                 )}
               </Pressable>
@@ -638,38 +642,38 @@ export default function ProjectDetailsScreen() {
                 onPress={() => handleMilestoneLongPress(milestone)}
                 hitSlop={8}
               >
-                <Feather name="more-horizontal" size={16} color={`${Colors.onSurfaceVariant}50`} />
+                <Feather name="more-horizontal" size={16} color={`${colors.onSurfaceVariant}50`} />
               </Pressable>
             </View>
           ))}
         </View>
 
         {/* Developer Notes (collapsible) */}
-        <View style={styles.glassCardNoPad}>
+        <View style={[styles.glassCardNoPad, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
           <Pressable style={styles.notesToggle} onPress={toggleNotes}>
             <View style={styles.notesToggleLeft}>
-              <Feather name="file-text" size={18} color={Colors.onSurfaceVariant} />
-              <Text style={styles.notesTitle}>Developer Notes</Text>
+              <Feather name="file-text" size={18} color={colors.onSurfaceVariant} />
+              <Text style={[styles.notesTitle, { color: colors.onSurface }]}>Developer Notes</Text>
             </View>
             <Animated.View style={{ transform: [{ rotate: chevronDeg }] }}>
-              <Feather name="chevron-down" size={20} color={Colors.onSurfaceVariant} />
+              <Feather name="chevron-down" size={20} color={colors.onSurfaceVariant} />
             </Animated.View>
           </Pressable>
           <Animated.View style={{ maxHeight: notesMaxHeight, overflow: 'hidden' }}>
-            <View style={styles.notesBorder} />
+            <View style={[styles.notesBorder, { backgroundColor: colors.glassBorder }]} />
             <View style={styles.notesContent}>
               {project.notes.split('\n').map((line, i) => (
                 <Text
                   key={i}
                   style={[
                     styles.notesText,
-                    line.startsWith('###') && styles.notesHeading,
-                    line.startsWith('-') && styles.notesBullet,
+                    { color: colors.onSurfaceVariant },
+                    line.startsWith('###') && { color: colors.onSurface, fontFamily: 'Inter_600SemiBold' },
                   ]}
                 >
                   {line.startsWith('-') ? (
                     <Text>
-                      <Text style={{ color: Colors.primaryFixed }}>- </Text>
+                      <Text style={{ color: colors.primaryFixed }}>- </Text>
                       {line.slice(2)}
                     </Text>
                   ) : (
@@ -685,7 +689,7 @@ export default function ProjectDetailsScreen() {
         {!isSharedProject ? (
           !project.isCompleted ? (
             <Pressable
-              style={({ pressed }) => [styles.completeBtn, pressed && styles.completeBtnPressed]}
+              style={({ pressed }) => [styles.completeBtn, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder, borderWidth: 1 }, pressed && styles.completeBtnPressed]}
               onPress={async () => {
                 const ok = await ask({
                   title: 'Mark as Completed',
@@ -697,22 +701,22 @@ export default function ProjectDetailsScreen() {
                 if (ok) { markCompleted(project.id); router.back(); }
               }}
             >
-              <Feather name="check-circle" size={18} color={Colors.primaryFixed} />
-              <Text style={styles.completeBtnText}>Mark as Completed</Text>
+              <Feather name="check-circle" size={18} color={colors.primaryFixed} />
+              <Text style={[styles.completeBtnText, { color: colors.primaryFixed }]}>Mark as Completed</Text>
             </Pressable>
           ) : (
-            <View style={styles.alreadyCompleted}>
-              <Feather name="check-circle" size={16} color={Colors.primaryFixed} />
-              <Text style={styles.alreadyCompletedText}>Project Completed</Text>
+            <View style={[styles.alreadyCompleted, { backgroundColor: `${colors.primaryFixed}1A`, borderColor: `${colors.primaryFixed}33` }]}>
+              <Feather name="check-circle" size={16} color={colors.primaryFixed} />
+              <Text style={[styles.alreadyCompletedText, { color: colors.primaryFixed }]}>Project Completed</Text>
             </View>
           )
         ) : (
           <Pressable
-            style={({ pressed }) => [styles.leaveProjectBtn, pressed && styles.leaveProjectBtnPressed]}
+            style={({ pressed }) => [styles.leaveProjectBtn, { backgroundColor: `${colors.statusWarning}1A`, borderColor: `${colors.statusWarning}33` }, pressed && styles.leaveProjectBtnPressed]}
             onPress={handleLeaveProject}
           >
-            <Feather name="log-out" size={18} color={Colors.statusWarning} />
-            <Text style={styles.leaveProjectBtnText}>Leave Project</Text>
+            <Feather name="log-out" size={18} color={colors.statusWarning} />
+            <Text style={[styles.leaveProjectBtnText, { color: colors.statusWarning }]}>Leave Project</Text>
           </Pressable>
         )}
 

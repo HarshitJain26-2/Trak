@@ -148,7 +148,7 @@ export default function NewProjectScreen() {
 
       {/* Bottom Sheet */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.sheetWrapper}
       >
         <View style={[styles.sheet, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
@@ -165,7 +165,7 @@ export default function NewProjectScreen() {
           {/* Form */}
           <ScrollView
             style={styles.form}
-            contentContainerStyle={styles.formContent}
+            contentContainerStyle={[styles.formContent, { paddingBottom: 24 }]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
@@ -287,8 +287,8 @@ export default function NewProjectScreen() {
           </ScrollView>
 
           {/* Action Footer */}
-          <View style={[styles.footer, { borderTopColor: colors.glassBorder, paddingBottom: Math.max(insets.bottom + 20, 48) }]}>
-            <Animated.View style={{ transform: [{ scale: saveScale }], flex: 1 }}>
+          <View style={[styles.footer, { borderTopColor: colors.glassBorder, paddingBottom: Math.max(insets.bottom, 12) + 12 }]}>
+            <Animated.View style={{ transform: [{ scale: saveScale }], width: '100%' }}>
               <Pressable
                 onPressIn={handleSavePressIn}
                 onPressOut={handleSavePressOut}
@@ -296,8 +296,8 @@ export default function NewProjectScreen() {
                 disabled={!name.trim()}
                 style={[styles.saveBtn, { backgroundColor: colors.primaryFixed }, !name.trim() && styles.saveBtnDisabled]}
               >
-                <Feather name="plus" size={18} color="#002203" />
-                <Text style={styles.saveBtnText}>Create Project</Text>
+                <Feather name="plus" size={18} color={colors.onPrimaryFixed} />
+                <Text style={[styles.saveBtnText, { color: colors.onPrimaryFixed }]}>Create Project</Text>
               </Pressable>
             </Animated.View>
           </View>
@@ -312,13 +312,11 @@ const styles = StyleSheet.create({
   backdrop: { backgroundColor: 'rgba(0,0,0,0.7)' },
   sheetWrapper: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: '#161B22',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     height: '85%',
-    maxHeight: '85%',
+    maxHeight: '90%',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
   },
   handle: {
     width: 36,
