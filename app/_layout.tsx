@@ -13,13 +13,21 @@ import {
   JetBrainsMono_400Regular,
   JetBrainsMono_500Medium,
 } from '@expo-google-fonts/jetbrains-mono';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Platform, LogBox } from 'react-native';
 import { useThemeColors } from '@/constants/colors';
 import { useEffect } from 'react';
+import * as Notifications from 'expo-notifications';
+
+// Ignore Expo Go SDK 53+ push warning box when running inside Expo Go app
+LogBox.ignoreLogs([
+  'expo-notifications: Android Push notifications',
+  'was removed from Expo Go',
+]);
 import { supabase } from '@/services/supabase';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useProfileStore } from '@/store/useProfileStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
+import { notificationService } from '@/services/notifications';
 
 export default function RootLayout() {
   const router = useRouter();
@@ -41,6 +49,31 @@ export default function RootLayout() {
 
   useEffect(() => {
     loadSettings();
+    if (Platform.OS !== 'web') {
+      notificationService.ensureAndroidChannels();
+    }
+  }, []);
+
+  // Listen for local notifications received and tapped
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+
+    const notificationSubscription = Notifications.addNotificationReceivedListener((notification) => {
+      console.log('[RootLayout] Local Notification Received:', notification.request.content.title);
+    });
+
+    const responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      console.log('[RootLayout] Local Notification Response Tapped:', response.notification.request.content);
+      const data = response.notification.request.content.data;
+      if (data?.projectId) {
+        // Optionally handle deep link or navigation when user taps a notification
+      }
+    });
+
+    return () => {
+      notificationSubscription.remove();
+      responseSubscription.remove();
+    };
   }, []);
 
   // Listen to auth state changes to keep data in sync with the logged-in user

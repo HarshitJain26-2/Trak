@@ -32,7 +32,14 @@
           "fonts": []
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#0b0e14"
+        }
+      ]
     ],
     "scheme": "trak",
     "experiments": {
