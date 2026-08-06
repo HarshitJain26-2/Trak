@@ -53,7 +53,7 @@ interface ProjectStore {
   currentUserId: string | null;
   setCurrentUserId: (userId: string | null) => void;
   fetchProjects: () => Promise<void>;
-  addProject: (project: Omit<Project, 'id' | 'milestones' | 'notes' | 'lastUpdated' | 'progress'>) => Promise<void>;
+  addProject: (project: Omit<Project, 'id' | 'milestones' | 'notes' | 'lastUpdated' | 'progress'> & { id?: string }) => Promise<Project>;
   deleteProject: (projectId: string) => Promise<void>;
   restoreProject: (projectId: string) => Promise<void>;
   permanentlyDeleteProject: (projectId: string) => Promise<void>;
@@ -351,7 +351,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
     const newProject: Project = {
       ...data,
-      id: Date.now().toString(),
+      id: data.id || Date.now().toString(),
       progress: 0,
       lastUpdated: 'just now',
       milestones: [],
@@ -384,6 +384,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     } catch (err) {
       console.error('Failed to sync addProject to Supabase:', err);
     }
+
+    return newProject;
   },
 
   deleteProject: async (projectId) => {

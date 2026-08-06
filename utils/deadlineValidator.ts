@@ -56,6 +56,29 @@ export function validateDeadlineDate(dateString: string, timeString = '23:59'): 
   return { isValid: true };
 }
 
+export function parseDeadlineTimestamp(dateString: string, timeString = '23:59:59'): number | null {
+  if (!dateString || !dateString.trim() || dateString.trim() === 'No Deadline') return null;
+
+  const clean = dateString.trim();
+  const parts = clean.split('-');
+  if (parts.length === 3) {
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const day = parseInt(parts[2], 10);
+    if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+      const timeParts = timeString.split(':');
+      const hours = parseInt(timeParts[0] || '23', 10);
+      const minutes = parseInt(timeParts[1] || '59', 10);
+      const seconds = parseInt(timeParts[2] || '59', 10);
+      const d = new Date(year, month - 1, day, hours, minutes, seconds);
+      return isNaN(d.getTime()) ? null : d.getTime();
+    }
+  }
+
+  const parsed = new Date(clean);
+  return isNaN(parsed.getTime()) ? null : parsed.getTime();
+}
+
 export function checkDuplicateDeadline(newDate: string, existingDeadlines: string[]): boolean {
   return existingDeadlines.some((d) => d.toLowerCase().trim() === newDate.toLowerCase().trim());
 }

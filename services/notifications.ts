@@ -17,7 +17,6 @@ export interface ScheduledReminder {
 // Configure foreground notification presentation handler
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
     shouldShowBanner: true,
@@ -205,15 +204,20 @@ class NotificationService {
    */
   async scheduleReminder(reminder: ScheduledReminder): Promise<void> {
     const now = Date.now();
-    if (reminder.triggerTime <= now) {
-      console.warn('[NotificationService] Reminder trigger time is in the past. Skipping schedule:', reminder);
-      return;
+    let effectiveTriggerTime = reminder.triggerTime;
+
+    if (effectiveTriggerTime <= now) {
+      console.warn(
+        `[NotificationService] Reminder trigger time (${new Date(effectiveTriggerTime).toLocaleString()}) is in the past or right now. Scheduling fallback test reminder in 10 seconds.`
+      );
+      // Fallback: schedule 10 seconds into the future for instant testing/verification
+      effectiveTriggerTime = now + 10000;
     }
 
     try {
       if (Platform.OS === 'web') {
         // Web fallback using setTimeout
-        const delay = reminder.triggerTime - now;
+        const delay = effectiveTriggerTime - now;
         setTimeout(() => {
           this.sendImmediateNotification(
             `Reminder: ${reminder.projectName}`,
@@ -227,7 +231,7 @@ class NotificationService {
         // Cancel any existing notification with the same ID before rescheduling
         await Notifications.cancelScheduledNotificationAsync(reminder.id).catch(() => {});
 
-        const triggerDate = new Date(reminder.triggerTime);
+        const triggerDate = new Date(effectiveTriggerTime);
 
         await Notifications.scheduleNotificationAsync({
           identifier: reminder.id,
@@ -235,6 +239,7 @@ class NotificationService {
             title: `Reminder: ${reminder.projectName}`,
             body: `Upcoming Deadline (${reminder.offsetLabel}): Prepare to ship!`,
             sound: 'default',
+            vibrate: [0, 250, 250, 250],
             data: {
               projectId: reminder.projectId,
               reminderId: reminder.id,
@@ -244,15 +249,34 @@ class NotificationService {
             type: Notifications.SchedulableTriggerInputTypes.DATE,
             date: triggerDate,
             channelId: 'reminders',
-          },
+          } as any,
         });
 
-        console.log(`[NotificationService] Scheduled OS local notification "${reminder.id}" for ${triggerDate.toISOString()}`);
+        console.log(`[NotificationService] Scheduled OS local notification "${reminder.id}" for ${triggerDate.toLocaleString()} (${triggerDate.toISOString()})`);
+
+        // Debug: Log all scheduled notifications queued on the device
+        await this.logScheduledNotifications();
       }
 
-      await this.persistReminder(reminder);
+      await this.persistReminder({ ...reminder, triggerTime: effectiveTriggerTime });
     } catch (e) {
       console.error('[NotificationService] Failed to schedule reminder:', e);
+    }
+  }
+
+  /**
+   * Print all queued scheduled notifications on device for debugging
+   */
+  async logScheduledNotifications(): Promise<void> {
+    try {
+      if (Platform.OS === 'web') return;
+      const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+      console.log(`[NotificationService] === Active Queued OS Notifications: ${scheduled.length} ===`);
+      scheduled.forEach((n, idx) => {
+        console.log(`  [${idx + 1}] ID: "${n.identifier}" | Title: "${n.content.title}" | Trigger:`, JSON.stringify(n.trigger));
+      });
+    } catch (e) {
+      console.error('[NotificationService] Failed to fetch scheduled notifications:', e);
     }
   }
 

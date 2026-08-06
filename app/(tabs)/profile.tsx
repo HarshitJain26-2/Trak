@@ -838,25 +838,31 @@ export default function ProfileScreen() {
           <SectionHeader title="Tech Stack & Skills" />
           <View style={styles.skillsGrid}>
             {profile.skills.map((skill) => (
-              <Pressable
+              <View
                 key={skill}
                 style={[styles.skillChip, { backgroundColor: `${colors.primaryFixed}15`, borderColor: `${colors.primaryFixed}30` }]}
-                onLongPress={() =>
-                  Alert.alert('Remove Skill', `Remove "${skill}"?`, [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Remove', style: 'destructive', onPress: () => removeSkill(skill) },
-                  ])
-                }
               >
                 <Text style={[styles.skillChipText, { color: colors.primaryFixed }]}>{skill}</Text>
-              </Pressable>
+                <Pressable
+                  hitSlop={8}
+                  style={styles.skillRemoveBtn}
+                  onPress={() =>
+                    Alert.alert('Remove Skill', `Remove "${skill}" from your profile?`, [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Remove', style: 'destructive', onPress: () => removeSkill(skill) },
+                    ])
+                  }
+                >
+                  <Feather name="x" size={13} color={colors.primaryFixed} />
+                </Pressable>
+              </View>
             ))}
             <Pressable style={[styles.skillChipAdd, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]} onPress={() => setShowAddSkill(true)}>
               <Feather name="plus" size={13} color={colors.primaryFixed} />
               <Text style={[styles.skillChipAddText, { color: colors.primaryFixed }]}>Add skill</Text>
             </Pressable>
           </View>
-          <Text style={[styles.skillHint, { color: colors.onSurfaceVariant }]}>Long-press a skill to remove it</Text>
+          <Text style={[styles.skillHint, { color: colors.onSurfaceVariant }]}>Tap the ✕ on any skill chip to remove it</Text>
         </View>
 
         {/* ── Account Actions (Log Out) ── */}
@@ -1004,10 +1010,22 @@ const styles = StyleSheet.create({
   },
   skillsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
   skillChip: {
-    paddingHorizontal: 12, paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingLeft: 12,
+    paddingRight: 8,
+    paddingVertical: 6,
     backgroundColor: `${Colors.primaryFixed}15`,
     borderRadius: 999,
     borderWidth: 1, borderColor: `${Colors.primaryFixed}30`,
+  },
+  skillRemoveBtn: {
+    padding: 2,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    opacity: 0.8,
   },
   skillChipText: {
     fontFamily: 'JetBrainsMono_400Regular',

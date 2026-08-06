@@ -17,7 +17,7 @@ import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors, useThemeColors } from '@/constants/colors';
 import { useProjectStore, Priority, ProjectStatus } from '@/store/useProjectStore';
-import { validateDeadlineDate } from '@/utils/deadlineValidator';
+import { validateDeadlineDate, parseDeadlineTimestamp } from '@/utils/deadlineValidator';
 import { ReminderConfigModal, ReminderConfig } from '@/components/modals/ReminderConfigModal';
 import { CalendarPickerModal } from '@/components/modals/CalendarPickerModal';
 import { notificationService } from '@/services/notifications';
@@ -100,7 +100,8 @@ export default function NewProjectScreen() {
     triggerHaptic(20);
     const newProjectId = Date.now().toString();
 
-    await addProject({
+    const createdProject = await addProject({
+      id: newProjectId,
       name: name.trim(),
       description: description.trim(),
       version: 'v0.1.0',
@@ -113,12 +114,12 @@ export default function NewProjectScreen() {
 
     // Schedule reminder if deadline is valid date (not No Deadline) and specified
     if (deadline.trim() && deadline.trim() !== 'No Deadline' && reminderConfig) {
-      const deadlineDate = new Date(deadline.trim());
-      if (!isNaN(deadlineDate.getTime())) {
-        const triggerTimestamp = deadlineDate.getTime() - reminderConfig.offsetMinutes * 60 * 1000;
+      const deadlineTimestamp = parseDeadlineTimestamp(deadline.trim());
+      if (deadlineTimestamp) {
+        const triggerTimestamp = deadlineTimestamp - reminderConfig.offsetMinutes * 60 * 1000;
         await notificationService.scheduleReminder({
-          id: `rem_${newProjectId}`,
-          projectId: newProjectId,
+          id: `rem_${createdProject.id}`,
+          projectId: createdProject.id,
           projectName: name.trim(),
           triggerTime: triggerTimestamp,
           offsetLabel: reminderConfig.label,
