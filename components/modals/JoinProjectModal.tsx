@@ -60,8 +60,8 @@ export function JoinProjectModal({ visible, onClose, onJoin }: JoinProjectModalP
               <View style={[styles.card, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
                 {/* Header */}
                 <View style={styles.header}>
-                  <View style={[styles.iconCircle, { backgroundColor: `${colors.secondaryContainer}1A`, borderColor: `${colors.secondaryContainer}30` }]}>
-                    <Feather name="user-plus" size={22} color={colors.secondaryContainer} />
+                  <View style={[styles.iconCircle, { backgroundColor: `${colors.secondary}1A`, borderColor: `${colors.secondary}30` }]}>
+                    <Feather name="user-plus" size={22} color={colors.secondary} />
                   </View>
                   <Text style={[styles.title, { color: colors.onSurface }]}>Join a Project</Text>
                   <Text style={[styles.subtitle, { color: colors.onSurfaceVariant }]}>

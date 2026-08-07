@@ -40,6 +40,7 @@ export interface Project {
   notes: string;
   isCompleted?: boolean;
   isDeleted?: boolean;
+  isPinned?: boolean;
   // Collaboration fields
   inviteCode?: string;
   members?: ProjectMember[];
@@ -63,6 +64,7 @@ interface ProjectStore {
   deleteMilestone: (projectId: string, milestoneId: string) => Promise<void>;
   markCompleted: (projectId: string) => Promise<void>;
   unmarkCompleted: (projectId: string) => Promise<void>;
+  togglePinProject: (projectId: string) => Promise<void>;
   getProject: (id: string) => Project | undefined;
   clearProjects: () => void;
   // Collaboration actions
@@ -301,6 +303,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             notes: row.notes || '',
             isCompleted: row.is_completed ?? false,
             isDeleted: row.is_deleted ?? false,
+            isPinned: row.is_pinned ?? false,
             milestones: projectMilestones,
             inviteCode: row.invite_code || undefined,
             members: projectMembers,
@@ -604,6 +607,29 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         .eq('id', projectId);
     } catch (err) {
       console.error('Failed to sync unmarkCompleted to Supabase:', err);
+    }
+  },
+
+  togglePinProject: async (projectId) => {
+    const { projects } = get();
+    const userId = await getActiveUserId();
+    const updated = projects.map((p) =>
+      p.id === projectId ? { ...p, isPinned: !p.isPinned } : p
+    );
+    set({ projects: updated });
+    if (userId) {
+      await saveToLocalStorage(userId, updated);
+    }
+    const target = updated.find((p) => p.id === projectId);
+    if (target) {
+      try {
+        await supabase
+          .from('projects')
+          .update({ is_pinned: target.isPinned })
+          .eq('id', projectId);
+      } catch (err) {
+        // Local persistence handles pin status gracefully
+      }
     }
   },
 

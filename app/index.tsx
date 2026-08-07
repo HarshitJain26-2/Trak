@@ -1,27 +1,30 @@
 import { Redirect } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { View, ActivityIndicator } from 'react-native';
 import { supabase } from '@/services/supabase';
-import { Colors } from '@/constants/colors';
+import FuturisticLoadingScreen from '@/components/FuturisticLoadingScreen';
 
 export default function Index() {
-  const [isLoading, setIsLoading] = useState(true);
+  const [isAnimationFinished, setIsAnimationFinished] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [sessionChecked, setSessionChecked] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setIsAuthenticated(!!session);
-      setIsLoading(false);
+      setSessionChecked(true);
     });
   }, []);
 
-  if (isLoading) {
+  // Wait for both session check and loading animation completion
+  if (!sessionChecked || !isAnimationFinished) {
     return (
-      <View style={{ flex: 1, backgroundColor: Colors.surfaceContainerLowest, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color={Colors.primaryFixed} size="large" />
-      </View>
+      <FuturisticLoadingScreen
+        durationMs={2800}
+        onFinish={() => setIsAnimationFinished(true)}
+      />
     );
   }
 
   return <Redirect href={isAuthenticated ? '/(tabs)' : '/auth'} />;
 }
+

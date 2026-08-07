@@ -138,132 +138,169 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
       {project && (
         <Modal transparent animationType="fade" visible={visible && !!project} onRequestClose={onClose}>
           <Pressable style={styles.overlay} onPress={onClose}>
-            <Pressable style={styles.sheet} onPress={() => {}}>
-              <View style={styles.handle} />
+            <Pressable
+              style={[
+                styles.sheet,
+                { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder },
+              ]}
+              onPress={() => {}}
+            >
+              <View style={[styles.handle, { backgroundColor: `${colors.onSurfaceVariant}40` }]} />
 
               {/* Header */}
               <View style={styles.header}>
                 <View style={styles.titleRow}>
-                  <Text style={styles.projectName} numberOfLines={1}>{project.name}</Text>
-                  <Text style={styles.versionTag}>{project.version}</Text>
+                  <Text style={[styles.projectName, { color: colors.onSurface }]} numberOfLines={1}>
+                    {project.name}
+                  </Text>
+                  <Text style={[styles.versionTag, { color: colors.primaryFixed, borderColor: `${colors.primaryFixed}33`, backgroundColor: `${colors.primaryFixed}1A` }]}>
+                    {project.version}
+                  </Text>
                 </View>
-                <Text style={styles.projectDesc} numberOfLines={1}>
+                <Text style={[styles.projectDesc, { color: colors.onSurfaceVariant }]} numberOfLines={1}>
                   {project.description || 'No description provided'}
                 </Text>
               </View>
 
-            <View style={styles.divider} />
+              <View style={[styles.divider, { backgroundColor: `${colors.outlineVariant}20` }]} />
 
-            <View style={styles.optionsList}>
-              {/* View Details */}
-              <Pressable
-                style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
-                onPress={handleViewDetails}
-              >
-                <View style={[styles.iconWrap, { backgroundColor: `${Colors.primaryFixed}1A` }]}>
-                  <Feather name="eye" size={18} color={Colors.primaryFixed} />
-                </View>
-                <View style={styles.optionContent}>
-                  <Text style={styles.optionTitle}>View Project Details</Text>
-                  <Text style={styles.optionSub}>Open telemetry & feature milestones</Text>
-                </View>
-                <Feather name="chevron-right" size={16} color={`${Colors.onSurfaceVariant}4D`} />
-              </Pressable>
-
-              {/* Mark Complete / Reactivate */}
-              {!isDeleted && (
+              <View style={styles.optionsList}>
+                {/* View Details */}
                 <Pressable
-                  style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
-                  onPress={handleToggleComplete}
+                  style={({ pressed }) => [
+                    styles.option,
+                    { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder },
+                    pressed && { backgroundColor: `${colors.onSurfaceVariant}1A` },
+                  ]}
+                  onPress={handleViewDetails}
+                >
+                  <View style={[styles.iconWrap, { backgroundColor: `${colors.primaryFixed}1A` }]}>
+                    <Feather name="eye" size={18} color={colors.primaryFixed} />
+                  </View>
+                  <View style={styles.optionContent}>
+                    <Text style={[styles.optionTitle, { color: colors.onSurface }]}>View Project Details</Text>
+                    <Text style={[styles.optionSub, { color: colors.onSurfaceVariant }]}>Open telemetry & feature milestones</Text>
+                  </View>
+                  <Feather name="chevron-right" size={16} color={`${colors.onSurfaceVariant}60`} />
+                </Pressable>
+
+                {/* Mark Complete / Reactivate */}
+                {!isDeleted && (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.option,
+                      { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder },
+                      pressed && { backgroundColor: `${colors.onSurfaceVariant}1A` },
+                    ]}
+                    onPress={handleToggleComplete}
+                  >
+                    <View
+                      style={[
+                        styles.iconWrap,
+                        { backgroundColor: isCompleted ? `${colors.secondary}1A` : `${colors.primaryFixed}1A` },
+                      ]}
+                    >
+                      <Feather
+                        name={isCompleted ? 'rotate-ccw' : 'check-circle'}
+                        size={18}
+                        color={isCompleted ? colors.secondary : colors.primaryFixed}
+                      />
+                    </View>
+                    <View style={styles.optionContent}>
+                      <Text style={[styles.optionTitle, { color: colors.onSurface }]}>
+                        {isCompleted ? 'Reactivate Project' : 'Mark as Completed'}
+                      </Text>
+                      <Text style={[styles.optionSub, { color: colors.onSurfaceVariant }]}>
+                        {isCompleted ? 'Move back to Active Deployments' : 'Move project to shipped tab'}
+                      </Text>
+                    </View>
+                  </Pressable>
+                )}
+
+                {/* Copy Repo URL */}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.option,
+                    { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder },
+                    pressed && { backgroundColor: `${colors.onSurfaceVariant}1A` },
+                  ]}
+                  onPress={handleCopyRepo}
+                >
+                  <View style={[styles.iconWrap, { backgroundColor: `${colors.secondary}1A` }]}>
+                    <Feather name="copy" size={18} color={colors.secondary} />
+                  </View>
+                  <View style={styles.optionContent}>
+                    <Text style={[styles.optionTitle, { color: colors.onSurface }]}>Copy Repository URL</Text>
+                    <Text style={[styles.optionSub, { color: colors.onSurfaceVariant }]}>{project.repoUrl || 'No repo set'}</Text>
+                  </View>
+                </Pressable>
+
+                {/* Delete / Restore */}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.option,
+                    { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder },
+                    pressed && { backgroundColor: `${colors.onSurfaceVariant}1A` },
+                  ]}
+                  onPress={handleDeleteOrRestore}
                 >
                   <View
                     style={[
                       styles.iconWrap,
-                      { backgroundColor: isCompleted ? `${Colors.secondaryContainer}33` : `${Colors.primaryFixed}1A` },
+                      { backgroundColor: isDeleted ? `${colors.primaryFixed}1A` : `${colors.error}1A` },
                     ]}
                   >
                     <Feather
-                      name={isCompleted ? 'rotate-ccw' : 'check-circle'}
+                      name={isDeleted ? 'rotate-ccw' : 'trash-2'}
                       size={18}
-                      color={isCompleted ? Colors.secondaryFixed : Colors.primaryFixed}
+                      color={isDeleted ? colors.primaryFixed : colors.error}
                     />
                   </View>
                   <View style={styles.optionContent}>
-                    <Text style={styles.optionTitle}>
-                      {isCompleted ? 'Reactivate Project' : 'Mark as Completed'}
+                    <Text style={[styles.optionTitle, { color: isDeleted ? colors.onSurface : colors.error }]}>
+                      {isDeleted ? 'Restore Project' : 'Move to Trash'}
                     </Text>
-                    <Text style={styles.optionSub}>
-                      {isCompleted ? 'Move back to Active Deployments' : 'Move project to shipped tab'}
+                    <Text style={[styles.optionSub, { color: colors.onSurfaceVariant }]}>
+                      {isDeleted ? 'Restore back to active deployments' : 'Soft delete and send to Trash tab'}
                     </Text>
                   </View>
                 </Pressable>
-              )}
 
-              {/* Copy Repo URL */}
+                {/* Permanently Delete (trash tab only) */}
+                {isDeleted && (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.option,
+                      { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder },
+                      pressed && { backgroundColor: `${colors.onSurfaceVariant}1A` },
+                    ]}
+                    onPress={handlePermanentDelete}
+                  >
+                    <View style={[styles.iconWrap, { backgroundColor: `${colors.error}1A` }]}>
+                      <Feather name="x-circle" size={18} color={colors.error} />
+                    </View>
+                    <View style={styles.optionContent}>
+                      <Text style={[styles.optionTitle, { color: colors.error }]}>Delete Permanently</Text>
+                      <Text style={[styles.optionSub, { color: colors.onSurfaceVariant }]}>Erase forever from database</Text>
+                    </View>
+                  </Pressable>
+                )}
+              </View>
+
+              {/* Cancel */}
               <Pressable
-                style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
-                onPress={handleCopyRepo}
+                style={({ pressed }) => [
+                  styles.cancelBtn,
+                  { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder },
+                  pressed && { backgroundColor: `${colors.onSurfaceVariant}1A` },
+                ]}
+                onPress={onClose}
               >
-                <View style={[styles.iconWrap, { backgroundColor: `${Colors.secondaryContainer}26` }]}>
-                  <Feather name="copy" size={18} color={Colors.secondary} />
-                </View>
-                <View style={styles.optionContent}>
-                  <Text style={styles.optionTitle}>Copy Repository URL</Text>
-                  <Text style={styles.optionSub}>{project.repoUrl || 'No repo set'}</Text>
-                </View>
+                <Text style={[styles.cancelBtnText, { color: colors.onSurface }]}>Cancel</Text>
               </Pressable>
-
-              {/* Delete / Restore */}
-              <Pressable
-                style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
-                onPress={handleDeleteOrRestore}
-              >
-                <View
-                  style={[
-                    styles.iconWrap,
-                    { backgroundColor: isDeleted ? `${Colors.primaryFixed}1A` : `${Colors.error}1A` },
-                  ]}
-                >
-                  <Feather
-                    name={isDeleted ? 'rotate-ccw' : 'trash-2'}
-                    size={18}
-                    color={isDeleted ? Colors.primaryFixed : Colors.error}
-                  />
-                </View>
-                <View style={styles.optionContent}>
-                  <Text style={[styles.optionTitle, !isDeleted && { color: Colors.error }]}>
-                    {isDeleted ? 'Restore Project' : 'Move to Trash'}
-                  </Text>
-                  <Text style={styles.optionSub}>
-                    {isDeleted ? 'Restore back to active deployments' : 'Soft delete and send to Trash tab'}
-                  </Text>
-                </View>
-              </Pressable>
-
-              {/* Permanently Delete (trash tab only) */}
-              {isDeleted && (
-                <Pressable
-                  style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
-                  onPress={handlePermanentDelete}
-                >
-                  <View style={[styles.iconWrap, { backgroundColor: `${Colors.error}26` }]}>
-                    <Feather name="x-circle" size={18} color={Colors.error} />
-                  </View>
-                  <View style={styles.optionContent}>
-                    <Text style={[styles.optionTitle, { color: Colors.error }]}>Delete Permanently</Text>
-                    <Text style={styles.optionSub}>Erase forever from database</Text>
-                  </View>
-                </Pressable>
-              )}
-            </View>
-
-            {/* Cancel */}
-            <Pressable style={styles.cancelBtn} onPress={onClose}>
-              <Text style={styles.cancelBtnText}>Cancel</Text>
             </Pressable>
           </Pressable>
-        </Pressable>
-      </Modal>
+        </Modal>
       )}
     </>
   );

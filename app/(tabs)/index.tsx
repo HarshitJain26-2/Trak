@@ -25,27 +25,31 @@ export default function DashboardScreen() {
     return () => unsubscribeFromRealtime();
   }, []);
 
-  const activeProjects = projects.filter((p) => {
-    if (p.isCompleted || p.isDeleted || p.isShared) return false;
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      p.name.toLowerCase().includes(q) ||
-      p.description.toLowerCase().includes(q) ||
-      p.techStack.some((t) => t.toLowerCase().includes(q))
-    );
-  });
+  const activeProjects = projects
+    .filter((p) => {
+      if (p.isCompleted || p.isDeleted || p.isShared) return false;
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        p.name.toLowerCase().includes(q) ||
+        p.description.toLowerCase().includes(q) ||
+        p.techStack.some((t) => t.toLowerCase().includes(q))
+      );
+    })
+    .sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
 
-  const sharedProjects = projects.filter((p) => {
-    if (p.isCompleted || p.isDeleted || !p.isShared) return false;
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      p.name.toLowerCase().includes(q) ||
-      p.description.toLowerCase().includes(q) ||
-      p.techStack.some((t) => t.toLowerCase().includes(q))
-    );
-  });
+  const sharedProjects = projects
+    .filter((p) => {
+      if (p.isCompleted || p.isDeleted || !p.isShared) return false;
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        p.name.toLowerCase().includes(q) ||
+        p.description.toLowerCase().includes(q) ||
+        p.techStack.some((t) => t.toLowerCase().includes(q))
+      );
+    })
+    .sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
 
   const insets = useSafeAreaInsets();
   const fabScale = useRef(new Animated.Value(1)).current;
@@ -209,8 +213,8 @@ export default function DashboardScreen() {
                 setShowJoinModal(true);
               }}
             >
-              <View style={[styles.fabMenuIcon, { backgroundColor: `${colors.secondaryContainer}1A`, borderColor: `${colors.secondaryContainer}30` }]}>
-                <Feather name="user-plus" size={18} color={colors.secondaryContainer} />
+              <View style={[styles.fabMenuIcon, { backgroundColor: `${colors.secondary}1A`, borderColor: `${colors.secondary}30` }]}>
+                <Feather name="user-plus" size={18} color={colors.secondary} />
               </View>
               <Text style={[styles.fabMenuLabel, { color: colors.onSurface }]}>Join Project</Text>
             </Pressable>

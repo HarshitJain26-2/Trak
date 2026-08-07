@@ -6,17 +6,19 @@ import {
   TextInput,
   Pressable,
   ScrollView,
-  SafeAreaView,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { Colors, useThemeColors } from '@/constants/colors';
 import { supabase } from '@/services/supabase';
 import { useProfileStore } from '@/store/useProfileStore';
 import { useProjectStore } from '@/store/useProjectStore';
+import FuturisticLoadingScreen from '@/components/FuturisticLoadingScreen';
 
 import { setActiveUserId, emailToUUID } from '@/utils/deviceUser';
 
@@ -201,6 +203,15 @@ export default function AuthScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.surface }]}>
+      {/* Full-Screen Futuristic Loading Screen while signing in or signing up */}
+      {loading && (
+        <Modal visible={loading} animationType="fade" transparent={false}>
+          <FuturisticLoadingScreen
+            durationMs={2500}
+            themeMode="dark"
+          />
+        </Modal>
+      )}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}

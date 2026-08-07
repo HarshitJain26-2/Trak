@@ -18,16 +18,20 @@ import { useThemeColors } from '@/constants/colors';
 import { useEffect } from 'react';
 import * as Notifications from 'expo-notifications';
 
-// Ignore Expo Go SDK 53+ push warning box when running inside Expo Go app
+// Ignore Expo Go SDK 53+ push warning box and require cycles when running inside Expo Go app
 LogBox.ignoreLogs([
   'expo-notifications: Android Push notifications',
   'was removed from Expo Go',
+  'Require cycle:',
+  'expo-notifications',
+  'SafeAreaView has been deprecated',
 ]);
 import { supabase } from '@/services/supabase';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useProfileStore } from '@/store/useProfileStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { notificationService } from '@/services/notifications';
+import FuturisticLoadingScreen from '@/components/FuturisticLoadingScreen';
 
 export default function RootLayout() {
   const router = useRouter();
@@ -107,11 +111,7 @@ export default function RootLayout() {
   }, []);
 
   if (!fontsLoaded) {
-    return (
-      <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color={colors.primaryFixed} size="large" />
-      </View>
-    );
+    return <FuturisticLoadingScreen durationMs={1500} themeMode={colors.isDark ? 'dark' : 'light'} />;
   }
 
   return (

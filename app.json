@@ -6,23 +6,28 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "backgroundColor": "#0b0e14",
+    "backgroundColor": "#071B2B",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#071B2B"
+    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.trak.app"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0b0e14",
+        "backgroundColor": "#071B2B",
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "package": "com.trak.app",
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
     },
     "plugins": [
       "expo-router",
@@ -37,7 +42,15 @@
         "expo-notifications",
         {
           "icon": "./assets/icon.png",
-          "color": "#0b0e14"
+          "color": "#39FF88"
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#071B2B",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200
         }
       ]
     ],

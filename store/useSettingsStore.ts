@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { safeStorage } from '@/services/storage';
-import { triggerHaptic } from '@/utils/haptics';
+import { triggerHaptic, setHapticsEnabled } from '@/utils/haptics';
 import { notificationService } from '@/services/notifications';
 import { SupportedLanguage, getDeviceLanguage } from '@/utils/i18n';
 
@@ -36,6 +36,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       if (raw) {
         const parsed = JSON.parse(raw);
         set((state) => ({ ...state, ...parsed }));
+        setHapticsEnabled(parsed.hapticsEnabled ?? true);
         await notificationService.syncNotifications(parsed.notificationsEnabled ?? true);
       } else {
         // First visit default
@@ -84,6 +85,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   },
 
   toggleHaptics: async (enabled: boolean) => {
+    setHapticsEnabled(enabled);
     if (enabled) {
       triggerHaptic([0, 30, 50, 30]);
     }

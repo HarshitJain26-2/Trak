@@ -9,6 +9,7 @@ import {
   Platform,
   Alert,
   useColorScheme,
+  Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
@@ -27,6 +28,7 @@ import { ActionSheet, useActionSheet, ActionOption } from '@/components/common/A
 import { triggerHaptic } from '@/utils/haptics';
 import { t, SUPPORTED_LANGUAGES, SupportedLanguage } from '@/utils/i18n';
 import { notificationService, PermissionStatus } from '@/services/notifications';
+import FuturisticLoadingScreen from '@/components/FuturisticLoadingScreen';
 
 function SectionHeader({ title, color }: { title: string; color: string }) {
   return (
@@ -45,6 +47,7 @@ export default function SettingsScreen() {
 
   const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>('pending');
   const [testingNotification, setTestingNotification] = useState(false);
+  const [showTestAnimation, setShowTestAnimation] = useState(false);
 
   const {
     themeMode,
@@ -181,6 +184,20 @@ export default function SettingsScreen() {
     <View style={[styles.root, { backgroundColor: colors.surface }]}>
       <ConfirmDialog {...dialogProps} />
       <ActionSheet {...actionSheetProps} />
+
+      {/* Full-Screen Test Animation Modal */}
+      <Modal
+        visible={showTestAnimation}
+        animationType="fade"
+        transparent={false}
+        onRequestClose={() => setShowTestAnimation(false)}
+      >
+        <FuturisticLoadingScreen
+          durationMs={3000}
+          themeMode={colors.isDark ? 'dark' : 'light'}
+          onFinish={() => setShowTestAnimation(false)}
+        />
+      </Modal>
 
       {/* App Bar Header */}
       <BlurView
@@ -359,6 +376,22 @@ export default function SettingsScreen() {
             <Feather name="send" size={16} color={colors.primaryFixed} />
             <Text style={[styles.testBtnText, { color: colors.primaryFixed }]}>
               {testingNotification ? 'Sending...' : '🧪 Send Test Notification'}
+            </Text>
+          </Pressable>
+
+          <View style={[styles.divider, { backgroundColor: `${colors.outlineVariant}20` }]} />
+
+          {/* 🚀 TEST FUTURISTIC LOADING ANIMATION BUTTON */}
+          <Pressable
+            style={[styles.testBtn, { backgroundColor: `${colors.secondary}15`, borderColor: `${colors.secondary}35` }]}
+            onPress={() => {
+              triggerHaptic(20);
+              setShowTestAnimation(true);
+            }}
+          >
+            <Feather name="play-circle" size={16} color={colors.secondary} />
+            <Text style={[styles.testBtnText, { color: colors.secondary }]}>
+              🚀 Test Loading Screen Animation
             </Text>
           </Pressable>
         </View>

@@ -23,11 +23,13 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
   const systemColorScheme = useColorScheme();
   const { compactCards, themeMode } = useSettingsStore();
   const colors = getThemeColors(themeMode, systemColorScheme);
-  const { markCompleted, deleteProject } = useProjectStore();
+  const { markCompleted, deleteProject, togglePinProject } = useProjectStore();
 
   const [modalVisible, setModalVisible] = useState(false);
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const panX = useRef(new Animated.Value(0)).current;
+  const lastTapRef = useRef<number>(0);
+  const timerRef = useRef<any>(null);
 
   const PRIORITY_ACCENT_COLORS: Record<string, string> = {
     high: colors.error,
@@ -144,8 +146,21 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
   };
 
   const handlePress = () => {
-    triggerHaptic(10);
-    router.push(`/project/${project.id}`);
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 280;
+
+    if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      lastTapRef.current = 0;
+      triggerHaptic(35);
+      togglePinProject(project.id);
+    } else {
+      lastTapRef.current = now;
+      timerRef.current = setTimeout(() => {
+        triggerHaptic(10);
+        router.push(`/project/${project.id}`);
+      }, DOUBLE_TAP_DELAY);
+    }
   };
 
   const handleLongPress = () => {
@@ -217,6 +232,12 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
                   <Text style={[styles.projectName, { color: colors.onSurface }, compactCards && styles.compactProjectName]} numberOfLines={1}>
                     {project.name}
                   </Text>
+                  {project.isPinned && (
+                    <View style={[styles.pinnedTag, { backgroundColor: `${colors.primaryFixed}20`, borderColor: `${colors.primaryFixed}40` }]}>
+                      <Feather name="bookmark" size={10} color={colors.primaryFixed} style={{ marginRight: 2 }} />
+                      <Text style={[styles.pinnedTagText, { color: colors.primaryFixed }]}>PINNED</Text>
+                    </View>
+                  )}
                 </View>
                 {project.status === 'blocked' ? (
                   <Feather name="alert-triangle" size={compactCards ? 14 : 16} color={colors.error} />
@@ -378,6 +399,20 @@ const styles = StyleSheet.create({
   swipeText: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 14,
+    letterSpacing: 0.5,
+  },
+  pinnedTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    marginLeft: 6,
+  },
+  pinnedTagText: {
+    fontFamily: 'JetBrainsMono_500Medium',
+    fontSize: 9,
     letterSpacing: 0.5,
   },
 });
