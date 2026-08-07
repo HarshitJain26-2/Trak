@@ -24,6 +24,7 @@ export interface FuturisticLoadingScreenProps {
   durationMs?: number;
   usePngLogo?: boolean;
   themeMode?: 'dark' | 'light';
+  completed?: boolean;
 }
 
 export const FuturisticLoadingScreen: React.FC<FuturisticLoadingScreenProps> = ({
@@ -31,6 +32,7 @@ export const FuturisticLoadingScreen: React.FC<FuturisticLoadingScreenProps> = (
   durationMs = 3000,
   usePngLogo = true,
   themeMode = 'dark',
+  completed,
 }) => {
   const [reduceMotion, setReduceMotion] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
@@ -60,10 +62,11 @@ export const FuturisticLoadingScreen: React.FC<FuturisticLoadingScreenProps> = (
 
   // Completion sequence trigger
   const triggerCompletion = useCallback(() => {
+    if (isFinished) return;
     setIsFinished(true);
 
     if (reduceMotion) {
-      containerOpacity.value = withTiming(0, { duration: 400 }, (finished) => {
+      containerOpacity.value = withTiming(0, { duration: 200 }, (finished) => {
         if (finished && onFinish) {
           runOnJS(onFinish)();
         }
@@ -71,47 +74,59 @@ export const FuturisticLoadingScreen: React.FC<FuturisticLoadingScreenProps> = (
       return;
     }
 
-    // Stage 8 Completion FX (700ms total)
+    // Stage 8 Completion FX (rapid transition)
     // 1. Background flash
     bgFlashOpacity.value = withSequence(
-      withTiming(0.4, { duration: 150 }),
-      withTiming(0, { duration: 350 })
+      withTiming(0.4, { duration: 100 }),
+      withTiming(0, { duration: 200 })
     );
 
     // 2. Shockwave pulse expansion (scale 0.5 -> 3.5)
     shockwaveOpacity.value = withSequence(
-      withTiming(0.8, { duration: 150 }),
-      withTiming(0, { duration: 550 })
+      withTiming(0.8, { duration: 100 }),
+      withTiming(0, { duration: 300 })
     );
 
     shockwaveScale.value = withTiming(
       3.5,
-      { duration: 650, easing: Easing.out(Easing.quad) }
+      { duration: 350, easing: Easing.out(Easing.quad) }
     );
 
     // 3. Final screen fade out into home
     containerOpacity.value = withSequence(
-      withTiming(1, { duration: 350 }),
-      withTiming(0, { duration: 350 }, (finished) => {
+      withTiming(1, { duration: 150 }),
+      withTiming(0, { duration: 200 }, (finished) => {
         if (finished && onFinish) {
           runOnJS(onFinish)();
         }
       })
     );
-  }, [reduceMotion, onFinish]);
+  }, [reduceMotion, onFinish, isFinished]);
 
   // Smooth linear progress counter 0% -> 100%
   useEffect(() => {
-    progress.value = withTiming(
-      100,
-      { duration: durationMs, easing: Easing.linear },
-      (finished) => {
-        if (finished) {
-          runOnJS(triggerCompletion)();
+    if (completed) {
+      progress.value = withTiming(
+        100,
+        { duration: 150, easing: Easing.out(Easing.quad) },
+        (finished) => {
+          if (finished) {
+            runOnJS(triggerCompletion)();
+          }
         }
-      }
-    );
-  }, [durationMs, triggerCompletion]);
+      );
+    } else {
+      progress.value = withTiming(
+        100,
+        { duration: durationMs, easing: Easing.linear },
+        (finished) => {
+          if (finished) {
+            runOnJS(triggerCompletion)();
+          }
+        }
+      );
+    }
+  }, [durationMs, triggerCompletion, completed]);
 
   // Animated styles
   const screenAnimatedStyle = useAnimatedStyle(() => ({

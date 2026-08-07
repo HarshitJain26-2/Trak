@@ -82,13 +82,19 @@ export default function RootLayout() {
 
   // Listen to auth state changes to keep data in sync with the logged-in user
   useEffect(() => {
+    let lastUserId: string | null = null;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_IN' && session) {
-          // Load data for the newly signed-in user
-          await fetchProfile();
-          await fetchProjects();
+      (event, session) => {
+        if (event === 'SIGNED_IN' && session?.user?.id) {
+          if (lastUserId !== session.user.id) {
+            lastUserId = session.user.id;
+            // Non-blocking background data sync
+            void fetchProfile();
+            void fetchProjects();
+          }
         } else if (event === 'SIGNED_OUT') {
+          lastUserId = null;
           // Wipe all in-memory data so next user starts clean
           clearProjects();
           clearProfile();
@@ -99,9 +105,10 @@ export default function RootLayout() {
 
     // Also load on mount if a session already exists (e.g. app restart)
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        fetchProfile();
-        fetchProjects();
+      if (session?.user?.id) {
+        lastUserId = session.user.id;
+        void fetchProfile();
+        void fetchProjects();
       }
     });
 

@@ -19,7 +19,8 @@ export default function Index() {
   if (!sessionChecked || !isAnimationFinished) {
     return (
       <FuturisticLoadingScreen
-        durationMs={2800}
+        completed={sessionChecked}
+        durationMs={1200}
         onFinish={() => setIsAnimationFinished(true)}
       />
     );

@@ -34,6 +34,7 @@ export default function AuthScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loginCompleted, setLoginCompleted] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
   // Password validation constraints for Sign Up
@@ -65,6 +66,7 @@ export default function AuthScreen() {
     }
 
     setLoading(true);
+    setLoginCompleted(false);
 
     try {
       const cleanEmail = email.trim().toLowerCase();
@@ -82,6 +84,7 @@ export default function AuthScreen() {
 
         // Check for Supabase auth errors (including duplicate email)
         if (error) {
+          setLoading(false);
           if (
             error.message?.toLowerCase().includes('already registered') ||
             error.message?.toLowerCase().includes('already been registered') ||
@@ -98,6 +101,7 @@ export default function AuthScreen() {
         // Supabase may return a user with identities=[] when email is already registered
         // but email confirmation is disabled — detect this case
         if (data?.user && (data.user.identities?.length === 0)) {
+          setLoading(false);
           setErrorMessage('An account with this email already exists. Please sign in instead.');
           return;
         }
@@ -115,11 +119,13 @@ export default function AuthScreen() {
           },
         }));
 
-        await useProfileStore.getState().fetchProfile();
-        await useProjectStore.getState().fetchProjects();
-
-        // Navigate to profile setup so user fills in their own details
+        // Event-driven finish: mark completed & navigate instantly
+        setLoginCompleted(true);
         router.replace('/setup-profile');
+
+        // Non-blocking background data hydration
+        void useProfileStore.getState().fetchProfile();
+        void useProjectStore.getState().fetchProjects();
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
           email: cleanEmail,
@@ -128,6 +134,7 @@ export default function AuthScreen() {
 
         // Check for sign-in errors
         if (error) {
+          setLoading(false);
           if (
             error.message?.toLowerCase().includes('invalid login') ||
             error.message?.toLowerCase().includes('invalid credentials') ||
@@ -144,8 +151,8 @@ export default function AuthScreen() {
         const userId = data?.user?.id || emailToUUID(cleanEmail);
         await setActiveUserId(userId);
 
-        await useProfileStore.getState().fetchProfile();
-        await useProjectStore.getState().fetchProjects();
+        // Event-driven finish: trigger completion animation & navigate immediately
+        setLoginCompleted(true);
 
         const currentProfile = useProfileStore.getState().profile;
         const hasUsername =
@@ -154,17 +161,18 @@ export default function AuthScreen() {
           currentProfile.username !== 'developer';
 
         if (hasUsername) {
-          // Returning user with existing profile -> go directly to dashboard
           router.replace('/(tabs)');
         } else {
-          // New/incomplete profile -> prompt for setup
           router.replace('/setup-profile');
         }
+
+        // Non-blocking background data hydration
+        void useProfileStore.getState().fetchProfile();
+        void useProjectStore.getState().fetchProjects();
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'Authentication failed.');
-    } finally {
       setLoading(false);
+      setErrorMessage(err.message || 'Authentication failed.');
     }
   };
 
@@ -207,6 +215,11 @@ export default function AuthScreen() {
       {loading && (
         <Modal visible={loading} animationType="fade" transparent={false}>
           <FuturisticLoadingScreen
+            completed={loginCompleted}
+            onFinish={() => {
+              setLoading(false);
+              setLoginCompleted(false);
+            }}
             durationMs={2500}
             themeMode="dark"
           />

@@ -53,7 +53,7 @@ interface ProjectStore {
   isLoading: boolean;
   currentUserId: string | null;
   setCurrentUserId: (userId: string | null) => void;
-  fetchProjects: () => Promise<void>;
+  fetchProjects: (opts?: { forceRefresh?: boolean }) => Promise<void>;
   addProject: (project: Omit<Project, 'id' | 'milestones' | 'notes' | 'lastUpdated' | 'progress'> & { id?: string }) => Promise<Project>;
   deleteProject: (projectId: string) => Promise<void>;
   restoreProject: (projectId: string) => Promise<void>;
@@ -175,6 +175,131 @@ const getCurrentUserName = async (): Promise<string> => {
 // Track the realtime channel globally within the module
 let realtimeChannel: RealtimeChannel | null = null;
 
+/** Optimized parallelized background fetch for project data */
+const fetchProjectsBackground = async (
+  userId: string,
+  storageKey: string,
+  set: (state: Partial<ProjectStore> | ((state: ProjectStore) => Partial<ProjectStore>)) => void
+) => {
+  // Parallel fetch: 1) owned projects, 2) shared project memberships
+  const [ownedRes, membershipsRes] = await Promise.all([
+    supabase
+      .from('projects')
+      .select('id, name, version, description, status, tech_stack, deadline, progress, repo_url, priority, last_updated, notes, is_completed, is_deleted, is_pinned, user_id, invite_code')
+      .eq('user_id', userId),
+    supabase
+      .from('project_members')
+      .select('project_id')
+      .eq('user_id', userId),
+  ]);
+
+  const ownedProjects = ownedRes.data || [];
+  const sharedProjectIds = (membershipsRes.data || []).map((m: any) => m.project_id);
+
+  let sharedProjects: any[] = [];
+  if (sharedProjectIds.length > 0) {
+    const { data } = await supabase
+      .from('projects')
+      .select('id, name, version, description, status, tech_stack, deadline, progress, repo_url, priority, last_updated, notes, is_completed, is_deleted, is_pinned, user_id, invite_code')
+      .in('id', sharedProjectIds);
+    sharedProjects = data || [];
+  }
+
+  const allDbProjects = [...ownedProjects, ...sharedProjects];
+
+  if (allDbProjects.length === 0) {
+    set({ isLoading: false });
+    return;
+  }
+
+  const projectIds = allDbProjects.map((p: any) => p.id);
+  const ownerIds = [...new Set(sharedProjects.map((p: any) => p.user_id?.toString()))].filter(Boolean);
+
+  // Parallel fetch: 1) milestones, 2) members, 3) owner profiles
+  const [milestonesRes, membersRes, ownerProfilesRes] = await Promise.all([
+    supabase
+      .from('milestones')
+      .select('id, project_id, title, completed, completed_by, added_by')
+      .in('project_id', projectIds),
+    supabase
+      .from('project_members')
+      .select('id, project_id, user_id, role, joined_at')
+      .in('project_id', projectIds),
+    ownerIds.length > 0
+      ? supabase.from('profiles').select('id, name').in('id', ownerIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const dbMilestones = milestonesRes.data || [];
+  const allMembers = membersRes.data || [];
+  const ownerProfiles = ownerProfilesRes.data || [];
+
+  const memberUserIds = [...new Set(allMembers.map((m: any) => m.user_id))].filter(Boolean);
+  let memberProfiles: any[] = [];
+  if (memberUserIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, name')
+      .in('id', memberUserIds);
+    memberProfiles = profiles || [];
+  }
+
+  const profileMap = new Map<string, string>();
+  [...memberProfiles, ...ownerProfiles].forEach((p: any) => {
+    if (p?.id) profileMap.set(p.id, p.name || 'Developer');
+  });
+
+  const formattedProjects: Project[] = allDbProjects.map((row: any) => {
+    const projectMilestones = (dbMilestones || [])
+      .filter((m: any) => m.project_id === row.id)
+      .map((m: any) => ({
+        id: m.id,
+        title: m.title,
+        completed: m.completed ?? false,
+        completedBy: m.completed_by || undefined,
+        addedBy: m.added_by || undefined,
+      }));
+
+    const projectMembers: ProjectMember[] = (allMembers || [])
+      .filter((m: any) => m.project_id === row.id)
+      .map((m: any) => ({
+        id: m.id,
+        userId: m.user_id,
+        role: m.role as MemberRole,
+        name: profileMap.get(m.user_id) || 'Developer',
+        joinedAt: m.joined_at,
+      }));
+
+    const isShared = row.user_id !== userId;
+
+    return {
+      id: row.id,
+      name: row.name,
+      version: row.version || '',
+      description: row.description || '',
+      status: row.status as ProjectStatus,
+      techStack: row.tech_stack || [],
+      deadline: row.deadline || '',
+      progress: row.progress ?? 0,
+      repoUrl: row.repo_url || '',
+      priority: row.priority as Priority,
+      lastUpdated: row.last_updated || 'recently',
+      notes: row.notes || '',
+      isCompleted: row.is_completed ?? false,
+      isDeleted: row.is_deleted ?? false,
+      isPinned: row.is_pinned ?? false,
+      milestones: projectMilestones,
+      inviteCode: row.invite_code || undefined,
+      members: projectMembers,
+      isShared,
+      ownerName: isShared ? (profileMap.get(row.user_id?.toString()) || 'Developer') : undefined,
+    };
+  });
+
+  await saveToLocalStorage(userId, formattedProjects);
+  set({ projects: formattedProjects, isLoading: false });
+};
+
 export const useProjectStore = create<ProjectStore>((set, get) => ({
   projects: [],
   isLoading: false,
@@ -188,164 +313,41 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     set({ projects: [], currentUserId: null });
   },
 
-  fetchProjects: async () => {
-    set({ isLoading: true });
+  fetchProjects: async (opts?: { forceRefresh?: boolean }) => {
     try {
       const userId = await getActiveUserId();
       set({ currentUserId: userId });
 
       const storageKey = getProjectStorageKey(userId);
 
-      // 1. Fetch owned projects
-      const { data: ownedProjects } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('user_id', userId);
-
-      // 2. Fetch shared projects (where user is a member)
-      const { data: memberships } = await supabase
-        .from('project_members')
-        .select('project_id')
-        .eq('user_id', userId);
-
-      const sharedProjectIds = (memberships || []).map((m: any) => m.project_id);
-
-      let sharedProjects: any[] = [];
-      if (sharedProjectIds.length > 0) {
-        const { data } = await supabase
-          .from('projects')
-          .select('*')
-          .in('id', sharedProjectIds);
-        sharedProjects = data || [];
-      }
-
-      // Combine both sets
-      const allDbProjects = [
-        ...(ownedProjects || []),
-        ...sharedProjects,
-      ];
-
-      if (allDbProjects.length > 0) {
-        const projectIds = allDbProjects.map((p: any) => p.id);
-        const { data: dbMilestones } = await supabase
-          .from('milestones')
-          .select('*')
-          .in('project_id', projectIds);
-
-        // Fetch members for all projects
-        const { data: allMembers } = await supabase
-          .from('project_members')
-          .select('*')
-          .in('project_id', projectIds);
-
-        // Fetch member profiles
-        const memberUserIds = [...new Set((allMembers || []).map((m: any) => m.user_id))];
-        let memberProfiles: any[] = [];
-        if (memberUserIds.length > 0) {
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('id, name')
-            .in('id', memberUserIds);
-          memberProfiles = profiles || [];
-        }
-
-        // Fetch owner profiles for shared projects
-        const ownerIds = [...new Set(sharedProjects.map((p: any) => p.user_id?.toString()))];
-        let ownerProfiles: any[] = [];
-        if (ownerIds.length > 0) {
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('id, name')
-            .in('id', ownerIds);
-          ownerProfiles = profiles || [];
-        }
-
-        const profileMap = new Map<string, string>();
-        [...memberProfiles, ...ownerProfiles].forEach((p: any) => {
-          profileMap.set(p.id, p.name || 'Developer');
-        });
-
-        const formattedProjects: Project[] = allDbProjects.map((row: any) => {
-          const projectMilestones = (dbMilestones || [])
-            .filter((m: any) => m.project_id === row.id)
-            .map((m: any) => ({
-              id: m.id,
-              title: m.title,
-              completed: m.completed ?? false,
-              completedBy: m.completed_by || undefined,
-              addedBy: m.added_by || undefined,
-            }));
-
-          const projectMembers: ProjectMember[] = (allMembers || [])
-            .filter((m: any) => m.project_id === row.id)
-            .map((m: any) => ({
-              id: m.id,
-              userId: m.user_id,
-              role: m.role as MemberRole,
-              name: profileMap.get(m.user_id) || 'Developer',
-              joinedAt: m.joined_at,
-            }));
-
-          const isShared = row.user_id !== userId;
-
-          return {
-            id: row.id,
-            name: row.name,
-            version: row.version || '',
-            description: row.description || '',
-            status: row.status as ProjectStatus,
-            techStack: row.tech_stack || [],
-            deadline: row.deadline || '',
-            progress: row.progress ?? 0,
-            repoUrl: row.repo_url || '',
-            priority: row.priority as Priority,
-            lastUpdated: row.last_updated || 'recently',
-            notes: row.notes || '',
-            isCompleted: row.is_completed ?? false,
-            isDeleted: row.is_deleted ?? false,
-            isPinned: row.is_pinned ?? false,
-            milestones: projectMilestones,
-            inviteCode: row.invite_code || undefined,
-            members: projectMembers,
-            isShared,
-            ownerName: isShared ? (profileMap.get(row.user_id?.toString()) || 'Developer') : undefined,
-          };
-        });
-
-        await saveToLocalStorage(userId, formattedProjects);
-        set({ projects: formattedProjects, isLoading: false });
-        return;
-      }
-
-      // Supabase returned empty — user has no projects yet
-      // Still attempt loading from local storage in case of offline scenario
+      // 1. Immediately render local cached projects if available
       const localData = await safeStorage.getItem(storageKey);
+      let hasLocal = false;
       if (localData) {
-        const parsed = JSON.parse(localData);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          set({ projects: parsed, isLoading: false });
-          return;
-        }
-      }
-
-      // New user with no projects — show empty list (never show mock data)
-      set({ projects: [], isLoading: false });
-    } catch (err) {
-      try {
-        const userId = await getActiveUserId();
-        const localData = await safeStorage.getItem(getProjectStorageKey(userId));
-        if (localData) {
+        try {
           const parsed = JSON.parse(localData);
           if (Array.isArray(parsed) && parsed.length > 0) {
             set({ projects: parsed, isLoading: false });
-            return;
+            hasLocal = true;
           }
+        } catch {
+          // Fallback if cache parsing fails
         }
-      } catch (e) {
-        // ignore
       }
-      // Error state — show empty list, not shared mock data
-      set({ projects: [], isLoading: false });
+
+      if (!hasLocal) {
+        set({ isLoading: true });
+      }
+
+      if (hasLocal && !opts?.forceRefresh && get().projects.length > 0) {
+        fetchProjectsBackground(userId, storageKey, set).catch(() => {});
+        return;
+      }
+
+      await fetchProjectsBackground(userId, storageKey, set);
+    } catch (err) {
+      console.error('Error fetching projects:', err);
+      set({ isLoading: false });
     }
   },
 

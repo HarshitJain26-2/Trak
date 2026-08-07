@@ -28,7 +28,7 @@ export interface Profile {
 interface ProfileStore {
   profile: Profile;
   isLoading: boolean;
-  fetchProfile: () => Promise<void>;
+  fetchProfile: (forceRefresh?: boolean) => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ success: boolean; error?: string }>;
   checkUsernameAvailable: (username: string) => Promise<boolean>;
   addSkill: (skill: string) => Promise<void>;
@@ -73,24 +73,39 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     set({ profile: DEFAULT_PROFILE, isLoading: false });
   },
 
-  fetchProfile: async () => {
-    set({ isLoading: true });
+  fetchProfile: async (forceRefresh?: boolean) => {
     try {
       const userId = await getActiveUserId();
       const storageKey = getProfileStorageKey(userId);
 
-      // First attempt loading from local storage
+      // First attempt loading from local storage immediately
       const localData = await safeStorage.getItem(storageKey);
+      let hasLocal = false;
       if (localData) {
-        const parsed = JSON.parse(localData);
-        if (parsed && typeof parsed === 'object') {
-          set({ profile: { ...DEFAULT_PROFILE, ...parsed }, isLoading: false });
+        try {
+          const parsed = JSON.parse(localData);
+          if (parsed && typeof parsed === 'object') {
+            set({ profile: { ...DEFAULT_PROFILE, ...parsed }, isLoading: false });
+            hasLocal = true;
+          }
+        } catch {
+          // Fallback if local storage parse fails
         }
+      }
+
+      // If we don't have local data, set loading state
+      if (!hasLocal) {
+        set({ isLoading: true });
+      }
+
+      // If we have local data and not forcing refresh, return cached state immediately
+      if (hasLocal && !forceRefresh) {
+        return;
       }
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, name, username, email, bio, role, location, avatar_url, github_url, company, skills, social_links, created_at')
         .eq('id', userId)
         .single();
 
