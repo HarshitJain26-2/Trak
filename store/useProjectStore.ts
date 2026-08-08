@@ -262,10 +262,19 @@ const fetchProjectsBackground = async (
   ]);
 
   const ownedProjects = ownedRes.data || [];
+  const hasMembershipsData = Array.isArray(membershipsRes.data);
   const dbSharedProjectIds = (membershipsRes.data || []).map((m: any) => m.project_id);
 
-  // Combine DB shared project IDs with locally persisted shared project IDs
-  const sharedProjectIds = [...new Set([...dbSharedProjectIds, ...localSharedIds])];
+  // If online query succeeded, dbSharedProjectIds is the authoritative source of truth from Supabase.
+  // If offline/error, fallback to localSharedIds.
+  const sharedProjectIds = hasMembershipsData
+    ? dbSharedProjectIds
+    : localSharedIds;
+
+  // Sync local storage with current authoritative shared project IDs
+  if (hasMembershipsData) {
+    await saveSharedIdsToLocalStorage(userId, dbSharedProjectIds);
+  }
 
   let sharedProjects: any[] = [];
   if (sharedProjectIds.length > 0) {
