@@ -70,3 +70,12 @@ export const getActiveUserId = async (): Promise<string> => {
   }
   return deviceId;
 };
+
+export const getDeviceId = async (): Promise<string> => {
+  let deviceId = await safeStorage.getItem(DEVICE_ID_KEY);
+  if (!deviceId) {
+    deviceId = generateUUID();
+    await safeStorage.setItem(DEVICE_ID_KEY, deviceId);
+  }
+  return deviceId;
+};

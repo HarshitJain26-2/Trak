@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '@/services/supabase';
 import { safeStorage } from '@/services/storage';
-import { getActiveUserId, emailToUUID } from '@/utils/deviceUser';
+import { getActiveUserId, emailToUUID, getDeviceId } from '@/utils/deviceUser';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
 export type ProjectStatus = 'active' | 'blocked' | 'idle' | 'warning';
@@ -237,9 +237,13 @@ const fetchProjectsBackground = async (
   const inMemoryPins = get ? get().projects.filter((p) => p.isPinned).map((p) => p.id) : [];
   const pinnedSet = new Set<string>([...storedPinnedIds, ...inMemoryPins]);
 
-  // Construct list of user IDs to query (Auth user.id AND deterministic emailToUUID if present)
+  // Construct list of user IDs to query (Auth user.id, emailToUUID, and deviceId)
   const userIdsToQuery = [userId];
   try {
+    const devId = await getDeviceId();
+    if (devId && !userIdsToQuery.includes(devId)) {
+      userIdsToQuery.push(devId);
+    }
     const { data: { user } } = await supabase.auth.getUser();
     if (user?.email) {
       const altId = emailToUUID(user.email);
@@ -362,6 +366,33 @@ const fetchProjectsBackground = async (
   }
 
   if (allDbProjects.length === 0) {
+    if (get && get().projects.length > 0) {
+      // Re-sync local projects to Supabase under current user ID to prevent data loss
+      for (const p of get().projects) {
+        try {
+          await supabase.from('projects').upsert({
+            id: p.id,
+            user_id: userId,
+            name: p.name,
+            version: p.version,
+            description: p.description,
+            status: p.status,
+            tech_stack: p.techStack,
+            deadline: p.deadline,
+            progress: p.progress,
+            repo_url: p.repoUrl,
+            priority: p.priority,
+            last_updated: p.lastUpdated,
+            notes: p.notes,
+            is_completed: p.isCompleted ?? false,
+            is_deleted: p.isDeleted ?? false,
+          });
+        } catch (_) {}
+      }
+      set({ isLoading: false });
+      return;
+    }
+
     await saveToLocalStorage(userId, []);
     set({ projects: [], isLoading: false });
     return;
@@ -485,23 +516,35 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const pinnedIds = await getPinnedIdsFromLocalStorage(userId);
       const pinnedSet = new Set(pinnedIds);
 
-      // 1. Immediately render local cached projects if available
-      const localData = await safeStorage.getItem(storageKey);
-      let hasLocal = false;
-      if (localData) {
+      // 1. Immediately render local cached projects from all possible local storage keys
+      const devId = await getDeviceId();
+      const storageKeys = [...new Set([storageKey, getProjectStorageKey(devId), 'trak_local_projects_default'])];
+
+      let recoveredProjects: Project[] = [];
+      for (const sk of storageKeys) {
         try {
-          const parsed = JSON.parse(localData);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            const projectsWithPins = parsed.map((p: Project) => ({
-              ...p,
-              isPinned: pinnedSet.has(p.id) || p.isPinned || false,
-            }));
-            set({ projects: projectsWithPins, isLoading: false });
-            hasLocal = true;
+          const raw = await safeStorage.getItem(sk);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              for (const p of parsed) {
+                if (!recoveredProjects.some((rp) => rp.id === p.id)) {
+                  recoveredProjects.push(p);
+                }
+              }
+            }
           }
-        } catch {
-          // Fallback if cache parsing fails
-        }
+        } catch (_) {}
+      }
+
+      let hasLocal = false;
+      if (recoveredProjects.length > 0) {
+        const projectsWithPins = recoveredProjects.map((p: Project) => ({
+          ...p,
+          isPinned: pinnedSet.has(p.id) || p.isPinned || false,
+        }));
+        set({ projects: projectsWithPins, isLoading: false });
+        hasLocal = true;
       }
 
       if (!hasLocal) {
