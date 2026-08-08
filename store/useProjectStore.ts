@@ -265,7 +265,16 @@ const fetchProjectsBackground = async (
       .in('user_id', userIdsToQuery),
   ]);
 
-  const ownedProjects = ownedRes.data || [];
+  let ownedProjects = ownedRes.data || [];
+  if (ownedProjects.length === 0) {
+    const { data: fallbackProjects } = await supabase
+      .from('projects')
+      .select('id, name, version, description, status, tech_stack, deadline, progress, repo_url, priority, last_updated, notes, is_completed, is_deleted, is_pinned, user_id, invite_code');
+    if (fallbackProjects && fallbackProjects.length > 0) {
+      ownedProjects = fallbackProjects;
+    }
+  }
+
   const hasMembershipsData = Array.isArray(membershipsRes.data);
   const dbSharedProjectIds = (membershipsRes.data || []).map((m: any) => m.project_id);
 
@@ -393,36 +402,8 @@ const fetchProjectsBackground = async (
       return;
     }
 
-    const fallbackProjects = MOCK_PROJECTS.map((p) => ({
-      ...p,
-      inviteCode: generateShortCode(),
-    }));
-    await saveToLocalStorage(userId, fallbackProjects);
-    set({ projects: fallbackProjects, isLoading: false });
-
-    // Sync fallback projects to Supabase under current userId
-    for (const p of fallbackProjects) {
-      try {
-        await supabase.from('projects').upsert({
-          id: p.id,
-          user_id: userId,
-          name: p.name,
-          version: p.version,
-          description: p.description,
-          status: p.status,
-          tech_stack: p.techStack,
-          deadline: p.deadline,
-          progress: p.progress,
-          repo_url: p.repoUrl,
-          priority: p.priority,
-          last_updated: p.lastUpdated,
-          notes: p.notes,
-          is_completed: false,
-          is_deleted: false,
-          invite_code: p.inviteCode,
-        });
-      } catch (_) {}
-    }
+    await saveToLocalStorage(userId, []);
+    set({ projects: [], isLoading: false });
     return;
   }
 
@@ -544,9 +525,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const pinnedIds = await getPinnedIdsFromLocalStorage(userId);
       const pinnedSet = new Set(pinnedIds);
 
-      // 1. Immediately render local cached projects from all possible local storage keys
+      // 1. Immediately scan ALL local storage keys for cached projects
+      const allKeys = await safeStorage.getAllKeys();
+      const projectKeys = allKeys.filter(
+        (k) => k.startsWith('trak_local_projects_') || k === 'trak_projects' || k === 'trak_local_projects_default'
+      );
       const devId = await getDeviceId();
-      const storageKeys = [...new Set([storageKey, getProjectStorageKey(devId), 'trak_local_projects_default'])];
+      const storageKeys = [...new Set([storageKey, getProjectStorageKey(devId), ...projectKeys])];
 
       let recoveredProjects: Project[] = [];
       for (const sk of storageKeys) {
@@ -565,19 +550,15 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         } catch (_) {}
       }
 
-      if (recoveredProjects.length === 0) {
-        recoveredProjects = MOCK_PROJECTS.map((p) => ({
+      let hasLocal = false;
+      if (recoveredProjects.length > 0) {
+        const projectsWithPins = recoveredProjects.map((p: Project) => ({
           ...p,
-          inviteCode: generateShortCode(),
+          isPinned: pinnedSet.has(p.id) || p.isPinned || false,
         }));
+        set({ projects: projectsWithPins, isLoading: false });
+        hasLocal = true;
       }
-
-      const projectsWithPins = recoveredProjects.map((p: Project) => ({
-        ...p,
-        isPinned: pinnedSet.has(p.id) || p.isPinned || false,
-      }));
-      set({ projects: projectsWithPins, isLoading: false });
-      const hasLocal = true;
 
       if (!hasLocal) {
         set({ isLoading: true });

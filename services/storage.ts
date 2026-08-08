@@ -60,4 +60,20 @@ export const safeStorage = {
       // Silently handle
     }
   },
+
+  getAllKeys: async (): Promise<string[]> => {
+    try {
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
+        return Object.keys(window.localStorage);
+      }
+      const asyncStorage = getAsyncStorage();
+      if (asyncStorage && typeof asyncStorage.getAllKeys === 'function') {
+        const keys = await asyncStorage.getAllKeys();
+        return Array.from(new Set([...keys, ...Object.keys(memoryStorage)]));
+      }
+      return Object.keys(memoryStorage);
+    } catch (e) {
+      return Object.keys(memoryStorage);
+    }
+  },
 };
