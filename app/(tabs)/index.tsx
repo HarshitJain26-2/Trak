@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, FlatList, Pressable, Animated, Platform, TextIn
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Colors, useThemeColors } from '@/constants/colors';
 import { useProjectStore, Project } from '@/store/useProjectStore';
 import { ProjectCard } from '@/components/project/ProjectCard';
@@ -14,13 +14,20 @@ import { MemberAvatar } from '@/components/common/MemberAvatar';
 export default function DashboardScreen() {
   const router = useRouter();
   const colors = useThemeColors();
-  const { projects, joinProjectByCode, subscribeToRealtime, unsubscribeFromRealtime } = useProjectStore();
+  const { projects, fetchProjects, joinProjectByCode, subscribeToRealtime, unsubscribeFromRealtime } = useProjectStore();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showJoinModal, setShowJoinModal] = useState(false);
 
-  // Subscribe to realtime updates when dashboard mounts
+  // Fetch projects and subscribe to realtime updates on mount / focus
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchProjects();
+    }, [fetchProjects])
+  );
+
   useEffect(() => {
+    fetchProjects();
     subscribeToRealtime();
     return () => unsubscribeFromRealtime();
   }, []);

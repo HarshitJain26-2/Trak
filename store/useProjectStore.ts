@@ -224,6 +224,32 @@ const getCurrentUserName = async (): Promise<string> => {
 // Track the realtime channel globally within the module
 let realtimeChannel: RealtimeChannel | null = null;
 
+const getLocalProjectsFromStorage = async (): Promise<Project[]> => {
+  try {
+    const allKeys = await safeStorage.getAllKeys();
+    const projectKeys = allKeys.filter(
+      (k) => k.startsWith('trak_local_projects_') || k === 'trak_projects' || k === 'trak_local_projects_default'
+    );
+    let recovered: Project[] = [];
+    for (const sk of projectKeys) {
+      const raw = await safeStorage.getItem(sk);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          for (const p of parsed) {
+            if (!recovered.some((rp) => rp.id === p.id)) {
+              recovered.push(p);
+            }
+          }
+        }
+      }
+    }
+    return recovered;
+  } catch {
+    return [];
+  }
+};
+
 /** Optimized parallelized background fetch for project data */
 const fetchProjectsBackground = async (
   userId: string,
@@ -375,9 +401,10 @@ const fetchProjectsBackground = async (
   }
 
   if (allDbProjects.length === 0) {
-    if (get && get().projects.length > 0) {
+    const existingLocal = (get && get().projects.length > 0) ? get().projects : await getLocalProjectsFromStorage();
+    if (existingLocal.length > 0) {
       // Re-sync local projects to Supabase under current user ID to prevent data loss
-      for (const p of get().projects) {
+      for (const p of existingLocal) {
         try {
           await supabase.from('projects').upsert({
             id: p.id,
@@ -398,7 +425,8 @@ const fetchProjectsBackground = async (
           });
         } catch (_) {}
       }
-      set({ isLoading: false });
+      set({ projects: existingLocal, isLoading: false });
+      await saveToLocalStorage(userId, existingLocal);
       return;
     }
 
