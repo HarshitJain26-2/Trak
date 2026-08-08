@@ -356,6 +356,11 @@ const fetchProjectsBackground = async (
 
     const isShared = !userIdsToQuery.includes(row.user_id);
     const isPinned = pinnedSet.has(row.id.toString()) || (row.is_pinned ?? false);
+    const inviteCode = row.invite_code || generateShortCode();
+
+    if (!row.invite_code && !isShared) {
+      void Promise.resolve(supabase.from('projects').update({ invite_code: inviteCode }).eq('id', row.id)).catch(() => {});
+    }
 
     return {
       id: row.id,
@@ -374,7 +379,7 @@ const fetchProjectsBackground = async (
       isDeleted: row.is_deleted ?? false,
       isPinned,
       milestones: projectMilestones,
-      inviteCode: row.invite_code || undefined,
+      inviteCode,
       members: projectMembers,
       isShared,
       ownerName: isShared ? (profileMap.get(row.user_id?.toString()) || 'Developer') : undefined,
@@ -446,6 +451,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   addProject: async (data) => {
     const userId = await getActiveUserId();
+    const inviteCode = generateShortCode();
 
     const newProject: Project = {
       ...data,
@@ -454,6 +460,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       lastUpdated: 'just now',
       milestones: [],
       notes: '',
+      inviteCode,
     };
 
     set((state) => ({ projects: [newProject, ...state.projects] }));
@@ -476,6 +483,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         notes: newProject.notes,
         is_completed: false,
         is_deleted: false,
+        invite_code: inviteCode,
       };
 
       const { error } = await supabase.from('projects').upsert(insertData);
@@ -775,58 +783,72 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         return { success: false, error: 'Please enter a valid invite code' };
       }
 
-      // 1. Normalize code (trim, uppercase, remove inner spaces, prepend TRK- if missing)
-      let cleanedCode = code.trim().toUpperCase().replace(/\s+/g, '');
-      if (!cleanedCode.startsWith('TRK-') && cleanedCode.length === 4) {
-        cleanedCode = `TRK-${cleanedCode}`;
-      }
+      // 1. Normalize code (trim, uppercase, remove inner spaces)
+      const rawCode = code.trim().toUpperCase().replace(/\s+/g, '');
+      const shortCode = rawCode.replace(/^TRK-/, '');
+      const fullCode = `TRK-${shortCode}`;
 
+      const uniqueCodesToTry = [...new Set([fullCode, shortCode, rawCode])];
       const userId = await getActiveUserId();
 
-      // 2. Try RPC function first
+      // 2. Try RPC function with each code variation
       let rpcError: string | null = null;
-      try {
-        const { data, error } = await supabase.rpc('join_project_by_invite_code', {
-          code: cleanedCode,
-          p_user_id: userId,
-        });
+      for (const tryCode of uniqueCodesToTry) {
+        try {
+          const { data, error } = await supabase.rpc('join_project_by_invite_code', {
+            code: tryCode,
+            p_user_id: userId,
+          });
 
-        if (!error && data) {
-          await get().fetchProjects({ forceRefresh: true });
-          const joinedProject = get().projects.find((p) => p.id === data);
-          return {
-            success: true,
-            projectName: joinedProject?.name || 'Project',
-          };
+          if (!error && data) {
+            await get().fetchProjects({ forceRefresh: true });
+            const joinedProject = get().projects.find((p) => p.id === data);
+            return {
+              success: true,
+              projectName: joinedProject?.name || 'Project',
+            };
+          }
+          if (error) {
+            rpcError = error.message;
+          }
+        } catch (e: any) {
+          rpcError = e?.message || 'RPC Error';
         }
-        if (error) {
-          rpcError = error.message;
-        }
-      } catch (e: any) {
-        rpcError = e?.message || 'RPC Error';
       }
 
-      // 3. Fallback: Direct database query to find project by invite code (case-insensitive & prefix-flexible)
-      const possibleCodes = [cleanedCode];
-      if (cleanedCode.startsWith('TRK-')) {
-        possibleCodes.push(cleanedCode.replace('TRK-', ''));
+      // 3. Fallback: Lookup project via SECURITY DEFINER lookup_project_by_invite_code or direct select
+      let targetProject: { id: string; name: string; user_id: string } | null = null;
+
+      for (const tryCode of uniqueCodesToTry) {
+        try {
+          const { data: lookupData } = await supabase.rpc('lookup_project_by_invite_code', { code: tryCode });
+          if (lookupData && lookupData.length > 0) {
+            targetProject = {
+              id: lookupData[0].project_id,
+              name: lookupData[0].project_name,
+              user_id: lookupData[0].owner_id || lookupData[0].user_id || '',
+            };
+            break;
+          }
+        } catch (_) {}
       }
 
-      const { data: projectMatches } = await supabase
-        .from('projects')
-        .select('id, name, user_id, invite_code')
-        .in('invite_code', possibleCodes);
+      if (!targetProject) {
+        const { data: projectMatches } = await supabase
+          .from('projects')
+          .select('id, name, user_id, invite_code')
+          .in('invite_code', uniqueCodesToTry);
 
-      let targetProject = (projectMatches || [])[0];
+        targetProject = (projectMatches || [])[0] || null;
+      }
 
-      // If still not found, try ilike case-insensitive search
       if (!targetProject) {
         const { data: ilikeMatches } = await supabase
           .from('projects')
           .select('id, name, user_id, invite_code')
-          .ilike('invite_code', cleanedCode)
+          .ilike('invite_code', fullCode)
           .limit(1);
-        targetProject = (ilikeMatches || [])[0];
+        targetProject = (ilikeMatches || [])[0] || null;
       }
 
       if (!targetProject) {

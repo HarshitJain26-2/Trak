@@ -116,10 +116,12 @@ BEGIN
     RAISE EXCEPTION 'User ID required';
   END IF;
 
-  -- Find the project
+  -- Find the project (Case-insensitive & prefix-flexible)
   SELECT id INTO _project_id
   FROM public.projects
-  WHERE invite_code = code;
+  WHERE UPPER(TRIM(invite_code)) = UPPER(TRIM(code))
+     OR UPPER(TRIM(REPLACE(invite_code, 'TRK-', ''))) = UPPER(TRIM(REPLACE(code, 'TRK-', '')))
+  LIMIT 1;
 
   IF _project_id IS NULL THEN
     RAISE EXCEPTION 'Invalid invite code';
