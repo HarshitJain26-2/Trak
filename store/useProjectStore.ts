@@ -362,7 +362,8 @@ const fetchProjectsBackground = async (
   }
 
   if (allDbProjects.length === 0) {
-    set({ isLoading: false });
+    await saveToLocalStorage(userId, []);
+    set({ projects: [], isLoading: false });
     return;
   }
 
