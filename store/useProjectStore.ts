@@ -712,30 +712,113 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }
   },
 
-  joinProjectByCode: async (code) => {
+  joinProjectByCode: async (code: string) => {
     try {
-      const trimmedCode = code.trim().toUpperCase();
-      const userId = await getActiveUserId();
-
-      // Use the RPC function to join
-      const { data, error } = await supabase.rpc('join_project_by_invite_code', {
-        code: trimmedCode,
-        p_user_id: userId,
-      });
-
-      if (error) {
-        return { success: false, error: error.message };
+      if (!code || !code.trim()) {
+        return { success: false, error: 'Please enter a valid invite code' };
       }
 
-      // Refresh projects to include the newly joined project
-      await get().fetchProjects();
+      // 1. Normalize code (trim, uppercase, remove inner spaces, prepend TRK- if missing)
+      let cleanedCode = code.trim().toUpperCase().replace(/\s+/g, '');
+      if (!cleanedCode.startsWith('TRK-') && cleanedCode.length === 4) {
+        cleanedCode = `TRK-${cleanedCode}`;
+      }
 
-      // Find the joined project name
-      const joinedProject = get().projects.find((p) => p.id === data);
+      const userId = await getActiveUserId();
+
+      // 2. Try RPC function first
+      let rpcError: string | null = null;
+      try {
+        const { data, error } = await supabase.rpc('join_project_by_invite_code', {
+          code: cleanedCode,
+          p_user_id: userId,
+        });
+
+        if (!error && data) {
+          await get().fetchProjects({ forceRefresh: true });
+          const joinedProject = get().projects.find((p) => p.id === data);
+          return {
+            success: true,
+            projectName: joinedProject?.name || 'Project',
+          };
+        }
+        if (error) {
+          rpcError = error.message;
+        }
+      } catch (e: any) {
+        rpcError = e?.message || 'RPC Error';
+      }
+
+      // 3. Fallback: Direct database query to find project by invite code (case-insensitive & prefix-flexible)
+      const possibleCodes = [cleanedCode];
+      if (cleanedCode.startsWith('TRK-')) {
+        possibleCodes.push(cleanedCode.replace('TRK-', ''));
+      }
+
+      const { data: projectMatches } = await supabase
+        .from('projects')
+        .select('id, name, user_id, invite_code')
+        .in('invite_code', possibleCodes);
+
+      let targetProject = (projectMatches || [])[0];
+
+      // If still not found, try ilike case-insensitive search
+      if (!targetProject) {
+        const { data: ilikeMatches } = await supabase
+          .from('projects')
+          .select('id, name, user_id, invite_code')
+          .ilike('invite_code', cleanedCode)
+          .limit(1);
+        targetProject = (ilikeMatches || [])[0];
+      }
+
+      if (!targetProject) {
+        // Check for specific RPC error messages
+        if (rpcError && rpcError.toLowerCase().includes('already a member')) {
+          return { success: false, error: 'You are already a member of this project' };
+        }
+        if (rpcError && rpcError.toLowerCase().includes('owner')) {
+          return { success: false, error: 'You are the owner of this project' };
+        }
+        return { success: false, error: 'Invalid invite code. Please check the code and try again.' };
+      }
+
+      // 4. Check if user is the project owner
+      if (targetProject.user_id === userId) {
+        return { success: false, error: 'You are the owner of this project' };
+      }
+
+      // 5. Check if user is already a member
+      const { data: existingMember } = await supabase
+        .from('project_members')
+        .select('id')
+        .eq('project_id', targetProject.id)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (existingMember) {
+        return { success: false, error: 'You are already a member of this project' };
+      }
+
+      // 6. Insert new member into project_members
+      const memberId = `pm_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      const { error: insertError } = await supabase.from('project_members').insert({
+        id: memberId,
+        project_id: targetProject.id,
+        user_id: userId,
+        role: 'member',
+      });
+
+      if (insertError) {
+        return { success: false, error: insertError.message || 'Failed to join project' };
+      }
+
+      // 7. Refresh project store with forceRefresh
+      await get().fetchProjects({ forceRefresh: true });
 
       return {
         success: true,
-        projectName: joinedProject?.name || 'Project',
+        projectName: targetProject.name,
       };
     } catch (err: any) {
       return { success: false, error: err?.message || 'Failed to join project' };
