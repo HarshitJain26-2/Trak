@@ -137,6 +137,30 @@ export const MOCK_PROJECTS: Project[] = [
 ];
 
 const getProjectStorageKey = (userId: string) => `trak_local_projects_${userId}`;
+const getPinnedStorageKey = (userId: string) => `trak_pinned_projects_${userId}`;
+
+const getPinnedIdsFromLocalStorage = async (userId: string): Promise<string[]> => {
+  try {
+    if (!userId) return [];
+    const raw = await safeStorage.getItem(getPinnedStorageKey(userId));
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+    return [];
+  } catch {
+    return [];
+  }
+};
+
+const savePinnedIdsToLocalStorage = async (userId: string, pinnedIds: string[]) => {
+  try {
+    if (!userId) return;
+    await safeStorage.setItem(getPinnedStorageKey(userId), JSON.stringify(pinnedIds));
+  } catch (err) {
+    // Silently handle fallback
+  }
+};
 
 const saveToLocalStorage = async (userId: string, projects: Project[]) => {
   try {
@@ -179,8 +203,14 @@ let realtimeChannel: RealtimeChannel | null = null;
 const fetchProjectsBackground = async (
   userId: string,
   storageKey: string,
-  set: (state: Partial<ProjectStore> | ((state: ProjectStore) => Partial<ProjectStore>)) => void
+  set: (state: Partial<ProjectStore> | ((state: ProjectStore) => Partial<ProjectStore>)) => void,
+  get?: () => ProjectStore
 ) => {
+  // Load pinned project IDs stored locally as well as in-memory state
+  const storedPinnedIds = await getPinnedIdsFromLocalStorage(userId);
+  const inMemoryPins = get ? get().projects.filter((p) => p.isPinned).map((p) => p.id) : [];
+  const pinnedSet = new Set<string>([...storedPinnedIds, ...inMemoryPins]);
+
   // Parallel fetch: 1) owned projects, 2) shared project memberships
   const [ownedRes, membershipsRes] = await Promise.all([
     supabase
@@ -271,6 +301,7 @@ const fetchProjectsBackground = async (
       }));
 
     const isShared = row.user_id !== userId;
+    const isPinned = pinnedSet.has(row.id.toString()) || (row.is_pinned ?? false);
 
     return {
       id: row.id,
@@ -287,7 +318,7 @@ const fetchProjectsBackground = async (
       notes: row.notes || '',
       isCompleted: row.is_completed ?? false,
       isDeleted: row.is_deleted ?? false,
-      isPinned: row.is_pinned ?? false,
+      isPinned,
       milestones: projectMilestones,
       inviteCode: row.invite_code || undefined,
       members: projectMembers,
@@ -296,6 +327,8 @@ const fetchProjectsBackground = async (
     };
   });
 
+  const finalPinnedIds = formattedProjects.filter((p) => p.isPinned).map((p) => p.id);
+  await savePinnedIdsToLocalStorage(userId, finalPinnedIds);
   await saveToLocalStorage(userId, formattedProjects);
   set({ projects: formattedProjects, isLoading: false });
 };
@@ -319,6 +352,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       set({ currentUserId: userId });
 
       const storageKey = getProjectStorageKey(userId);
+      const pinnedIds = await getPinnedIdsFromLocalStorage(userId);
+      const pinnedSet = new Set(pinnedIds);
 
       // 1. Immediately render local cached projects if available
       const localData = await safeStorage.getItem(storageKey);
@@ -327,7 +362,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         try {
           const parsed = JSON.parse(localData);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            set({ projects: parsed, isLoading: false });
+            const projectsWithPins = parsed.map((p: Project) => ({
+              ...p,
+              isPinned: pinnedSet.has(p.id) || p.isPinned || false,
+            }));
+            set({ projects: projectsWithPins, isLoading: false });
             hasLocal = true;
           }
         } catch {
@@ -340,11 +379,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       }
 
       if (hasLocal && !opts?.forceRefresh && get().projects.length > 0) {
-        fetchProjectsBackground(userId, storageKey, set).catch(() => {});
+        fetchProjectsBackground(userId, storageKey, set, get).catch(() => {});
         return;
       }
 
-      await fetchProjectsBackground(userId, storageKey, set);
+      await fetchProjectsBackground(userId, storageKey, set, get);
     } catch (err) {
       console.error('Error fetching projects:', err);
       set({ isLoading: false });
@@ -615,23 +654,28 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   togglePinProject: async (projectId) => {
     const { projects } = get();
     const userId = await getActiveUserId();
+    const target = projects.find((p) => p.id === projectId);
+    if (!target) return;
+
+    const newPinnedState = !target.isPinned;
     const updated = projects.map((p) =>
-      p.id === projectId ? { ...p, isPinned: !p.isPinned } : p
+      p.id === projectId ? { ...p, isPinned: newPinnedState } : p
     );
     set({ projects: updated });
+
     if (userId) {
+      const pinnedIds = updated.filter((p) => p.isPinned).map((p) => p.id);
+      await savePinnedIdsToLocalStorage(userId, pinnedIds);
       await saveToLocalStorage(userId, updated);
     }
-    const target = updated.find((p) => p.id === projectId);
-    if (target) {
-      try {
-        await supabase
-          .from('projects')
-          .update({ is_pinned: target.isPinned })
-          .eq('id', projectId);
-      } catch (err) {
-        // Local persistence handles pin status gracefully
-      }
+
+    try {
+      await supabase
+        .from('projects')
+        .update({ is_pinned: newPinnedState })
+        .eq('id', projectId);
+    } catch (err) {
+      // Local persistence handles pin status gracefully
     }
   },
 

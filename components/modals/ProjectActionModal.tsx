@@ -27,7 +27,7 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
 }) => {
   const colors = useThemeColors();
   const router = useRouter();
-  const { deleteProject, restoreProject, permanentlyDeleteProject, markCompleted, unmarkCompleted } =
+  const { deleteProject, restoreProject, permanentlyDeleteProject, markCompleted, unmarkCompleted, togglePinProject } =
     useProjectStore();
   const { dialogProps, ask } = useConfirmDialog();
   const [warningModalVisible, setWarningModalVisible] = React.useState(false);
@@ -36,10 +36,17 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
 
   const isDeleted = !!project?.isDeleted;
   const isCompleted = !!project?.isCompleted;
+  const isPinned = !!project?.isPinned;
 
   const handleViewDetails = () => {
     onClose();
     if (project) router.push(`/project/${project.id}`);
+  };
+
+  const handleTogglePin = () => {
+    if (!project) return;
+    onClose();
+    togglePinProject(project.id);
   };
 
   const handleToggleComplete = async () => {
@@ -183,6 +190,34 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
                   </View>
                   <Feather name="chevron-right" size={16} color={`${colors.onSurfaceVariant}60`} />
                 </Pressable>
+
+                {/* Pin / Unpin Project */}
+                {!isDeleted && (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.option,
+                      { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder },
+                      pressed && { backgroundColor: `${colors.onSurfaceVariant}1A` },
+                    ]}
+                    onPress={handleTogglePin}
+                  >
+                    <View style={[styles.iconWrap, { backgroundColor: `${colors.primaryFixed}1A` }]}>
+                      <Feather
+                        name="bookmark"
+                        size={18}
+                        color={colors.primaryFixed}
+                      />
+                    </View>
+                    <View style={styles.optionContent}>
+                      <Text style={[styles.optionTitle, { color: colors.onSurface }]}>
+                        {isPinned ? 'Unpin Project' : 'Pin Project'}
+                      </Text>
+                      <Text style={[styles.optionSub, { color: colors.onSurfaceVariant }]}>
+                        {isPinned ? 'Remove from top of active deployments' : 'Keep at top of active deployments'}
+                      </Text>
+                    </View>
+                  </Pressable>
+                )}
 
                 {/* Mark Complete / Reactivate */}
                 {!isDeleted && (
