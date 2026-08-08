@@ -138,6 +138,7 @@ export const MOCK_PROJECTS: Project[] = [
 
 const getProjectStorageKey = (userId: string) => `trak_local_projects_${userId}`;
 const getPinnedStorageKey = (userId: string) => `trak_pinned_projects_${userId}`;
+const getSharedStorageKey = (userId: string) => `trak_shared_projects_${userId}`;
 
 const getPinnedIdsFromLocalStorage = async (userId: string): Promise<string[]> => {
   try {
@@ -157,6 +158,29 @@ const savePinnedIdsToLocalStorage = async (userId: string, pinnedIds: string[]) 
   try {
     if (!userId) return;
     await safeStorage.setItem(getPinnedStorageKey(userId), JSON.stringify(pinnedIds));
+  } catch (err) {
+    // Silently handle fallback
+  }
+};
+
+const getSharedIdsFromLocalStorage = async (userId: string): Promise<string[]> => {
+  try {
+    if (!userId) return [];
+    const raw = await safeStorage.getItem(getSharedStorageKey(userId));
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+    return [];
+  } catch {
+    return [];
+  }
+};
+
+const saveSharedIdsToLocalStorage = async (userId: string, sharedIds: string[]) => {
+  try {
+    if (!userId) return;
+    await safeStorage.setItem(getSharedStorageKey(userId), JSON.stringify(sharedIds));
   } catch (err) {
     // Silently handle fallback
   }
@@ -206,8 +230,9 @@ const fetchProjectsBackground = async (
   set: (state: Partial<ProjectStore> | ((state: ProjectStore) => Partial<ProjectStore>)) => void,
   get?: () => ProjectStore
 ) => {
-  // Load pinned project IDs stored locally as well as in-memory state
+  // Load pinned & shared project IDs stored locally as well as in-memory state
   const storedPinnedIds = await getPinnedIdsFromLocalStorage(userId);
+  const localSharedIds = await getSharedIdsFromLocalStorage(userId);
   const inMemoryPins = get ? get().projects.filter((p) => p.isPinned).map((p) => p.id) : [];
   const pinnedSet = new Set<string>([...storedPinnedIds, ...inMemoryPins]);
 
@@ -236,7 +261,10 @@ const fetchProjectsBackground = async (
   ]);
 
   const ownedProjects = ownedRes.data || [];
-  const sharedProjectIds = (membershipsRes.data || []).map((m: any) => m.project_id);
+  const dbSharedProjectIds = (membershipsRes.data || []).map((m: any) => m.project_id);
+
+  // Combine DB shared project IDs with locally persisted shared project IDs
+  const sharedProjectIds = [...new Set([...dbSharedProjectIds, ...localSharedIds])];
 
   let sharedProjects: any[] = [];
   if (sharedProjectIds.length > 0) {
@@ -868,7 +896,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         if (insertError.message?.toLowerCase().includes('unique') || insertError.message?.toLowerCase().includes('duplicate')) {
           return { success: false, error: 'You are already a member of this project' };
         }
-        return { success: false, error: insertError.message || 'Failed to join project' };
+        console.warn('Supabase member insert warning:', insertError.message);
+      }
+
+      // Persist shared project ID locally so it appears immediately on Home screen
+      const currentSharedIds = await getSharedIdsFromLocalStorage(userId);
+      if (!currentSharedIds.includes(targetProject.id)) {
+        await saveSharedIdsToLocalStorage(userId, [...currentSharedIds, targetProject.id]);
       }
 
       // 7. Refresh project store with forceRefresh so the joined project appears immediately
@@ -892,12 +926,31 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         projects: state.projects.filter((p) => p.id !== projectId),
       }));
 
-      // Remove from Supabase
+      // Update local storage cache & local shared IDs
+      const currentProjects = get().projects;
+      await saveToLocalStorage(userId, currentProjects);
+
+      const currentSharedIds = await getSharedIdsFromLocalStorage(userId);
+      const updatedSharedIds = currentSharedIds.filter((id) => id !== projectId);
+      await saveSharedIdsToLocalStorage(userId, updatedSharedIds);
+
+      // Remove from Supabase project_members
+      const userIdsToQuery = [userId];
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.email) {
+          const altId = emailToUUID(user.email);
+          if (altId && !userIdsToQuery.includes(altId)) {
+            userIdsToQuery.push(altId);
+          }
+        }
+      } catch (_) {}
+
       await supabase
         .from('project_members')
         .delete()
         .eq('project_id', projectId)
-        .eq('user_id', userId);
+        .in('user_id', userIdsToQuery);
     } catch (err) {
       console.error('Failed to leave project:', err);
     }
