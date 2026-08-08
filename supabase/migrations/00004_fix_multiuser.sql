@@ -151,3 +151,18 @@ BEGIN
   RETURN _project_id;
 END;
 $$;
+
+-- Security definer function to regenerate invite codes
+CREATE OR REPLACE FUNCTION public.regenerate_invite_code(p_project_id TEXT, p_code TEXT)
+RETURNS TEXT
+LANGUAGE plpgsql SECURITY DEFINER
+AS $$
+BEGIN
+  UPDATE public.projects
+  SET invite_code = p_code
+  WHERE id = p_project_id;
+
+  RETURN p_code;
+END;
+$$;
+

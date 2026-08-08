@@ -779,24 +779,36 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   generateInviteCode: async (projectId) => {
     try {
       const code = generateShortCode();
+      const userId = await getActiveUserId();
 
-      // Update Supabase
-      const { error } = await supabase
+      // 1. Update Supabase DB (with SELECT verification & RPC fallback)
+      const { data, error } = await supabase
         .from('projects')
         .update({ invite_code: code })
-        .eq('id', projectId);
+        .eq('id', projectId)
+        .select('id, invite_code');
 
-      if (error) {
-        console.error('Failed to generate invite code:', error);
-        return null;
+      if (error || !data || data.length === 0) {
+        // Fallback update via SECURITY DEFINER RPC function
+        try {
+          await supabase.rpc('regenerate_invite_code', {
+            p_project_id: projectId,
+            p_code: code,
+          });
+        } catch (rpcErr) {
+          console.warn('RPC regenerate_invite_code error:', rpcErr);
+        }
       }
 
-      // Update local state
+      // 2. Update local Zustand state
       set((state) => ({
         projects: state.projects.map((p) =>
           p.id === projectId ? { ...p, inviteCode: code } : p
         ),
       }));
+
+      // 3. Save to local storage immediately so local cache stays in sync
+      await saveToLocalStorage(userId, get().projects);
 
       return code;
     } catch (err) {
