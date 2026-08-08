@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '@/services/supabase';
 import { safeStorage } from '@/services/storage';
-import { getActiveUserId } from '@/utils/deviceUser';
+import { getActiveUserId, emailToUUID } from '@/utils/deviceUser';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
 export type ProjectStatus = 'active' | 'blocked' | 'idle' | 'warning';
@@ -211,16 +211,28 @@ const fetchProjectsBackground = async (
   const inMemoryPins = get ? get().projects.filter((p) => p.isPinned).map((p) => p.id) : [];
   const pinnedSet = new Set<string>([...storedPinnedIds, ...inMemoryPins]);
 
+  // Construct list of user IDs to query (Auth user.id AND deterministic emailToUUID if present)
+  const userIdsToQuery = [userId];
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user?.email) {
+      const altId = emailToUUID(user.email);
+      if (altId && !userIdsToQuery.includes(altId)) {
+        userIdsToQuery.push(altId);
+      }
+    }
+  } catch (_) {}
+
   // Parallel fetch: 1) owned projects, 2) shared project memberships
   const [ownedRes, membershipsRes] = await Promise.all([
     supabase
       .from('projects')
       .select('id, name, version, description, status, tech_stack, deadline, progress, repo_url, priority, last_updated, notes, is_completed, is_deleted, is_pinned, user_id, invite_code')
-      .eq('user_id', userId),
+      .in('user_id', userIdsToQuery),
     supabase
       .from('project_members')
       .select('project_id')
-      .eq('user_id', userId),
+      .in('user_id', userIdsToQuery),
   ]);
 
   const ownedProjects = ownedRes.data || [];
@@ -236,6 +248,48 @@ const fetchProjectsBackground = async (
   }
 
   const allDbProjects = [...ownedProjects, ...sharedProjects];
+
+  // Auto-sync any local projects that are not yet in Supabase
+  if (get) {
+    const currentProjects = get().projects;
+    const dbProjectIds = new Set(allDbProjects.map((p: any) => p.id));
+    const localProjectsToSync = currentProjects.filter((p) => !dbProjectIds.has(p.id));
+
+    for (const localP of localProjectsToSync) {
+      try {
+        await supabase.from('projects').upsert({
+          id: localP.id,
+          user_id: userId,
+          name: localP.name,
+          version: localP.version,
+          description: localP.description,
+          status: localP.status,
+          tech_stack: localP.techStack,
+          deadline: localP.deadline,
+          progress: localP.progress,
+          repo_url: localP.repoUrl,
+          priority: localP.priority,
+          last_updated: localP.lastUpdated,
+          notes: localP.notes,
+          is_completed: localP.isCompleted ?? false,
+          is_deleted: localP.isDeleted ?? false,
+        });
+
+        if (localP.milestones && localP.milestones.length > 0) {
+          for (const m of localP.milestones) {
+            await supabase.from('milestones').upsert({
+              id: m.id,
+              project_id: localP.id,
+              title: m.title,
+              completed: m.completed,
+              completed_by: m.completedBy,
+              added_by: m.addedBy,
+            });
+          }
+        }
+      } catch (_) {}
+    }
+  }
 
   if (allDbProjects.length === 0) {
     set({ isLoading: false });
@@ -300,7 +354,7 @@ const fetchProjectsBackground = async (
         joinedAt: m.joined_at,
       }));
 
-    const isShared = row.user_id !== userId;
+    const isShared = !userIdsToQuery.includes(row.user_id);
     const isPinned = pinnedSet.has(row.id.toString()) || (row.is_pinned ?? false);
 
     return {
@@ -424,7 +478,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         is_deleted: false,
       };
 
-      await supabase.from('projects').insert(insertData);
+      const { error } = await supabase.from('projects').upsert(insertData);
+      if (error) {
+        console.error('Failed to sync addProject to Supabase:', error.message);
+      }
     } catch (err) {
       console.error('Failed to sync addProject to Supabase:', err);
     }
