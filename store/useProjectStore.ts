@@ -275,6 +275,38 @@ const fetchProjectsBackground = async (
     sharedProjects = data || [];
   }
 
+  // If any shared project in sharedProjectIds was blocked by RLS, preserve it from local store cache
+  if (get) {
+    const fetchedIds = new Set([...ownedProjects, ...sharedProjects].map((p: any) => p.id));
+    const localProjects = get().projects;
+    for (const spId of sharedProjectIds) {
+      if (!fetchedIds.has(spId)) {
+        const localMatch = localProjects.find((p) => p.id === spId);
+        if (localMatch) {
+          sharedProjects.push({
+            id: localMatch.id,
+            name: localMatch.name,
+            version: localMatch.version,
+            description: localMatch.description,
+            status: localMatch.status,
+            tech_stack: localMatch.techStack,
+            deadline: localMatch.deadline,
+            progress: localMatch.progress,
+            repo_url: localMatch.repoUrl,
+            priority: localMatch.priority,
+            last_updated: localMatch.lastUpdated,
+            notes: localMatch.notes,
+            is_completed: localMatch.isCompleted,
+            is_deleted: localMatch.isDeleted,
+            isPinned: localMatch.isPinned,
+            user_id: 'owner_shared',
+            invite_code: localMatch.inviteCode,
+          });
+        }
+      }
+    }
+  }
+
   const allDbProjects = [...ownedProjects, ...sharedProjects];
 
   // Auto-sync any local projects that are not yet in Supabase
@@ -911,18 +943,64 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         console.warn('Supabase member insert warning:', insertError.message);
       }
 
+      // Fetch target project's full row and milestones
+      const [fullProjRes, fullMilestonesRes] = await Promise.all([
+        supabase.from('projects').select('*').eq('id', targetProject.id).maybeSingle(),
+        supabase.from('milestones').select('*').eq('project_id', targetProject.id),
+      ]);
+
+      const fullProj = fullProjRes.data;
+      const fullMilestones = fullMilestonesRes.data || [];
+
+      const joinedProjectObject: Project = {
+        id: targetProject.id,
+        name: fullProj?.name || targetProject.name,
+        version: fullProj?.version || '',
+        description: fullProj?.description || '',
+        status: (fullProj?.status as ProjectStatus) || 'active',
+        techStack: fullProj?.tech_stack || [],
+        deadline: fullProj?.deadline || '',
+        progress: fullProj?.progress ?? 0,
+        repoUrl: fullProj?.repo_url || '',
+        priority: (fullProj?.priority as Priority) || 'medium',
+        lastUpdated: fullProj?.last_updated || 'recently',
+        notes: fullProj?.notes || '',
+        isCompleted: fullProj?.is_completed ?? false,
+        isDeleted: fullProj?.is_deleted ?? false,
+        isPinned: false,
+        milestones: fullMilestones.map((m: any) => ({
+          id: m.id,
+          title: m.title,
+          completed: m.completed ?? false,
+          completedBy: m.completed_by || undefined,
+          addedBy: m.added_by || undefined,
+        })),
+        inviteCode: fullProj?.invite_code || targetProject.invite_code,
+        members: [],
+        isShared: true,
+        ownerName: 'Project Lead',
+      };
+
       // Persist shared project ID locally so it appears immediately on Home screen
       const currentSharedIds = await getSharedIdsFromLocalStorage(userId);
       if (!currentSharedIds.includes(targetProject.id)) {
         await saveSharedIdsToLocalStorage(userId, [...currentSharedIds, targetProject.id]);
       }
 
-      // 7. Refresh project store with forceRefresh so the joined project appears immediately
-      await get().fetchProjects({ forceRefresh: true });
+      // Add joined project into local state & storage immediately
+      const updatedProjects = [
+        joinedProjectObject,
+        ...get().projects.filter((p) => p.id !== joinedProjectObject.id),
+      ];
+      set({ projects: updatedProjects });
+      await saveToLocalStorage(userId, updatedProjects);
+
+      // Trigger background sync
+      fetchProjectsBackground(userId, getProjectStorageKey(userId), set, get).catch(() => {});
 
       return {
         success: true,
-        projectName: targetProject.name,
+        projectName: joinedProjectObject.name,
       };
     } catch (err: any) {
       return { success: false, error: err?.message || 'Failed to join project' };
