@@ -27,7 +27,7 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
 }) => {
   const colors = useThemeColors();
   const router = useRouter();
-  const { deleteProject, restoreProject, permanentlyDeleteProject, markCompleted, unmarkCompleted, togglePinProject } =
+  const { deleteProject, restoreProject, permanentlyDeleteProject, markCompleted, unmarkCompleted, togglePinProject, leaveProject } =
     useProjectStore();
   const { dialogProps, ask } = useConfirmDialog();
   const [warningModalVisible, setWarningModalVisible] = React.useState(false);
@@ -37,6 +37,7 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
   const isDeleted = !!project?.isDeleted;
   const isCompleted = !!project?.isCompleted;
   const isPinned = !!project?.isPinned;
+  const isShared = !!project?.isShared;
 
   const handleViewDetails = () => {
     onClose();
@@ -47,6 +48,21 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
     if (!project) return;
     onClose();
     togglePinProject(project.id);
+  };
+
+  const handleLeaveProject = async () => {
+    if (!project) return;
+    const ok = await ask({
+      title: 'Leave Project',
+      message: `Are you sure you want to leave "${project.name}"?`,
+      confirmLabel: 'Leave',
+      destructive: true,
+      icon: 'log-out',
+    });
+    if (ok) {
+      onClose();
+      leaveProject(project.id);
+    }
   };
 
   const handleToggleComplete = async () => {
@@ -270,36 +286,55 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
                   </View>
                 </Pressable>
 
-                {/* Delete / Restore */}
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.option,
-                    { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder },
-                    pressed && { backgroundColor: `${colors.onSurfaceVariant}1A` },
-                  ]}
-                  onPress={handleDeleteOrRestore}
-                >
-                  <View
-                    style={[
-                      styles.iconWrap,
-                      { backgroundColor: isDeleted ? `${colors.primaryFixed}1A` : `${colors.error}1A` },
+                {/* Delete (Owner only) or Leave Project (Member) */}
+                {isShared ? (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.option,
+                      { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder },
+                      pressed && { backgroundColor: `${colors.onSurfaceVariant}1A` },
                     ]}
+                    onPress={handleLeaveProject}
                   >
-                    <Feather
-                      name={isDeleted ? 'rotate-ccw' : 'trash-2'}
-                      size={18}
-                      color={isDeleted ? colors.primaryFixed : colors.error}
-                    />
-                  </View>
-                  <View style={styles.optionContent}>
-                    <Text style={[styles.optionTitle, { color: isDeleted ? colors.onSurface : colors.error }]}>
-                      {isDeleted ? 'Restore Project' : 'Move to Trash'}
-                    </Text>
-                    <Text style={[styles.optionSub, { color: colors.onSurfaceVariant }]}>
-                      {isDeleted ? 'Restore back to active deployments' : 'Soft delete and send to Trash tab'}
-                    </Text>
-                  </View>
-                </Pressable>
+                    <View style={[styles.iconWrap, { backgroundColor: `${colors.statusWarning}1A` }]}>
+                      <Feather name="log-out" size={18} color={colors.statusWarning} />
+                    </View>
+                    <View style={styles.optionContent}>
+                      <Text style={[styles.optionTitle, { color: colors.statusWarning }]}>Leave Project</Text>
+                      <Text style={[styles.optionSub, { color: colors.onSurfaceVariant }]}>Remove project from your workspace</Text>
+                    </View>
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.option,
+                      { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder },
+                      pressed && { backgroundColor: `${colors.onSurfaceVariant}1A` },
+                    ]}
+                    onPress={handleDeleteOrRestore}
+                  >
+                    <View
+                      style={[
+                        styles.iconWrap,
+                        { backgroundColor: isDeleted ? `${colors.primaryFixed}1A` : `${colors.error}1A` },
+                      ]}
+                    >
+                      <Feather
+                        name={isDeleted ? 'rotate-ccw' : 'trash-2'}
+                        size={18}
+                        color={isDeleted ? colors.primaryFixed : colors.error}
+                      />
+                    </View>
+                    <View style={styles.optionContent}>
+                      <Text style={[styles.optionTitle, { color: isDeleted ? colors.onSurface : colors.error }]}>
+                        {isDeleted ? 'Restore Project' : 'Move to Trash'}
+                      </Text>
+                      <Text style={[styles.optionSub, { color: colors.onSurfaceVariant }]}>
+                        {isDeleted ? 'Restore back to active deployments' : 'Soft delete and send to Trash tab'}
+                      </Text>
+                    </View>
+                  </Pressable>
+                )}
 
                 {/* Permanently Delete (trash tab only) */}
                 {isDeleted && (

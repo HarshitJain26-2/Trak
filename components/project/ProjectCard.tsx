@@ -23,7 +23,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
   const systemColorScheme = useColorScheme();
   const { compactCards, themeMode } = useSettingsStore();
   const colors = getThemeColors(themeMode, systemColorScheme);
-  const { markCompleted, deleteProject, togglePinProject } = useProjectStore();
+  const { markCompleted, deleteProject, togglePinProject, leaveProject } = useProjectStore();
 
   const [modalVisible, setModalVisible] = useState(false);
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -84,14 +84,18 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
             });
           }
         } else if (gestureState.dx < -threshold) {
-          // Slide Left -> Delete Project
+          // Slide Left -> Delete Project (Leader/Owner) or Leave Project (Member)
           triggerHaptic(25);
           Animated.timing(panX, {
             toValue: -SCREEN_WIDTH,
             duration: 250,
             useNativeDriver: true,
           }).start(() => {
-            deleteProject(project.id);
+            if (project.isShared) {
+              leaveProject(project.id);
+            } else {
+              deleteProject(project.id);
+            }
           });
         } else {
           // Snap back
@@ -131,9 +135,10 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
     extrapolate: 'clamp',
   });
 
+  const leftSwipeColor = project.isShared ? '#F97316' : '#EF4444';
   const cardBorderColor = panX.interpolate({
     inputRange: [-80, 0, 80],
-    outputRange: ['#EF4444', colors.glassBorder, '#22C55E'],
+    outputRange: [leftSwipeColor, colors.glassBorder, '#22C55E'],
     extrapolate: 'clamp',
   });
 
@@ -200,11 +205,13 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
         </Animated.View>
       </View>
 
-      {/* Slide Left Action Background (Delete - Red) */}
-      <View style={[styles.swipeActionBg, styles.swipeLeftBg, { backgroundColor: '#EF4444' }]}>
+      {/* Slide Left Action Background (Delete for Leader, Leave for Member) */}
+      <View style={[styles.swipeActionBg, styles.swipeLeftBg, { backgroundColor: leftSwipeColor }]}>
         <Animated.View style={[styles.swipeContentRight, { opacity: leftOpacity, transform: [{ scale: leftScale }] }]}>
-          <Text style={[styles.swipeText, { color: '#FFFFFF' }]}>Delete</Text>
-          <Feather name="trash-2" size={24} color="#FFFFFF" />
+          <Text style={[styles.swipeText, { color: '#FFFFFF' }]}>
+            {project.isShared ? 'Leave Project' : 'Delete'}
+          </Text>
+          <Feather name={project.isShared ? 'log-out' : 'trash-2'} size={24} color="#FFFFFF" />
         </Animated.View>
       </View>
 
