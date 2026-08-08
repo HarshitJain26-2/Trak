@@ -72,6 +72,7 @@ interface ProjectStore {
   joinProjectByCode: (code: string) => Promise<{ success: boolean; projectName?: string; error?: string }>;
   leaveProject: (projectId: string) => Promise<void>;
   fetchProjectMembers: (projectId: string) => Promise<ProjectMember[]>;
+  removeMember: (projectId: string, targetUserId: string) => Promise<void>;
   subscribeToRealtime: () => void;
   unsubscribeFromRealtime: () => void;
 }
@@ -1074,6 +1075,33 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     } catch (err) {
       console.error('Failed to fetch project members:', err);
       return [];
+    }
+  },
+
+  removeMember: async (projectId: string, targetUserId: string) => {
+    try {
+      // 1. Remove member from local state immediately
+      set((state) => ({
+        projects: state.projects.map((p) => {
+          if (p.id !== projectId) return p;
+          return {
+            ...p,
+            members: (p.members || []).filter((m) => m.userId !== targetUserId),
+          };
+        }),
+      }));
+
+      const userId = await getActiveUserId();
+      await saveToLocalStorage(userId, get().projects);
+
+      // 2. Delete member row from Supabase project_members
+      await supabase
+        .from('project_members')
+        .delete()
+        .eq('project_id', projectId)
+        .eq('user_id', targetUserId);
+    } catch (err) {
+      console.error('Failed to remove member from project:', err);
     }
   },
 

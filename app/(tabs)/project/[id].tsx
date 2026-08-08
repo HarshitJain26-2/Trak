@@ -17,7 +17,7 @@ import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Colors, useThemeColors } from '@/constants/colors';
-import { useProjectStore, Milestone } from '@/store/useProjectStore';
+import { useProjectStore, Milestone, ProjectMember } from '@/store/useProjectStore';
 import { TechPill } from '@/components/common/TechPill';
 import { StatusDot } from '@/components/common/StatusDot';
 import { ConfirmDialog, useConfirmDialog } from '@/components/common/ConfirmDialog';
@@ -184,6 +184,8 @@ export default function ProjectDetailsScreen() {
     deleteProject,
     generateInviteCode,
     leaveProject,
+    fetchProjectMembers,
+    removeMember,
   } = useProjectStore();
   const project = getProject(id);
   const insets = useSafeAreaInsets();
@@ -203,6 +205,37 @@ export default function ProjectDetailsScreen() {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [isGeneratingCode, setIsGeneratingCode] = useState(false);
   const [showWarningModal, setShowWarningModal] = useState(false);
+
+  // Team Members state
+  const [fetchedMembers, setFetchedMembers] = useState<ProjectMember[]>([]);
+
+  useEffect(() => {
+    if (!project) return;
+    let isMounted = true;
+    fetchProjectMembers(project.id).then((m) => {
+      if (isMounted && m) {
+        setFetchedMembers(m);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [project?.id]);
+
+  const handleRemoveMember = async (member: ProjectMember) => {
+    if (!project) return;
+    const ok = await ask({
+      title: 'Remove Member',
+      message: `Remove "${member.name}" from ${project.name}? They will no longer have access to this project.`,
+      confirmLabel: 'Remove',
+      destructive: true,
+      icon: 'trash-2',
+    });
+    if (ok) {
+      await removeMember(project.id, member.userId);
+      setFetchedMembers((prev) => prev.filter((m) => m.userId !== member.userId));
+    }
+  };
 
   const toggleNotes = () => {
     const toExpand = !notesExpanded;
@@ -303,7 +336,7 @@ export default function ProjectDetailsScreen() {
 
   // Determine if this is a shared project (user is member, not owner)
   const isSharedProject = project.isShared === true;
-  const allMembers = project.members || [];
+  const allMembers = fetchedMembers.length > 0 ? fetchedMembers : (project.members || []);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.surface }]}>
@@ -489,38 +522,67 @@ export default function ProjectDetailsScreen() {
         </View>
 
         {/* ── Team Section ── */}
-        {allMembers.length > 0 && (
-          <View style={[styles.glassCard, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
-            <View style={styles.teamHeader}>
-              <Text style={[styles.teamTitle, { color: colors.onSurface }]}>Team</Text>
-              <View style={[styles.teamCount, { backgroundColor: `${colors.primaryFixed}1A`, borderColor: `${colors.primaryFixed}30` }]}>
-                <Text style={[styles.teamCountText, { color: colors.primaryFixed }]}>{allMembers.length + 1}</Text>
-              </View>
+        <View style={[styles.glassCard, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
+          <View style={styles.teamHeader}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Feather name="users" size={16} color={colors.primaryFixed} />
+              <Text style={[styles.teamTitle, { color: colors.onSurface }]}>Team Members</Text>
             </View>
-            <View style={styles.teamAvatars}>
-              {/* Owner avatar (always shown) */}
-              {!isSharedProject && (
-                <View style={[styles.memberChip, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]}>
-                  <MemberAvatar name="You" size={28} />
-                  <Text style={[styles.memberName, { color: colors.onSurface }]}>You (Owner)</Text>
-                </View>
-              )}
-              {isSharedProject && project.ownerName && (
-                <View style={[styles.memberChip, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]}>
-                  <MemberAvatar name={project.ownerName} size={28} />
-                  <Text style={[styles.memberName, { color: colors.onSurface }]}>{project.ownerName} (Owner)</Text>
-                </View>
-              )}
-              {/* Member avatars */}
-              {allMembers.map((member) => (
-                <View key={member.id} style={[styles.memberChip, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]}>
-                  <MemberAvatar name={member.name} size={28} />
-                  <Text style={[styles.memberName, { color: colors.onSurface }]}>{member.name}</Text>
-                </View>
-              ))}
+            <View style={[styles.teamCount, { backgroundColor: `${colors.primaryFixed}1A`, borderColor: `${colors.primaryFixed}30` }]}>
+              <Text style={[styles.teamCountText, { color: colors.primaryFixed }]}>{allMembers.length + 1}</Text>
             </View>
           </View>
-        )}
+          <View style={styles.teamAvatars}>
+            {/* Leader avatar (always shown) */}
+            {!isSharedProject ? (
+              <View style={[styles.memberChip, { backgroundColor: `${colors.primaryFixed}15`, borderColor: `${colors.primaryFixed}40` }]}>
+                <MemberAvatar name="You" size={28} />
+                <Text style={[styles.memberName, { color: colors.primaryFixed, fontFamily: 'Inter_600SemiBold' }]}>You (Leader)</Text>
+              </View>
+            ) : (
+              project.ownerName && (
+                <View style={[styles.memberChip, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]}>
+                  <MemberAvatar name={project.ownerName} size={28} />
+                  <Text style={[styles.memberName, { color: colors.onSurface }]}>{project.ownerName} (Leader)</Text>
+                </View>
+              )
+            )}
+            {/* Member avatars */}
+            {allMembers.map((member) => (
+              <View key={member.id || member.userId} style={[styles.memberChip, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]}>
+                <MemberAvatar name={member.name} size={28} />
+                <Text style={[styles.memberName, { color: colors.onSurface }]}>{member.name}</Text>
+                {!isSharedProject && (
+                  <Pressable
+                    onPress={() => handleRemoveMember(member)}
+                    hitSlop={8}
+                    style={({ pressed }) => [
+                      styles.removeMemberBtn,
+                      pressed && { opacity: 0.6 },
+                    ]}
+                  >
+                    <Feather name="x" size={14} color={colors.error} />
+                  </Pressable>
+                )}
+              </View>
+            ))}
+
+            {/* Invite Member Chip for Leader */}
+            {!isSharedProject && (
+              <Pressable
+                onPress={handleGenerateInviteCode}
+                style={({ pressed }) => [
+                  styles.addMemberChip,
+                  { backgroundColor: `${colors.primaryFixed}0A`, borderColor: `${colors.primaryFixed}30` },
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <Feather name="user-plus" size={14} color={colors.primaryFixed} />
+                <Text style={[styles.addMemberText, { color: colors.primaryFixed }]}>Invite Member</Text>
+              </Pressable>
+            )}
+          </View>
+        </View>
 
         {/* Repo link */}
         <Pressable style={[styles.glassCard, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]} onPress={() => {}}>
@@ -987,6 +1049,26 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     fontSize: 13,
     color: Colors.onSurfaceVariant,
+  },
+  removeMemberBtn: {
+    marginLeft: 2,
+    padding: 3,
+    borderRadius: 4,
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+  },
+  addMemberChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+  },
+  addMemberText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
   },
   repoRow: {
     flexDirection: 'row',
