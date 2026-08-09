@@ -141,9 +141,10 @@ export default function AuthScreen() {
           if (
             error.message?.toLowerCase().includes('invalid login') ||
             error.message?.toLowerCase().includes('invalid credentials') ||
+            error.message?.toLowerCase().includes('user not found') ||
             error.message?.toLowerCase().includes('email not confirmed')
           ) {
-            setErrorMessage('Invalid email or password. Please try again.');
+            setErrorMessage('Invalid email or password. If all users were deleted in Supabase, please tap "Sign up for Trak" below to register again.');
           } else {
             setErrorMessage(error.message || 'Sign in failed.');
           }
