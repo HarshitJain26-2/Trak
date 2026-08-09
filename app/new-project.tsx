@@ -44,6 +44,8 @@ export default function NewProjectScreen() {
   const [repoUrl, setRepoUrl] = useState('');
   const [priority, setPriority] = useState<Priority>('low');
   const [selectedTags, setSelectedTags] = useState<string[]>(['TS']);
+  const [features, setFeatures] = useState<string[]>([]);
+  const [featureInput, setFeatureInput] = useState('');
   const [reminderModalVisible, setReminderModalVisible] = useState(false);
   const [calendarModalVisible, setCalendarModalVisible] = useState(false);
   const [reminderConfig, setReminderConfig] = useState<ReminderConfig>({
@@ -61,6 +63,18 @@ export default function NewProjectScreen() {
     setSelectedTags((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
     );
+  };
+
+  const addFeatureItem = () => {
+    if (!featureInput.trim()) return;
+    if (!features.includes(featureInput.trim())) {
+      setFeatures((prev) => [...prev, featureInput.trim()]);
+    }
+    setFeatureInput('');
+  };
+
+  const removeFeatureItem = (feat: string) => {
+    setFeatures((prev) => prev.filter((f) => f !== feat));
   };
 
   const handleDeadlineChange = (text: string) => {
@@ -110,6 +124,11 @@ export default function NewProjectScreen() {
       deadline: deadline.trim() || 'No Deadline',
       repoUrl: repoUrl.trim(),
       priority,
+      milestones: features.map((title, i) => ({
+        id: `m_${Date.now()}_${i}`,
+        title,
+        completed: false,
+      })),
     });
 
     // Schedule reminder if deadline is valid date (not No Deadline) and specified
@@ -258,6 +277,41 @@ export default function NewProjectScreen() {
                 <Feather name="chevron-right" size={16} color={colors.onSurfaceVariant} />
               </Pressable>
               {deadlineError && <Text style={[styles.errorText, { color: colors.error }]}>{deadlineError}</Text>}
+            </View>
+
+            {/* Features / Milestones */}
+            <View style={styles.field}>
+              <Text style={[styles.fieldLabel, { color: colors.onSurfaceVariant }]}>INITIAL FEATURES (OPTIONAL)</Text>
+              <View style={[styles.inputWrapper, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]}>
+                <Feather name="flag" size={16} color={`${colors.onSurfaceVariant}80`} />
+                <TextInput
+                  style={[styles.input, { color: colors.onSurface }]}
+                  placeholder="e.g. Authentication flow"
+                  placeholderTextColor={`${colors.onSurfaceVariant}4D`}
+                  value={featureInput}
+                  onChangeText={setFeatureInput}
+                  onSubmitEditing={addFeatureItem}
+                  returnKeyType="done"
+                />
+                <Pressable onPress={addFeatureItem} style={{ padding: 4 }} hitSlop={8}>
+                  <Feather name="plus" size={18} color={colors.primaryFixed} />
+                </Pressable>
+              </View>
+              {features.length > 0 && (
+                <View style={styles.tagsContainer}>
+                  {features.map((feat) => (
+                    <View
+                      key={feat}
+                      style={[styles.tagChip, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]}
+                    >
+                      <Text style={[styles.tagChipText, { color: colors.onSurface }]}>{feat}</Text>
+                      <Pressable onPress={() => removeFeatureItem(feat)} hitSlop={8}>
+                        <Feather name="x" size={12} color={colors.onSurfaceVariant} />
+                      </Pressable>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
 
             {/* Smart Reminder Trigger Selector */}

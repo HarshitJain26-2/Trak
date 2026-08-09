@@ -54,7 +54,7 @@ interface ProjectStore {
   currentUserId: string | null;
   setCurrentUserId: (userId: string | null) => void;
   fetchProjects: (opts?: { forceRefresh?: boolean }) => Promise<void>;
-  addProject: (project: Omit<Project, 'id' | 'milestones' | 'notes' | 'lastUpdated' | 'progress'> & { id?: string }) => Promise<Project>;
+  addProject: (project: Omit<Project, 'id' | 'notes' | 'milestones' | 'lastUpdated' | 'progress'> & { id?: string; milestones?: Milestone[]; notes?: string }) => Promise<Project>;
   deleteProject: (projectId: string) => Promise<void>;
   restoreProject: (projectId: string) => Promise<void>;
   permanentlyDeleteProject: (projectId: string) => Promise<void>;
@@ -473,7 +473,10 @@ const fetchProjectsBackground = async (
   });
 
   const formattedProjects: Project[] = allDbProjects.map((row: any) => {
-    const projectMilestones = (dbMilestones || [])
+    const localMatch = get ? get().projects.find((p) => p.id === row.id) : undefined;
+    const dbMilestoneIds = new Set((dbMilestones || []).filter((m: any) => m.project_id === row.id).map((m: any) => m.id));
+
+    const dbProjectMilestones = (dbMilestones || [])
       .filter((m: any) => m.project_id === row.id)
       .map((m: any) => ({
         id: m.id,
@@ -482,6 +485,30 @@ const fetchProjectsBackground = async (
         completedBy: m.completed_by || undefined,
         addedBy: m.added_by || undefined,
       }));
+
+    const unsyncedLocalMilestones = localMatch?.milestones
+      ? localMatch.milestones.filter((lm) => !dbMilestoneIds.has(lm.id))
+      : [];
+
+    if (unsyncedLocalMilestones.length > 0) {
+      for (const m of unsyncedLocalMilestones) {
+        void Promise.resolve(
+          supabase.from('milestones').upsert({
+            id: m.id,
+            project_id: row.id,
+            title: m.title,
+            completed: m.completed,
+            completed_by: m.completedBy,
+            added_by: m.addedBy,
+          })
+        ).catch(() => {});
+      }
+    }
+
+    const projectMilestones = [...dbProjectMilestones, ...unsyncedLocalMilestones];
+    const calculatedProgress = projectMilestones.length > 0
+      ? Math.round((projectMilestones.filter((m) => m.completed).length / projectMilestones.length) * 100)
+      : (row.progress ?? 0);
 
     const projectMembers: ProjectMember[] = (allMembers || [])
       .filter((m: any) => m.project_id === row.id)
@@ -509,7 +536,7 @@ const fetchProjectsBackground = async (
       status: row.status as ProjectStatus,
       techStack: row.tech_stack || [],
       deadline: row.deadline || '',
-      progress: row.progress ?? 0,
+      progress: calculatedProgress,
       repoUrl: row.repo_url || '',
       priority: row.priority as Priority,
       lastUpdated: row.last_updated || 'recently',
@@ -608,13 +635,18 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const userId = await getActiveUserId();
     const inviteCode = generateShortCode();
 
+    const initialMilestones: Milestone[] = data.milestones || [];
+    const calculatedProgress = initialMilestones.length > 0
+      ? Math.round((initialMilestones.filter((m) => m.completed).length / initialMilestones.length) * 100)
+      : 0;
+
     const newProject: Project = {
       ...data,
       id: data.id || Date.now().toString(),
-      progress: 0,
+      progress: calculatedProgress,
       lastUpdated: 'just now',
-      milestones: [],
-      notes: '',
+      milestones: initialMilestones,
+      notes: data.notes || '',
       inviteCode,
     };
 
@@ -644,6 +676,22 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const { error } = await supabase.from('projects').upsert(insertData);
       if (error) {
         console.error('Failed to sync addProject to Supabase:', error.message);
+      }
+
+      if (initialMilestones.length > 0) {
+        for (const m of initialMilestones) {
+          const { error: mErr } = await supabase.from('milestones').upsert({
+            id: m.id,
+            project_id: newProject.id,
+            title: m.title,
+            completed: m.completed ?? false,
+            completed_by: m.completedBy || null,
+            added_by: m.addedBy || null,
+          });
+          if (mErr) {
+            console.error('Failed to sync initial milestone to Supabase:', mErr.message);
+          }
+        }
       }
     } catch (err) {
       console.error('Failed to sync addProject to Supabase:', err);
@@ -730,14 +778,21 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       }),
     }));
 
+    const userId = await getActiveUserId();
+    await saveToLocalStorage(userId, get().projects);
+
     try {
-      await supabase
+      const { error } = await supabase
         .from('milestones')
         .update({
           completed: updatedCompleted,
           completed_by: updatedCompleted ? userName : null,
         })
         .eq('id', milestoneId);
+
+      if (error) {
+        console.error('Failed to sync toggleMilestone to Supabase:', error.message);
+      }
 
       await supabase
         .from('projects')
@@ -767,14 +822,44 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       }),
     }));
 
+    const userId = await getActiveUserId();
+    await saveToLocalStorage(userId, get().projects);
+
     try {
-      await supabase.from('milestones').insert({
+      const project = get().projects.find((p) => p.id === projectId);
+      if (project) {
+        // Ensure parent project exists in Supabase so foreign key constraints pass
+        await supabase.from('projects').upsert({
+          id: project.id,
+          user_id: userId,
+          name: project.name,
+          version: project.version,
+          description: project.description,
+          status: project.status,
+          tech_stack: project.techStack,
+          deadline: project.deadline,
+          progress: updatedProgress,
+          repo_url: project.repoUrl,
+          priority: project.priority,
+          last_updated: project.lastUpdated,
+          notes: project.notes,
+          is_completed: false,
+          is_deleted: project.isDeleted ?? false,
+          invite_code: project.inviteCode,
+        });
+      }
+
+      const { error } = await supabase.from('milestones').upsert({
         id: newMilestoneId,
         project_id: projectId,
         title: title.trim(),
         completed: false,
         added_by: userName,
       });
+
+      if (error) {
+        console.error('Failed to sync addMilestone to Supabase:', error.message);
+      }
 
       await supabase
         .from('projects')
@@ -801,11 +886,18 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       ),
     }));
 
+    const userId = await getActiveUserId();
+    await saveToLocalStorage(userId, get().projects);
+
     try {
-      await supabase
+      const { error } = await supabase
         .from('milestones')
         .update({ title: trimmedTitle })
         .eq('id', milestoneId);
+
+      if (error) {
+        console.error('Failed to sync renameMilestone to Supabase:', error.message);
+      }
     } catch (err) {
       console.error('Failed to sync renameMilestone to Supabase:', err);
     }
@@ -825,8 +917,15 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       }),
     }));
 
+    const userId = await getActiveUserId();
+    await saveToLocalStorage(userId, get().projects);
+
     try {
-      await supabase.from('milestones').delete().eq('id', milestoneId);
+      const { error } = await supabase.from('milestones').delete().eq('id', milestoneId);
+
+      if (error) {
+        console.error('Failed to sync deleteMilestone to Supabase:', error.message);
+      }
 
       await supabase
         .from('projects')
