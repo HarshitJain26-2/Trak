@@ -107,8 +107,11 @@ export default function AuthScreen() {
         }
 
         // Set active user ID from Supabase auth user
+        // Set active user ID from Supabase auth user
         const userId = data?.user?.id || emailToUUID(cleanEmail);
         await setActiveUserId(userId);
+        useProjectStore.getState().clearProjects();
+        useProfileStore.getState().clearProfile();
 
         // Store name and email in profile state immediately
         useProfileStore.setState((s) => ({
@@ -123,9 +126,9 @@ export default function AuthScreen() {
         setLoginCompleted(true);
         router.replace('/setup-profile');
 
-        // Non-blocking background data hydration
-        void useProfileStore.getState().fetchProfile();
-        void useProjectStore.getState().fetchProjects();
+        // Background data hydration for new user
+        void useProfileStore.getState().fetchProfile(true);
+        void useProjectStore.getState().fetchProjects({ forceRefresh: true });
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
           email: cleanEmail,
@@ -150,8 +153,14 @@ export default function AuthScreen() {
         // Use Supabase auth user ID if available, otherwise email hash
         const userId = data?.user?.id || emailToUUID(cleanEmail);
         await setActiveUserId(userId);
+        useProjectStore.getState().clearProjects();
+        useProfileStore.getState().clearProfile();
 
-        // Event-driven finish: trigger completion animation & navigate immediately
+        // Hydrate profile for this specific account
+        await useProfileStore.getState().fetchProfile(true);
+        void useProjectStore.getState().fetchProjects({ forceRefresh: true });
+
+        // Event-driven finish: trigger completion animation & navigate
         setLoginCompleted(true);
 
         const currentProfile = useProfileStore.getState().profile;
@@ -165,10 +174,6 @@ export default function AuthScreen() {
         } else {
           router.replace('/setup-profile');
         }
-
-        // Non-blocking background data hydration
-        void useProfileStore.getState().fetchProfile();
-        void useProjectStore.getState().fetchProjects();
       }
     } catch (err: any) {
       setLoading(false);
@@ -176,10 +181,37 @@ export default function AuthScreen() {
     }
   };
 
+  const handleGoogleAuth = async () => {
+    setLoading(true);
+    setErrorMessage('');
+    try {
+      useProjectStore.getState().clearProjects();
+      useProfileStore.getState().clearProfile();
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+      });
+      if (error) {
+        if (error.message?.includes('provider is not enabled') || error.message?.includes('Unsupported provider')) {
+          setErrorMessage('Google login is disabled in your Supabase Dashboard. Please enable Google under Supabase -> Auth -> Providers.');
+        } else {
+          setErrorMessage(error.message);
+        }
+      } else {
+        router.replace('/(tabs)');
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Google login failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleGitHubAuth = async () => {
     setLoading(true);
     setErrorMessage('');
     try {
+      useProjectStore.getState().clearProjects();
+      useProfileStore.getState().clearProfile();
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'github',
       });
@@ -429,20 +461,34 @@ export default function AuthScreen() {
               <View style={[styles.dividerLine, { backgroundColor: colors.glassBorder }]} />
             </View>
 
-            {/* GitHub OAuth Button */}
-            <Pressable
-              style={({ pressed }) => [
-                styles.githubBtn,
-                { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder },
-                pressed && styles.githubBtnPressed,
-              ]}
-              onPress={handleGitHubAuth}
-            >
-              <Feather name="github" size={18} color={colors.onSurface} style={{ marginRight: 10 }} />
-              <Text style={[styles.githubBtnText, { color: colors.onSurface }]}>
-                {mode === 'signin' ? 'GitHub' : 'Sign up with GitHub'}
-              </Text>
-            </Pressable>
+            {/* OAuth Buttons */}
+            <View style={{ flexDirection: 'row', gap: 10, width: '100%' }}>
+              {/* Google OAuth Button */}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.githubBtn,
+                  { flex: 1, backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder },
+                  pressed && styles.githubBtnPressed,
+                ]}
+                onPress={handleGoogleAuth}
+              >
+                <Feather name="chrome" size={18} color={colors.primaryFixed} style={{ marginRight: 8 }} />
+                <Text style={[styles.githubBtnText, { color: colors.onSurface }]}>Google</Text>
+              </Pressable>
+
+              {/* GitHub OAuth Button */}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.githubBtn,
+                  { flex: 1, backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder },
+                  pressed && styles.githubBtnPressed,
+                ]}
+                onPress={handleGitHubAuth}
+              >
+                <Feather name="github" size={18} color={colors.onSurface} style={{ marginRight: 8 }} />
+                <Text style={[styles.githubBtnText, { color: colors.onSurface }]}>GitHub</Text>
+              </Pressable>
+            </View>
           </View>
 
           {/* Toggle Footer Link */}

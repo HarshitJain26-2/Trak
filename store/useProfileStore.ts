@@ -78,44 +78,39 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       const userId = await getActiveUserId();
       const storageKey = getProfileStorageKey(userId);
 
-      // First attempt loading from local storage immediately
+      // Attempt loading from local storage for active user ID
       const localData = await safeStorage.getItem(storageKey);
       let hasLocal = false;
       if (localData) {
         try {
           const parsed = JSON.parse(localData);
-          if (parsed && typeof parsed === 'object') {
+          if (parsed && typeof parsed === 'object' && parsed.email) {
             set({ profile: { ...DEFAULT_PROFILE, ...parsed }, isLoading: false });
             hasLocal = true;
           }
         } catch {
-          // Fallback if local storage parse fails
+          // Fallback
         }
       }
 
-      // If we don't have local data, set loading state
       if (!hasLocal) {
         set({ isLoading: true });
       }
 
-      // If we have local data and not forcing refresh, return cached state immediately
-      if (hasLocal && !forceRefresh) {
-        return;
-      }
-
+      // Fetch profile from Supabase for this user ID
       const { data, error } = await supabase
         .from('profiles')
         .select('id, name, username, email, bio, role, location, avatar_url, github_url, company, skills, social_links, created_at')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
-      if (!error && data) {
+      if (data) {
         const updatedProfile: Profile = {
           name: data.name || 'Developer',
-          username: data.username || 'developer',
+          username: data.username || '',
           email: data.email || '',
           bio: data.bio || '',
-          role: data.role || '',
+          role: data.role || 'Full Stack Engineer',
           location: data.location || '',
           avatarUrl: data.avatar_url || '',
           githubUrl: data.github_url || '',
@@ -127,7 +122,41 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
         set({ profile: updatedProfile, isLoading: false });
         await saveProfileToLocalStorage(userId, updatedProfile);
       } else {
-        set({ isLoading: false });
+        // No profile in DB yet — check Supabase auth user
+        let authEmail = '';
+        let authName = '';
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            authEmail = user.email || '';
+            authName = user.user_metadata?.full_name || user.user_metadata?.name || (authEmail ? authEmail.split('@')[0] : 'Developer');
+          }
+        } catch {}
+
+        const initialProf: Profile = {
+          ...DEFAULT_PROFILE,
+          name: authName || 'Developer',
+          username: authEmail ? authEmail.split('@')[0].toLowerCase() : 'developer',
+          email: authEmail,
+        };
+
+        set({ profile: initialProf, isLoading: false });
+        await saveProfileToLocalStorage(userId, initialProf);
+
+        if (userId && authEmail) {
+          void Promise.resolve(
+            supabase.from('profiles').upsert({
+              id: userId,
+              name: initialProf.name,
+              username: initialProf.username || null,
+              email: initialProf.email,
+              bio: initialProf.bio,
+              role: initialProf.role,
+              location: initialProf.location,
+              skills: initialProf.skills,
+            })
+          ).catch(() => {});
+        }
       }
     } catch (err) {
       console.error('Error fetching profile:', err);

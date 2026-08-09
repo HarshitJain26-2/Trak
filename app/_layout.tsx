@@ -30,6 +30,7 @@ import { supabase } from '@/services/supabase';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useProfileStore } from '@/store/useProfileStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
+import { setActiveUserId } from '@/utils/deviceUser';
 import { notificationService } from '@/services/notifications';
 import FuturisticLoadingScreen from '@/components/FuturisticLoadingScreen';
 
@@ -89,13 +90,17 @@ export default function RootLayout() {
         if (event === 'SIGNED_IN' && session?.user?.id) {
           if (lastUserId !== session.user.id) {
             lastUserId = session.user.id;
-            // Non-blocking background data sync
-            void fetchProfile();
-            void fetchProjects();
+            void setActiveUserId(session.user.id);
+            // Wipe memory stores so new user session starts 100% clean
+            clearProjects();
+            clearProfile();
+            // Fetch fresh profile and projects for NEW user
+            void fetchProfile(true);
+            void fetchProjects({ forceRefresh: true });
           }
         } else if (event === 'SIGNED_OUT') {
           lastUserId = null;
-          // Wipe all in-memory data so next user starts clean
+          void setActiveUserId(null);
           clearProjects();
           clearProfile();
           router.replace('/auth');
@@ -107,7 +112,8 @@ export default function RootLayout() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user?.id) {
         lastUserId = session.user.id;
-        void fetchProfile();
+        void setActiveUserId(session.user.id);
+        void fetchProfile(true);
         void fetchProjects();
       }
     });

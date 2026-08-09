@@ -436,10 +436,20 @@ const fetchProjectsBackground = async (
   }
 
   if (allDbProjects.length === 0) {
-    const existingLocal = (get && get().projects.length > 0) ? get().projects : await getLocalProjectsFromStorage();
-    if (existingLocal.length > 0) {
-      // Re-sync local projects to Supabase under current user ID to prevent data loss
-      for (const p of existingLocal) {
+    let userLocal: Project[] = [];
+    try {
+      const raw = await safeStorage.getItem(storageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          userLocal = parsed;
+        }
+      }
+    } catch (_) {}
+
+    if (userLocal.length > 0) {
+      // Sync user's own local projects to Supabase
+      for (const p of userLocal) {
         try {
           await supabase.from('projects').upsert({
             id: p.id,
@@ -460,8 +470,8 @@ const fetchProjectsBackground = async (
           });
         } catch (_) {}
       }
-      set({ projects: existingLocal, isLoading: false });
-      await saveToLocalStorage(userId, existingLocal);
+      set({ projects: userLocal, isLoading: false });
+      await saveToLocalStorage(userId, userLocal);
       return;
     }
 
@@ -619,43 +629,28 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const pinnedIds = await getPinnedIdsFromLocalStorage(userId);
       const pinnedSet = new Set(pinnedIds);
 
-      // 1. Immediately scan ALL local storage keys for cached projects
-      const allKeys = await safeStorage.getAllKeys();
-      const projectKeys = allKeys.filter(
-        (k) => k.startsWith('trak_local_projects_') || k === 'trak_projects' || k === 'trak_local_projects_default'
-      );
-      const devId = await getDeviceId();
-      const storageKeys = [...new Set([storageKey, getProjectStorageKey(devId), ...projectKeys])];
-
-      let recoveredProjects: Project[] = [];
-      for (const sk of storageKeys) {
-        try {
-          const raw = await safeStorage.getItem(sk);
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              for (const p of parsed) {
-                if (!recoveredProjects.some((rp) => rp.id === p.id)) {
-                  recoveredProjects.push(p);
-                }
-              }
-            }
+      // Load local projects strictly for active user ID
+      let userLocalProjects: Project[] = [];
+      try {
+        const raw = await safeStorage.getItem(storageKey);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            userLocalProjects = parsed;
           }
-        } catch (_) {}
-      }
+        }
+      } catch (_) {}
 
       let hasLocal = false;
-      if (recoveredProjects.length > 0) {
-        const projectsWithPins = recoveredProjects.map((p: Project) => ({
+      if (userLocalProjects.length > 0) {
+        const projectsWithPins = userLocalProjects.map((p: Project) => ({
           ...p,
           isPinned: pinnedSet.has(p.id) || p.isPinned || false,
         }));
         set({ projects: projectsWithPins, isLoading: false });
         hasLocal = true;
-      }
-
-      if (!hasLocal) {
-        set({ isLoading: true });
+      } else {
+        set({ projects: [], isLoading: true });
       }
 
       if (hasLocal && !opts?.forceRefresh && get().projects.length > 0) {
