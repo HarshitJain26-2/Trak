@@ -24,6 +24,7 @@ import { StatusDot } from '@/components/common/StatusDot';
 import { ConfirmDialog, useConfirmDialog } from '@/components/common/ConfirmDialog';
 import { MemberAvatar } from '@/components/common/MemberAvatar';
 import { InviteCodeModal } from '@/components/modals/InviteCodeModal';
+import { CalendarPickerModal } from '@/components/modals/CalendarPickerModal';
 import { AestheticCheckbox } from '@/components/common/AestheticCheckbox';
 import { IncompleteTasksWarningModal } from '@/components/modals/IncompleteTasksWarningModal';
 
@@ -126,6 +127,7 @@ function FeatureInputModal({
   const [valTitle, setValTitle] = useState(initialTitle);
   const [valDesc, setValDesc] = useState(initialDescription);
   const [valDeadline, setValDeadline] = useState(initialDeadline);
+  const [calendarVisible, setCalendarVisible] = useState(false);
 
   React.useEffect(() => {
     if (visible) {
@@ -143,6 +145,15 @@ function FeatureInputModal({
 
   return (
     <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
+      <CalendarPickerModal
+        visible={calendarVisible}
+        value={valDeadline}
+        onClose={() => setCalendarVisible(false)}
+        onSelect={(d) => {
+          setValDeadline(d);
+        }}
+      />
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -176,14 +187,28 @@ function FeatureInputModal({
                 />
 
                 <Text style={[inputStyles.fieldLabel, { color: colors.onSurfaceVariant }]}>DEADLINE (OPTIONAL)</Text>
-                <TextInput
-                  style={[inputStyles.input, { backgroundColor: colors.surfaceContainerHigh, borderColor: `${colors.primaryFixed}33`, color: colors.onSurface }]}
-                  value={valDeadline}
-                  onChangeText={setValDeadline}
-                  placeholder="e.g. 2026-12-31 18:00"
-                  placeholderTextColor={`${colors.onSurfaceVariant}60`}
-                  selectionColor={colors.primaryFixed}
-                />
+                <Pressable
+                  style={[
+                    inputStyles.input,
+                    {
+                      backgroundColor: colors.surfaceContainerHigh,
+                      borderColor: `${colors.primaryFixed}33`,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      paddingVertical: 12,
+                    },
+                  ]}
+                  onPress={() => setCalendarVisible(true)}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <Feather name="calendar" size={16} color={colors.primaryFixed} />
+                    <Text style={{ color: valDeadline && valDeadline !== 'No Deadline' ? colors.onSurface : `${colors.onSurfaceVariant}60`, fontFamily: 'Inter_400Regular', fontSize: 14 }}>
+                      {valDeadline || 'Select Date or No Deadline'}
+                    </Text>
+                  </View>
+                  <Feather name="chevron-right" size={16} color={colors.onSurfaceVariant} />
+                </Pressable>
 
                 <View style={inputStyles.btnRow}>
                   <Pressable
