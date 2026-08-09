@@ -14,6 +14,8 @@ export interface Milestone {
   completed: boolean;
   completedBy?: string;  // display name of who completed it
   addedBy?: string;      // display name of who added it
+  description?: string;  // optional detailed description
+  deadline?: string;     // optional target deadline date & time
 }
 
 export interface ProjectMember {
@@ -59,7 +61,8 @@ interface ProjectStore {
   restoreProject: (projectId: string) => Promise<void>;
   permanentlyDeleteProject: (projectId: string) => Promise<void>;
   toggleMilestone: (projectId: string, milestoneId: string) => Promise<void>;
-  addMilestone: (projectId: string, title: string) => Promise<void>;
+  addMilestone: (projectId: string, title: string, description?: string, deadline?: string) => Promise<void>;
+  editMilestone: (projectId: string, milestoneId: string, updates: { title?: string; description?: string; deadline?: string }) => Promise<void>;
   renameMilestone: (projectId: string, milestoneId: string, newTitle: string) => Promise<void>;
   deleteMilestone: (projectId: string, milestoneId: string) => Promise<void>;
   markCompleted: (projectId: string) => Promise<void>;
@@ -78,6 +81,38 @@ interface ProjectStore {
 }
 
 export const MOCK_PROJECTS: Project[] = [
+  {
+    id: 'trak-main',
+    name: 'Trak',
+    version: 'v1.0.0',
+    description: 'Developer status tracker & feature roadmap engine',
+    status: 'active',
+    techStack: ['React Native', 'Expo', 'Supabase', 'Zustand', 'TS'],
+    deadline: '2026-12-31 18:00',
+    progress: 19,
+    repoUrl: 'github.com/HarshitJain26-2/Trak',
+    priority: 'high',
+    lastUpdated: 'Just now',
+    milestones: [
+      { id: 'trak_m1', title: 'Logo change', completed: false, addedBy: 'Harshit Jain' },
+      { id: 'trak_m2', title: 'Other than leader no one can delete slide delete', completed: false, addedBy: 'Harshit Jain' },
+      { id: 'trak_m3', title: 'Remove member from project', completed: false, addedBy: 'Harshit Jain' },
+      { id: 'trak_m4', title: 'Dead line work for real time', completed: false, addedBy: 'Harshit Jain' },
+      { id: 'trak_m5', title: 'User should not able to undo done tasks in completed section only owner can', completed: false, addedBy: 'Harshit Jain' },
+      { id: 'trak_m6', title: 'Add discription for feature adding deadline also', completed: false, addedBy: 'Harshit Jain' },
+      { id: 'trak_m7', title: 'Save changes button', completed: false, addedBy: 'Harshit Jain' },
+      { id: 'trak_m8', title: 'Google Authentication', completed: false, addedBy: 'Harshit Jain' },
+      { id: 'trak_m9', title: 'Remove link', completed: false, addedBy: 'Harshit Jain' },
+      { id: 'trak_m10', title: 'Add other button at tech stack', completed: false, addedBy: 'Harshit Jain' },
+      { id: 'trak_m11', title: 'Developer notes', completed: false, addedBy: 'Harshit Jain' },
+      { id: 'trak_m12', title: 'Add time in deadline', completed: false, addedBy: 'Harshit Jain' },
+      { id: 'trak_m13', title: 'Time remaining not showing clearly', completed: false, addedBy: 'Harshit Jain' },
+      { id: 'trak_m14', title: 'Core Navigation Setup', completed: true, addedBy: 'Harshit Jain' },
+      { id: 'trak_m15', title: 'Zustand Store Integration', completed: true, addedBy: 'Harshit Jain' },
+      { id: 'trak_m16', title: 'Supabase RLS Schema', completed: true, addedBy: 'Harshit Jain' },
+    ],
+    notes: '### Trak Platform Development Scope\nTracks active roadmap for Trak application features.',
+  },
   {
     id: '1',
     name: 'Kernel v2.0',
@@ -442,7 +477,7 @@ const fetchProjectsBackground = async (
   const [milestonesRes, membersRes, ownerProfilesRes] = await Promise.all([
     supabase
       .from('milestones')
-      .select('id, project_id, title, completed, completed_by, added_by')
+      .select('id, project_id, title, completed, completed_by, added_by, description, deadline')
       .in('project_id', projectIds),
     supabase
       .from('project_members')
@@ -484,6 +519,8 @@ const fetchProjectsBackground = async (
         completed: m.completed ?? false,
         completedBy: m.completed_by || undefined,
         addedBy: m.added_by || undefined,
+        description: m.description || undefined,
+        deadline: m.deadline || undefined,
       }));
 
     const unsyncedLocalMilestones = localMatch?.milestones
@@ -500,6 +537,8 @@ const fetchProjectsBackground = async (
             completed: m.completed,
             completed_by: m.completedBy,
             added_by: m.addedBy,
+            description: m.description,
+            deadline: m.deadline,
           })
         ).catch(() => {});
       }
@@ -753,6 +792,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
 
   toggleMilestone: async (projectId, milestoneId) => {
+    const proj = get().projects.find((p) => p.id === projectId);
+    const targetM = proj?.milestones.find((m) => m.id === milestoneId);
+
+    // Requirement: User should not able to undo done tasks in completed section only owner can
+    if (targetM?.completed && proj?.isShared) {
+      throw new Error('ONLY_OWNER_CAN_UNDO');
+    }
+
     let updatedCompleted = false;
     let updatedProgress = 0;
     const userName = await getCurrentUserName();
@@ -803,7 +850,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }
   },
 
-  addMilestone: async (projectId, title) => {
+  addMilestone: async (projectId, title, description, deadline) => {
     const newMilestoneId = `m${Date.now()}`;
     let updatedProgress = 0;
     const userName = await getCurrentUserName();
@@ -813,7 +860,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         if (p.id !== projectId) return p;
         const updatedMilestones = [
           ...p.milestones,
-          { id: newMilestoneId, title: title.trim(), completed: false, addedBy: userName },
+          {
+            id: newMilestoneId,
+            title: title.trim(),
+            description: description?.trim() || undefined,
+            deadline: deadline?.trim() || undefined,
+            completed: false,
+            addedBy: userName,
+          },
         ];
         updatedProgress = Math.round(
           (updatedMilestones.filter((m) => m.completed).length / updatedMilestones.length) * 100
@@ -853,6 +907,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         id: newMilestoneId,
         project_id: projectId,
         title: title.trim(),
+        description: description?.trim() || null,
+        deadline: deadline?.trim() || null,
         completed: false,
         added_by: userName,
       });
@@ -867,6 +923,49 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         .eq('id', projectId);
     } catch (err) {
       console.error('Failed to sync addMilestone to Supabase:', err);
+    }
+  },
+
+  editMilestone: async (projectId, milestoneId, updates) => {
+    set((state) => ({
+      projects: state.projects.map((p) =>
+        p.id === projectId
+          ? {
+              ...p,
+              milestones: p.milestones.map((m) =>
+                m.id === milestoneId
+                  ? {
+                      ...m,
+                      ...(updates.title !== undefined && { title: updates.title.trim() }),
+                      ...(updates.description !== undefined && { description: updates.description.trim() || undefined }),
+                      ...(updates.deadline !== undefined && { deadline: updates.deadline.trim() || undefined }),
+                    }
+                  : m
+              ),
+            }
+          : p
+      ),
+    }));
+
+    const userId = await getActiveUserId();
+    await saveToLocalStorage(userId, get().projects);
+
+    try {
+      const updatePayload: any = {};
+      if (updates.title !== undefined) updatePayload.title = updates.title.trim();
+      if (updates.description !== undefined) updatePayload.description = updates.description.trim() || null;
+      if (updates.deadline !== undefined) updatePayload.deadline = updates.deadline.trim() || null;
+
+      const { error } = await supabase
+        .from('milestones')
+        .update(updatePayload)
+        .eq('id', milestoneId);
+
+      if (error) {
+        console.error('Failed to sync editMilestone to Supabase:', error.message);
+      }
+    } catch (err) {
+      console.error('Failed to sync editMilestone to Supabase:', err);
     }
   },
 

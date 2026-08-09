@@ -44,6 +44,9 @@ export default function NewProjectScreen() {
   const [repoUrl, setRepoUrl] = useState('');
   const [priority, setPriority] = useState<Priority>('low');
   const [selectedTags, setSelectedTags] = useState<string[]>(['TS']);
+  const [customTags, setCustomTags] = useState<string[]>([]);
+  const [showOtherTagModal, setShowOtherTagModal] = useState(false);
+  const [otherTagInput, setOtherTagInput] = useState('');
   const [features, setFeatures] = useState<string[]>([]);
   const [featureInput, setFeatureInput] = useState('');
   const [reminderModalVisible, setReminderModalVisible] = useState(false);
@@ -53,6 +56,16 @@ export default function NewProjectScreen() {
     offsetMinutes: 1440,
     label: '1 day before',
   });
+
+  const addCustomTag = () => {
+    const trimmed = otherTagInput.trim();
+    if (trimmed && !AVAILABLE_TAGS.includes(trimmed) && !customTags.includes(trimmed)) {
+      setCustomTags((prev) => [...prev, trimmed]);
+      setSelectedTags((prev) => [...prev, trimmed]);
+    }
+    setOtherTagInput('');
+    setShowOtherTagModal(false);
+  };
 
   // Validation state
   const [deadlineError, setDeadlineError] = useState<string | null>(null);
@@ -239,7 +252,7 @@ export default function NewProjectScreen() {
             <View style={styles.field}>
               <Text style={[styles.fieldLabel, { color: colors.onSurfaceVariant }]}>TECH STACK</Text>
               <View style={styles.tagsContainer}>
-                {AVAILABLE_TAGS.map((tag) => {
+                {[...AVAILABLE_TAGS, ...customTags].map((tag) => {
                   const isSelected = selectedTags.includes(tag);
                   return (
                     <Pressable
@@ -258,8 +271,43 @@ export default function NewProjectScreen() {
                     </Pressable>
                   );
                 })}
+                <Pressable
+                  onPress={() => setShowOtherTagModal(true)}
+                  style={[styles.tagChip, { backgroundColor: `${colors.primaryFixed}15`, borderColor: `${colors.primaryFixed}40` }]}
+                >
+                  <Feather name="plus" size={12} color={colors.primaryFixed} />
+                  <Text style={[styles.tagChipText, { color: colors.primaryFixed, fontFamily: 'Inter_600SemiBold' }]}>Other</Text>
+                </Pressable>
               </View>
             </View>
+
+            {/* Custom Tag Modal */}
+            <Modal transparent animationType="fade" visible={showOtherTagModal} onRequestClose={() => setShowOtherTagModal(false)}>
+              <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+                <Pressable style={styles.backdrop} onPress={() => setShowOtherTagModal(false)}>
+                  <View style={[styles.inputWrapper, { backgroundColor: colors.surfaceContainer, borderColor: colors.primaryFixed, width: '85%', padding: 16, borderRadius: 14 }]}>
+                    <Text style={[styles.fieldLabel, { color: colors.onSurface, marginBottom: 8, fontSize: 13 }]}>ADD CUSTOM TECH TAG</Text>
+                    <TextInput
+                      style={[styles.input, { color: colors.onSurface, backgroundColor: colors.surfaceContainerHigh, borderRadius: 8, padding: 10, marginBottom: 12 }]}
+                      placeholder="e.g. Docker, GraphQL"
+                      placeholderTextColor={`${colors.onSurfaceVariant}60`}
+                      value={otherTagInput}
+                      onChangeText={setOtherTagInput}
+                      autoFocus
+                      onSubmitEditing={addCustomTag}
+                    />
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                      <Pressable onPress={() => setShowOtherTagModal(false)} style={[styles.priorityChip, { flex: 1 }]}>
+                        <Text style={{ color: colors.onSurfaceVariant }}>Cancel</Text>
+                      </Pressable>
+                      <Pressable onPress={addCustomTag} style={[styles.saveBtn, { flex: 1, paddingVertical: 8 }]}>
+                        <Text style={{ color: colors.onPrimaryFixed, fontFamily: 'Inter_600SemiBold' }}>Add Tag</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                </Pressable>
+              </KeyboardAvoidingView>
+            </Modal>
 
             {/* Deadline Date & Time */}
             <View style={styles.field}>

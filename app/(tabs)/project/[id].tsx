@@ -11,6 +11,7 @@ import {
   TextInput,
   TouchableWithoutFeedback,
   KeyboardAvoidingView,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
@@ -25,6 +26,25 @@ import { MemberAvatar } from '@/components/common/MemberAvatar';
 import { InviteCodeModal } from '@/components/modals/InviteCodeModal';
 import { AestheticCheckbox } from '@/components/common/AestheticCheckbox';
 import { IncompleteTasksWarningModal } from '@/components/modals/IncompleteTasksWarningModal';
+
+function formatRemainingTime(deadlineStr: string): string {
+  if (!deadlineStr || deadlineStr === 'No Deadline') return 'No Deadline';
+  const target = new Date(deadlineStr).getTime();
+  if (isNaN(target)) return deadlineStr;
+
+  const diffMs = target - Date.now();
+  if (diffMs <= 0) {
+    const overdueDays = Math.floor(Math.abs(diffMs) / (1000 * 60 * 60 * 24));
+    return overdueDays === 0 ? 'Overdue today' : `Overdue by ${overdueDays}d`;
+  }
+
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+  if (days > 0) return `${String(days).padStart(2, '0')}d ${String(hours).padStart(2, '0')}h ${String(mins).padStart(2, '0')}m`;
+  return `${String(hours).padStart(2, '0')}h ${String(mins).padStart(2, '0')}m`;
+}
 
 // ─── Milestone Action Modal ────────────────────────────────────────────────────
 interface MilestoneActionModalProps {
@@ -60,7 +80,7 @@ function MilestoneActionModal({
                 onPress={() => { onClose(); onRename(milestone); }}
               >
                 <Feather name="edit-2" size={18} color={colors.primaryFixed} />
-                <Text style={[actionStyles.optionText, { color: colors.onSurface }]}>Rename Feature</Text>
+                <Text style={[actionStyles.optionText, { color: colors.onSurface }]}>Edit Feature</Text>
               </Pressable>
 
               <View style={[actionStyles.divider, { backgroundColor: colors.glassBorder }]} />
@@ -80,37 +100,44 @@ function MilestoneActionModal({
   );
 }
 
-// ─── Text Input Modal ──────────────────────────────────────────────────────────
-interface TextInputModalProps {
+// ─── Feature Input Modal ────────────────────────────────────────────────────────
+interface FeatureInputModalProps {
   visible: boolean;
   title: string;
-  placeholder: string;
-  initialValue?: string;
+  initialTitle?: string;
+  initialDescription?: string;
+  initialDeadline?: string;
   confirmLabel?: string;
   onClose: () => void;
-  onConfirm: (value: string) => void;
+  onConfirm: (title: string, description?: string, deadline?: string) => void;
 }
 
-function TextInputModal({
+function FeatureInputModal({
   visible,
   title,
-  placeholder,
-  initialValue = '',
+  initialTitle = '',
+  initialDescription = '',
+  initialDeadline = '',
   confirmLabel = 'Save',
   onClose,
   onConfirm,
-}: TextInputModalProps) {
+}: FeatureInputModalProps) {
   const colors = useThemeColors();
-  const [value, setValue] = useState(initialValue);
+  const [valTitle, setValTitle] = useState(initialTitle);
+  const [valDesc, setValDesc] = useState(initialDescription);
+  const [valDeadline, setValDeadline] = useState(initialDeadline);
 
-  // Reset when modal opens with a new initialValue
   React.useEffect(() => {
-    if (visible) setValue(initialValue);
-  }, [visible, initialValue]);
+    if (visible) {
+      setValTitle(initialTitle);
+      setValDesc(initialDescription);
+      setValDeadline(initialDeadline);
+    }
+  }, [visible, initialTitle, initialDescription, initialDeadline]);
 
   const handleConfirm = () => {
-    if (value.trim().length === 0) return;
-    onConfirm(value.trim());
+    if (valTitle.trim().length === 0) return;
+    onConfirm(valTitle.trim(), valDesc.trim() || undefined, valDeadline.trim() || undefined);
     onClose();
   };
 
@@ -125,17 +152,39 @@ function TextInputModal({
             <TouchableWithoutFeedback>
               <View style={[inputStyles.card, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
                 <Text style={[inputStyles.title, { color: colors.onSurface }]}>{title}</Text>
+                
+                <Text style={[inputStyles.fieldLabel, { color: colors.onSurfaceVariant }]}>TITLE *</Text>
                 <TextInput
                   style={[inputStyles.input, { backgroundColor: colors.surfaceContainerHigh, borderColor: `${colors.primaryFixed}33`, color: colors.onSurface }]}
-                  value={value}
-                  onChangeText={setValue}
-                  placeholder={placeholder}
+                  value={valTitle}
+                  onChangeText={setValTitle}
+                  placeholder="e.g. Google Authentication"
                   placeholderTextColor={`${colors.onSurfaceVariant}60`}
                   autoFocus
-                  returnKeyType="done"
-                  onSubmitEditing={handleConfirm}
                   selectionColor={colors.primaryFixed}
                 />
+
+                <Text style={[inputStyles.fieldLabel, { color: colors.onSurfaceVariant }]}>DESCRIPTION (OPTIONAL)</Text>
+                <TextInput
+                  style={[inputStyles.input, { backgroundColor: colors.surfaceContainerHigh, borderColor: `${colors.primaryFixed}33`, color: colors.onSurface, minHeight: 60 }]}
+                  value={valDesc}
+                  onChangeText={setValDesc}
+                  placeholder="Feature scope or technical details..."
+                  placeholderTextColor={`${colors.onSurfaceVariant}60`}
+                  multiline
+                  selectionColor={colors.primaryFixed}
+                />
+
+                <Text style={[inputStyles.fieldLabel, { color: colors.onSurfaceVariant }]}>DEADLINE (OPTIONAL)</Text>
+                <TextInput
+                  style={[inputStyles.input, { backgroundColor: colors.surfaceContainerHigh, borderColor: `${colors.primaryFixed}33`, color: colors.onSurface }]}
+                  value={valDeadline}
+                  onChangeText={setValDeadline}
+                  placeholder="e.g. 2026-12-31 18:00"
+                  placeholderTextColor={`${colors.onSurfaceVariant}60`}
+                  selectionColor={colors.primaryFixed}
+                />
+
                 <View style={inputStyles.btnRow}>
                   <Pressable
                     style={({ pressed }) => [
@@ -152,10 +201,10 @@ function TextInputModal({
                       inputStyles.btn,
                       { backgroundColor: colors.primaryFixed },
                       pressed && inputStyles.btnPressed,
-                      value.trim().length === 0 && inputStyles.btnDisabled,
+                      valTitle.trim().length === 0 && inputStyles.btnDisabled,
                     ]}
                     onPress={handleConfirm}
-                    disabled={value.trim().length === 0}
+                    disabled={valTitle.trim().length === 0}
                   >
                     <Text style={[inputStyles.btnConfirmText, { color: colors.onPrimaryFixed }]}>{confirmLabel}</Text>
                   </Pressable>
@@ -178,6 +227,7 @@ export default function ProjectDetailsScreen() {
     getProject,
     toggleMilestone,
     addMilestone,
+    editMilestone,
     renameMilestone,
     deleteMilestone,
     markCompleted,
@@ -190,6 +240,17 @@ export default function ProjectDetailsScreen() {
   const project = getProject(id);
   const insets = useSafeAreaInsets();
   const { dialogProps, ask } = useConfirmDialog();
+
+  const handleToggleMilestone = async (milestoneId: string) => {
+    if (!project) return;
+    try {
+      await toggleMilestone(project.id, milestoneId);
+    } catch (err: any) {
+      if (err?.message === 'ONLY_OWNER_CAN_UNDO') {
+        Alert.alert('Leader Action Required', 'Only the project leader can undo completed features.');
+      }
+    }
+  };
 
   const [notesExpanded, setNotesExpanded] = useState(false);
   const notesHeight = useRef(new Animated.Value(0)).current;
@@ -351,25 +412,24 @@ export default function ProjectDetailsScreen() {
         onDelete={handleRequestDelete}
       />
 
-      <TextInputModal
+      <FeatureInputModal
         visible={showAddModal}
         title="Add Feature"
-        placeholder="e.g. API Integration"
-        initialValue=""
         confirmLabel="Add"
         onClose={() => setShowAddModal(false)}
-        onConfirm={(title) => addMilestone(project.id, title)}
+        onConfirm={(title, desc, dl) => addMilestone(project.id, title, desc, dl)}
       />
 
-      <TextInputModal
+      <FeatureInputModal
         visible={showRenameModal}
-        title="Rename Feature"
-        placeholder="Feature name"
-        initialValue={actionTarget?.title ?? ''}
+        title="Edit Feature"
+        initialTitle={actionTarget?.title ?? ''}
+        initialDescription={actionTarget?.description ?? ''}
+        initialDeadline={actionTarget?.deadline ?? ''}
         confirmLabel="Save"
         onClose={() => setShowRenameModal(false)}
-        onConfirm={(newTitle) => {
-          if (actionTarget) renameMilestone(project.id, actionTarget.id, newTitle);
+        onConfirm={(newTitle, newDesc, newDl) => {
+          if (actionTarget) editMilestone(project.id, actionTarget.id, { title: newTitle, description: newDesc, deadline: newDl });
         }}
       />
 
@@ -510,7 +570,7 @@ export default function ProjectDetailsScreen() {
           <View style={styles.metaRow}>
             <View style={[styles.metaPill, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]}>
               <Feather name="clock" size={12} color={colors.onSurfaceVariant} />
-              <Text style={[styles.metaPillText, { color: colors.onSurfaceVariant }]}>04d 12h 41m</Text>
+              <Text style={[styles.metaPillText, { color: colors.onSurfaceVariant }]}>{formatRemainingTime(project.deadline)}</Text>
             </View>
             <View style={[styles.metaPill, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]}>
               <Feather name="terminal" size={12} color={colors.secondaryFixed} />
@@ -652,21 +712,34 @@ export default function ProjectDetailsScreen() {
               {/* Aesthetic Checkbox with fancy loading spinner */}
               <AestheticCheckbox
                 completed={false}
-                onToggle={() => toggleMilestone(project.id, milestone.id)}
+                onToggle={() => handleToggleMilestone(milestone.id)}
                 size={22}
               />
               <Pressable
                 style={styles.milestoneContent}
-                onPress={() => toggleMilestone(project.id, milestone.id)}
+                onPress={() => handleToggleMilestone(milestone.id)}
                 onLongPress={() => handleMilestoneLongPress(milestone)}
                 delayLongPress={400}
               >
                 <Text style={[styles.milestoneText, { color: colors.onSurface }]}>
                   {milestone.title}
                 </Text>
-                {milestone.addedBy && (
+                {milestone.description ? (
+                  <Text style={[styles.addedByText, { color: colors.onSurfaceVariant, marginTop: 2 }]}>
+                    {milestone.description}
+                  </Text>
+                ) : null}
+                {milestone.deadline ? (
+                  <View style={[styles.doneByBadge, { backgroundColor: `${colors.secondaryContainer}20`, borderColor: `${colors.secondaryContainer}40`, marginTop: 4 }]}>
+                    <Feather name="clock" size={10} color={colors.secondaryContainer} />
+                    <Text style={[styles.doneByText, { color: colors.secondaryContainer }]}>
+                      Due: {milestone.deadline}
+                    </Text>
+                  </View>
+                ) : null}
+                {milestone.addedBy && !milestone.description && !milestone.deadline ? (
                   <Text style={[styles.addedByText, { color: colors.onSurfaceVariant }]}>Added by {milestone.addedBy}</Text>
-                )}
+                ) : null}
               </Pressable>
               <Pressable
                 style={styles.editHint}
@@ -694,20 +767,25 @@ export default function ProjectDetailsScreen() {
               {/* Aesthetic Checkbox with fancy loading spinner */}
               <AestheticCheckbox
                 completed={true}
-                onToggle={() => toggleMilestone(project.id, milestone.id)}
+                onToggle={() => handleToggleMilestone(milestone.id)}
                 size={22}
               />
               <Pressable
                 style={styles.milestoneContent}
-                onPress={() => toggleMilestone(project.id, milestone.id)}
+                onPress={() => handleToggleMilestone(milestone.id)}
                 onLongPress={() => handleMilestoneLongPress(milestone)}
                 delayLongPress={400}
               >
                 <Text style={[styles.milestoneText, { color: colors.onSurfaceVariant, textDecorationLine: 'line-through' }]}>
                   {milestone.title}
                 </Text>
+                {milestone.description ? (
+                  <Text style={[styles.addedByText, { color: `${colors.onSurfaceVariant}80`, textDecorationLine: 'line-through', marginTop: 2 }]}>
+                    {milestone.description}
+                  </Text>
+                ) : null}
                 {milestone.completedBy && (
-                  <View style={[styles.doneByBadge, { backgroundColor: `${colors.primaryFixed}1A`, borderColor: `${colors.primaryFixed}33` }]}>
+                  <View style={[styles.doneByBadge, { backgroundColor: `${colors.primaryFixed}1A`, borderColor: `${colors.primaryFixed}33`, marginTop: 4 }]}>
                     <Feather name="check-circle" size={10} color={colors.primaryFixed} />
                     <Text style={[styles.doneByText, { color: colors.primaryFixed }]}>Done by {milestone.completedBy}</Text>
                   </View>
@@ -1430,6 +1508,13 @@ const inputStyles = StyleSheet.create({
     fontSize: 18,
     color: Colors.onSurface,
     marginBottom: 16,
+  },
+  fieldLabel: {
+    fontFamily: 'JetBrainsMono_500Medium',
+    fontSize: 10,
+    color: Colors.onSurfaceVariant,
+    letterSpacing: 1.2,
+    marginBottom: 4,
   },
   input: {
     backgroundColor: Colors.surfaceContainerHigh,

@@ -45,12 +45,20 @@ export const CalendarPickerModal: React.FC<CalendarPickerModalProps> = ({
   });
 
   const [selectedDateStr, setSelectedDateStr] = useState<string>(value || 'No Deadline');
+  const [selectedTime, setSelectedTime] = useState<string>('18:00');
 
   useEffect(() => {
     setSelectedDateStr(value || 'No Deadline');
     if (value && value !== 'No Deadline' && value !== 'TBD') {
-      const parsed = new Date(value);
-      if (!isNaN(parsed.getTime())) setCurrentDate(parsed);
+      if (value.includes(' ')) {
+        const [d, t] = value.split(' ');
+        setSelectedTime(t || '18:00');
+        const parsed = new Date(d);
+        if (!isNaN(parsed.getTime())) setCurrentDate(parsed);
+      } else {
+        const parsed = new Date(value);
+        if (!isNaN(parsed.getTime())) setCurrentDate(parsed);
+      }
     }
   }, [value, visible]);
 
@@ -71,10 +79,10 @@ export const CalendarPickerModal: React.FC<CalendarPickerModalProps> = ({
     setCurrentDate(new Date(year, month + 1, 1));
   };
 
-  const formatDateStr = (y: number, m: number, d: number) => {
+  const formatDateStr = (y: number, m: number, d: number, timeStr: string = selectedTime) => {
     const mm = String(m + 1).padStart(2, '0');
     const dd = String(d).padStart(2, '0');
-    return `${y}-${mm}-${dd}`;
+    return `${y}-${mm}-${dd} ${timeStr}`;
   };
 
   const handleSelectDay = (dayNum: number) => {
@@ -95,6 +103,15 @@ export const CalendarPickerModal: React.FC<CalendarPickerModalProps> = ({
     setCurrentDate(target);
     const dateStr = formatDateStr(target.getFullYear(), target.getMonth(), target.getDate());
     setSelectedDateStr(dateStr);
+  };
+
+  const handleTimeChange = (t: string) => {
+    triggerHaptic(10);
+    setSelectedTime(t);
+    if (selectedDateStr && selectedDateStr !== 'No Deadline') {
+      const datePart = selectedDateStr.split(' ')[0];
+      setSelectedDateStr(`${datePart} ${t}`);
+    }
   };
 
   const handleConfirm = () => {
@@ -239,6 +256,33 @@ export const CalendarPickerModal: React.FC<CalendarPickerModalProps> = ({
 
               {/* Days Grid */}
               <View style={styles.grid}>{renderCalendarDays()}</View>
+
+              {/* Time Selector */}
+              {selectedDateStr !== 'No Deadline' && (
+                <View style={{ marginTop: 12 }}>
+                  <Text style={[styles.selectedLabel, { color: colors.onSurfaceVariant, marginBottom: 6, fontSize: 11 }]}>TARGET TIME</Text>
+                  <View style={{ flexDirection: 'row', gap: 6 }}>
+                    {['09:00', '12:00', '18:00', '23:59'].map((t) => {
+                      const isSel = selectedTime === t;
+                      return (
+                        <Pressable
+                          key={t}
+                          onPress={() => handleTimeChange(t)}
+                          style={[
+                            styles.presetChip,
+                            { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder },
+                            isSel && { backgroundColor: `${colors.primaryFixed}20`, borderColor: colors.primaryFixed },
+                          ]}
+                        >
+                          <Text style={[styles.presetText, { color: colors.onSurfaceVariant }, isSel && { color: colors.primaryFixed, fontFamily: 'Inter_600SemiBold' }]}>
+                            {t}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
 
               {/* Selected Footer */}
               <View style={[styles.footer, { borderTopColor: colors.glassBorder }]}>
