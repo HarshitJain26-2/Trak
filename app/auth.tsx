@@ -129,6 +129,7 @@ export default function AuthScreen() {
 
         // Check for Supabase auth errors (including duplicate email)
         if (error) {
+          setLoading(false);
           const errMsg = (error.message || '').toLowerCase();
           const errCode = (error as any).code || '';
           const isUserExists =
@@ -141,66 +142,13 @@ export default function AuthScreen() {
             errMsg.includes('unique constraint') ||
             errMsg.includes('users_email_partial_key');
 
-          // If signup fails (due to existing user or 500 error from duplicate email),
-          // test sign-in with password to see if the account already exists
           if (isUserExists || (error.status && error.status >= 500)) {
-            try {
-              const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-                email: cleanEmail,
-                password: password.trim(),
-              });
-
-              if (!signInError && signInData?.user) {
-                // Sign-in succeeded! Proceed into app
-                const userId = signInData.user.id || emailToUUID(cleanEmail);
-                await setActiveUserId(userId);
-                useProjectStore.getState().clearProjects();
-                useProfileStore.getState().clearProfile();
-
-                await useProfileStore.getState().fetchProfile(true);
-                void useProjectStore.getState().fetchProjects({ forceRefresh: true });
-
-                setLoginCompleted(true);
-
-                const currentProfile = useProfileStore.getState().profile;
-                const hasUsername =
-                  currentProfile.username &&
-                  currentProfile.username.trim() !== '' &&
-                  currentProfile.username !== 'developer';
-
-                if (hasUsername) {
-                  router.replace('/(tabs)');
-                } else {
-                  router.replace('/setup-profile');
-                }
-                return;
-              }
-
-              // If signInError exists, check why sign-in failed:
-              if (
-                signInError?.code === 'invalid_credentials' ||
-                signInError?.message?.toLowerCase().includes('invalid login') ||
-                signInError?.message?.toLowerCase().includes('invalid credentials')
-              ) {
-                setLoading(false);
-                setErrorMessage('An account with this email already exists. Please tap "Log In" below to sign in with your password.');
-                return;
-              }
-            } catch {
-              // Ignore catch fallback to continue error display below
-            }
-          }
-
-          if (error.status === 429 || errMsg.includes('rate limit')) {
-            setErrorMessage('Too many signup attempts. Please wait a few minutes before trying again.');
-          } else if (error.status && error.status >= 500) {
-            setErrorMessage(
-              'Supabase server error on signup. If your account already exists, please tap "Log In" below to sign in.'
-            );
+            setErrorMessage('An account with this email already exists. Please tap "Log In" below to sign in with your password.');
+          } else if (error.status === 429 || errMsg.includes('rate limit')) {
+            setErrorMessage('Rate limit reached. Please wait a moment or tap "Log In" below.');
           } else {
             setErrorMessage(extractErrorMessage(error, 'Sign up failed. Please try again.'));
           }
-          setLoading(false);
           return;
         }
 
@@ -208,7 +156,7 @@ export default function AuthScreen() {
         // but email confirmation is disabled — detect this case
         if (data?.user && (data.user.identities?.length === 0)) {
           setLoading(false);
-          setErrorMessage('An account with this email already exists. Please sign in instead.');
+          setErrorMessage('An account with this email already exists. Please tap "Log In" below to sign in.');
           return;
         }
 
@@ -242,12 +190,6 @@ export default function AuthScreen() {
 
         // Check for sign-in errors
         if (error) {
-          console.error('[AuthScreen] signInWithPassword error:', {
-            message: error.message,
-            status: error.status,
-            name: error.name,
-            code: (error as any).code,
-          });
           setLoading(false);
           const msg = (error.message || '').toLowerCase();
           const code = (error as any).code || '';
@@ -262,11 +204,7 @@ export default function AuthScreen() {
           } else if (code === 'email_not_confirmed' || msg.includes('email not confirmed')) {
             setErrorMessage('Email not confirmed. Please check your inbox and confirm your email address before signing in.');
           } else if (error.status === 429 || code === 'over_email_send_rate_limit' || msg.includes('rate limit')) {
-            setErrorMessage('Too many login attempts. Please wait a few minutes before trying again.');
-          } else if (error.status && error.status >= 500) {
-            setErrorMessage(
-              'Supabase server error. Please check your Supabase Dashboard → Logs for details.'
-            );
+            setErrorMessage('Rate limit reached. Please wait a moment before trying again.');
           } else {
             setErrorMessage(extractErrorMessage(error, 'Sign in failed. Please try again.'));
           }
