@@ -1,11 +1,23 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, Animated, Platform, TextInput, SectionList } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  Pressable,
+  Animated,
+  Platform,
+  TextInput,
+  Modal,
+  TouchableWithoutFeedback,
+  ScrollView,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Colors, useThemeColors } from '@/constants/colors';
-import { useProjectStore, Project } from '@/store/useProjectStore';
+import { useProjectStore } from '@/store/useProjectStore';
 import { ProjectCard } from '@/components/project/ProjectCard';
 import EmptyState from '@/components/common/EmptyState';
 import { JoinProjectModal } from '@/components/modals/JoinProjectModal';
@@ -16,16 +28,15 @@ export default function DashboardScreen() {
   const router = useRouter();
   const colors = useThemeColors();
   const { projects, fetchProjects, joinProjectByCode, subscribeToRealtime, unsubscribeFromRealtime } = useProjectStore();
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
 
   const handleQRScanned = async (code: string) => {
     setShowQRScanner(false);
     const res = await joinProjectByCode(code);
     if (!res.success) {
-      // Re-open join modal with error preset, or user can try again
       setShowJoinModal(true);
     }
   };
@@ -80,15 +91,10 @@ export default function DashboardScreen() {
   const [fabMenuOpen, setFabMenuOpen] = useState(false);
 
   const handleFabPress = () => {
-    if (sharedProjects.length > 0 || true) {
-      // Show FAB menu with options: New Project, Join Project
-      setFabMenuOpen(!fabMenuOpen);
-    } else {
-      router.push('/new-project');
-    }
+    setFabMenuOpen(!fabMenuOpen);
   };
 
-  const hasAnyProjects = activeProjects.length > 0 || sharedProjects.length > 0;
+  const hasAnyProjects = activeProjects.length > 0 || sharedProjects.length > 0 || searchQuery.trim().length > 0;
 
   // Build data for rendering
   const renderContent = () => {
@@ -103,20 +109,51 @@ export default function DashboardScreen() {
         renderItem={() => null}
         ListHeaderComponent={
           <View>
+            {/* Embedded Permanent Search Bar (replaces old "Active Deployments" text) */}
+            <View style={styles.homeSearchWrap}>
+              <View
+                style={[
+                  styles.homeSearchBar,
+                  {
+                    backgroundColor: colors.isDark ? colors.surfaceContainerHigh : colors.surfaceContainerLow,
+                    borderColor: `${colors.primaryFixed}33`,
+                  },
+                ]}
+              >
+                <Feather name="search" size={18} color={colors.primaryFixed} style={{ marginRight: 10 }} />
+                <TextInput
+                  style={[styles.homeSearchInput, { color: colors.onSurface }]}
+                  placeholder="Search active deployments & tech stack..."
+                  placeholderTextColor={`${colors.onSurfaceVariant}70`}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  selectionColor={colors.primaryFixed}
+                />
+                {searchQuery.length > 0 && (
+                  <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
+                    <Feather name="x" size={18} color={colors.onSurfaceVariant} />
+                  </Pressable>
+                )}
+              </View>
+            </View>
+
             {/* Active Deployments Section */}
-            {activeProjects.length > 0 && (
+            {activeProjects.length > 0 ? (
               <>
-                <View style={styles.listHeader}>
-                  <Text style={[styles.sectionTitle, { color: colors.onSurface }]}>Active Deployments</Text>
-                  <Text style={[styles.sessionId, { color: colors.onSurfaceVariant }]}>Session ID: 49fa-122k-trak</Text>
-                </View>
                 {activeProjects.map((project, index) => (
                   <View key={project.id} style={index < activeProjects.length - 1 ? { marginBottom: 16 } : undefined}>
                     <ProjectCard project={project} />
                   </View>
                 ))}
               </>
-            )}
+            ) : searchQuery.trim().length > 0 && sharedProjects.length === 0 ? (
+              <View style={styles.noResultsWrap}>
+                <Feather name="search" size={24} color={colors.onSurfaceVariant} style={{ opacity: 0.6 }} />
+                <Text style={[styles.noResultsText, { color: colors.onSurfaceVariant }]}>
+                  No deployments match "{searchQuery}"
+                </Text>
+              </View>
+            ) : null}
 
             {/* Shared With Me Section */}
             {sharedProjects.length > 0 && (
@@ -170,6 +207,12 @@ export default function DashboardScreen() {
         onCodeScanned={handleQRScanned}
       />
 
+      {/* Notifications Modal */}
+      <NotificationsModal
+        visible={showNotificationsModal}
+        onClose={() => setShowNotificationsModal(false)}
+      />
+
       {/* App Bar */}
       <BlurView
         intensity={60}
@@ -181,46 +224,20 @@ export default function DashboardScreen() {
         ]}
       >
         <View style={[styles.appBarInner, { paddingTop: Math.max(insets.top, 24) + 12 }]}>
-          {isSearchOpen ? (
-            <View style={[styles.searchBarContainer, { backgroundColor: colors.surfaceContainerHigh, borderColor: `${colors.primaryFixed}33` }]}>
-              <Feather name="search" size={18} color={colors.primaryFixed} style={{ marginRight: 8 }} />
-              <TextInput
-                style={[styles.searchInput, { color: colors.onSurface }]}
-                placeholder="Search active projects..."
-                placeholderTextColor={`${colors.onSurfaceVariant}70`}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                autoFocus
-                selectionColor={colors.primaryFixed}
-              />
-              <Pressable
-                onPress={() => {
-                  setSearchQuery('');
-                  setIsSearchOpen(false);
-                }}
-                style={styles.iconBtn}
-                hitSlop={8}
-              >
-                <Feather name="x" size={20} color={colors.onSurfaceVariant} />
-              </Pressable>
-            </View>
-          ) : (
-            <>
-              <View style={styles.appBarLeft}>
-                <Feather name="terminal" size={20} color={colors.primaryFixed} />
-                <Text style={[styles.appBarTitle, { color: colors.primaryFixed }]}>Trak</Text>
-              </View>
-              <View style={styles.appBarRight}>
-                <Pressable
-                  onPress={() => setIsSearchOpen(true)}
-                  style={styles.iconBtn}
-                  hitSlop={8}
-                >
-                  <Feather name="search" size={20} color={`${colors.onSurfaceVariant}80`} />
-                </Pressable>
-              </View>
-            </>
-          )}
+          <View style={styles.appBarLeft}>
+            <Feather name="terminal" size={20} color={colors.primaryFixed} />
+            <Text style={[styles.appBarTitle, { color: colors.primaryFixed }]}>Trak</Text>
+          </View>
+          <View style={styles.appBarRight}>
+            <Pressable
+              onPress={() => setShowNotificationsModal(true)}
+              style={styles.iconBtn}
+              hitSlop={8}
+            >
+              <Feather name="bell" size={20} color={colors.onSurface} />
+              <View style={[styles.notifBadge, { backgroundColor: colors.primaryFixed }]} />
+            </Pressable>
+          </View>
         </View>
       </BlurView>
 
@@ -289,10 +306,157 @@ export default function DashboardScreen() {
   );
 }
 
+// ─── Notifications Modal ────────────────────────────────────────────────────────
+function NotificationsModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const colors = useThemeColors();
+  const { projects } = useProjectStore();
+
+  const notifications = React.useMemo(() => {
+    const list: { id: string; title: string; desc: string; time: string; icon: keyof typeof Feather.glyphMap; color: string }[] = [];
+
+    projects.forEach((p) => {
+      list.push({
+        id: `proj-${p.id}`,
+        title: `Deployment "${p.name}"`,
+        desc: `Status: ${p.status || 'Active'} • ${p.techStack.join(', ') || 'General'}`,
+        time: p.lastUpdated ? new Date(p.lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Active',
+        icon: 'cpu',
+        color: colors.primaryFixed,
+      });
+
+      p.milestones.forEach((m) => {
+        if (m.completed) {
+          list.push({
+            id: `ms-${m.id}`,
+            title: `Feature Shipped: ${m.title}`,
+            desc: `Project: ${p.name}`,
+            time: 'Completed',
+            icon: 'check-circle',
+            color: colors.secondaryFixed,
+          });
+        }
+      });
+    });
+
+    if (list.length === 0) {
+      list.push({
+        id: 'welcome',
+        title: 'Welcome to Trak',
+        desc: 'All systems operational. Start by creating a project.',
+        time: 'Now',
+        icon: 'bell',
+        color: colors.primaryFixed,
+      });
+    }
+
+    return list.slice(0, 10);
+  }, [projects, colors]);
+
+  return (
+    <Modal transparent animationType="slide" visible={visible} onRequestClose={onClose}>
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={notifStyles.overlay}>
+          <TouchableWithoutFeedback>
+            <View style={[notifStyles.sheet, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
+              <View style={[notifStyles.handle, { backgroundColor: `${colors.onSurfaceVariant}40` }]} />
+              <View style={notifStyles.header}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <Feather name="bell" size={20} color={colors.primaryFixed} />
+                  <Text style={[notifStyles.title, { color: colors.onSurface }]}>Notifications & Activity</Text>
+                </View>
+                <Pressable onPress={onClose} hitSlop={8}>
+                  <Feather name="x" size={20} color={colors.onSurfaceVariant} />
+                </Pressable>
+              </View>
+
+              <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
+                {notifications.map((item) => (
+                  <View key={item.id} style={[notifStyles.item, { borderBottomColor: colors.glassBorder }]}>
+                    <View style={[notifStyles.iconBox, { backgroundColor: `${item.color}15`, borderColor: `${item.color}30` }]}>
+                      <Feather name={item.icon} size={16} color={item.color} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[notifStyles.itemTitle, { color: colors.onSurface }]}>{item.title}</Text>
+                      <Text style={[notifStyles.itemDesc, { color: colors.onSurfaceVariant }]}>{item.desc}</Text>
+                    </View>
+                    <Text style={[notifStyles.itemTime, { color: `${colors.onSurfaceVariant}80` }]}>{item.time}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          </TouchableWithoutFeedback>
+        </View>
+      </TouchableWithoutFeedback>
+    </Modal>
+  );
+}
+
+const notifStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: 36,
+    borderWidth: 1,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
+  },
+  title: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 17,
+  },
+  item: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  iconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  itemTitle: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 14,
+  },
+  itemDesc: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  itemTime: {
+    fontFamily: 'JetBrainsMono_400Regular',
+    fontSize: 11,
+  },
+});
+
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: Colors.surface,
   },
   appBar: {
     position: 'absolute',
@@ -301,7 +465,6 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 50,
     borderBottomWidth: 1,
-    borderBottomColor: `${Colors.outlineVariant}4D`,
     overflow: 'hidden',
   },
   appBarInner: {
@@ -320,7 +483,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_700Bold',
     fontSize: 24,
     lineHeight: 30,
-    color: Colors.primaryFixed,
     letterSpacing: -0.5,
   },
   appBarRight: {
@@ -330,29 +492,47 @@ const styles = StyleSheet.create({
   iconBtn: {
     padding: 8,
     borderRadius: 999,
+    position: 'relative',
   },
-  searchBarContainer: {
-    flex: 1,
+  notifBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  homeSearchWrap: {
+    marginBottom: 20,
+  },
+  homeSearchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surfaceContainerHigh,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: `${Colors.primaryFixed}33`,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
-  searchInput: {
+  homeSearchInput: {
     flex: 1,
     fontFamily: 'Inter_400Regular',
-    fontSize: 14,
-    color: Colors.onSurface,
+    fontSize: 15,
     padding: 0,
   },
+  noResultsWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 32,
+    gap: 8,
+  },
+  noResultsText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+  },
   listContent: {
-    paddingTop: 130, // clears the fixed app bar (safe area + 56px)
+    paddingTop: 130, // clears the fixed app bar
     paddingHorizontal: 20,
-    paddingBottom: 140, // clears the FAB + tab bar
+    paddingBottom: 140, // clears the FAB
   },
   listHeader: {
     marginBottom: 24,
@@ -361,17 +541,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_600SemiBold',
     fontSize: 20,
     lineHeight: 26,
-    color: Colors.onSurface,
     letterSpacing: -0.2,
   },
-  sessionId: {
-    fontFamily: 'JetBrainsMono_400Regular',
-    fontSize: 12,
-    color: Colors.onSurfaceVariant,
-    opacity: 0.6,
-    marginTop: 2,
-  },
-  // ── Shared Section ──
   sharedTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -380,7 +551,6 @@ const styles = StyleSheet.create({
   sharedCount: {
     fontFamily: 'JetBrainsMono_400Regular',
     fontSize: 12,
-    color: `${Colors.onSurfaceVariant}60`,
     marginTop: 2,
   },
   sharedCardWrapper: {
@@ -396,7 +566,6 @@ const styles = StyleSheet.create({
   ownerTagText: {
     fontFamily: 'JetBrainsMono_400Regular',
     fontSize: 11,
-    color: `${Colors.onSurfaceVariant}80`,
   },
   // ── FAB & Menu ──
   fabOverlay: {
@@ -417,18 +586,12 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#1A1F2B',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
     elevation: 8,
   },
   fabMenuItemPressed: {
-    backgroundColor: '#232830',
+    opacity: 0.8,
   },
   fabMenuIcon: {
     width: 36,
@@ -441,7 +604,6 @@ const styles = StyleSheet.create({
   fabMenuLabel: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 15,
-    color: Colors.onSurface,
   },
   fabContainer: {
     position: 'absolute',
@@ -453,17 +615,8 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: Colors.primaryContainer,
     alignItems: 'center',
     justifyContent: 'center',
-    // iOS shadow
-    shadowColor: Colors.primaryFixed,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
     elevation: 12,
-  },
-  fabActive: {
-    backgroundColor: Colors.surfaceContainerHighest,
   },
 });
