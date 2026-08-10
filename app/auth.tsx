@@ -145,7 +145,7 @@ export default function AuthScreen() {
           if (isUserExists || (error.status && error.status >= 500)) {
             setErrorMessage('An account with this email already exists. Please tap "Log In" below to sign in with your password.');
           } else if (error.status === 429 || errMsg.includes('rate limit')) {
-            setErrorMessage('Rate limit reached. Please wait a moment or tap "Log In" below.');
+            setErrorMessage('Supabase Email Rate Limit Exceeded on sign up. If your account already exists, please tap "Log In" below to sign in.');
           } else {
             setErrorMessage(extractErrorMessage(error, 'Sign up failed. Please try again.'));
           }
@@ -204,7 +204,7 @@ export default function AuthScreen() {
           } else if (code === 'email_not_confirmed' || msg.includes('email not confirmed')) {
             setErrorMessage('Email not confirmed. Please check your inbox and confirm your email address before signing in.');
           } else if (error.status === 429 || code === 'over_email_send_rate_limit' || msg.includes('rate limit')) {
-            setErrorMessage('Rate limit reached. Please wait a moment before trying again.');
+            setErrorMessage('Rate limit reached. Please wait a minute before trying again.');
           } else {
             setErrorMessage(extractErrorMessage(error, 'Sign in failed. Please try again.'));
           }
