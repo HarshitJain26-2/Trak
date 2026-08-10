@@ -119,7 +119,7 @@ export default function AuthScreen() {
       if (mode === 'signup') {
         const { data, error } = await supabase.auth.signUp({
           email: cleanEmail,
-          password: password.trim(),
+          password: password,
           options: {
             data: {
               full_name: fullName.trim(),
@@ -145,7 +145,7 @@ export default function AuthScreen() {
           try {
             const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
               email: cleanEmail,
-              password: password.trim(),
+              password: password,
             });
 
             if (!signInError && signInData?.user) {
@@ -223,7 +223,7 @@ export default function AuthScreen() {
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
           email: cleanEmail,
-          password: password.trim(),
+          password: password,
         });
 
         // Check for sign-in errors
