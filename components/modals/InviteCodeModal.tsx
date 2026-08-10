@@ -11,6 +11,9 @@ import {
 import * as Clipboard from 'expo-clipboard';
 import { Feather } from '@expo/vector-icons';
 import { Colors, useThemeColors } from '@/constants/colors';
+import QRCode from 'react-native-qrcode-svg';
+
+type ViewTab = 'code' | 'qr';
 
 interface InviteCodeModalProps {
   visible: boolean;
@@ -29,6 +32,7 @@ export function InviteCodeModal({
 }: InviteCodeModalProps) {
   const colors = useThemeColors();
   const [copied, setCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState<ViewTab>('code');
 
   const handleCopy = async () => {
     if (!inviteCode) return;
@@ -43,8 +47,12 @@ export function InviteCodeModal({
 
   const handleClose = () => {
     setCopied(false);
+    setActiveTab('code');
     onClose();
   };
+
+  // Build the deep link value for QR encoding
+  const qrValue = inviteCode ? `trak://join/${inviteCode}` : '';
 
   return (
     <Modal transparent animationType="fade" visible={visible} onRequestClose={handleClose}>
@@ -63,46 +71,118 @@ export function InviteCodeModal({
                 </Text>
               </View>
 
-              {/* Code display */}
+              {/* Tab Toggle — Code / QR */}
               {inviteCode ? (
                 <View>
-                  <View style={[styles.codeContainer, { backgroundColor: colors.surfaceContainerHigh, borderColor: `${colors.primaryFixed}30` }]}>
-                    <Text style={[styles.codeText, { color: colors.primaryFixed }]}>{inviteCode}</Text>
+                  <View style={[styles.tabContainer, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]}>
                     <Pressable
-                      style={({ pressed }) => [
-                        styles.copyBtn,
-                        { backgroundColor: colors.surfaceContainerHighest, borderColor: colors.glassBorder },
-                        pressed && styles.copyBtnPressed,
-                        copied && { backgroundColor: `${colors.primaryFixed}1A`, borderColor: `${colors.primaryFixed}30` },
+                      style={[
+                        styles.tab,
+                        activeTab === 'code' && { backgroundColor: colors.primaryFixed },
                       ]}
-                      onPress={handleCopy}
+                      onPress={() => setActiveTab('code')}
                     >
                       <Feather
-                        name={copied ? 'check' : 'copy'}
-                        size={16}
-                        color={copied ? colors.primaryFixed : colors.onSurfaceVariant}
+                        name="hash"
+                        size={14}
+                        color={activeTab === 'code' ? colors.onPrimaryFixed : colors.onSurfaceVariant}
                       />
-                      <Text style={[styles.copyBtnText, { color: colors.onSurfaceVariant }, copied && { color: colors.primaryFixed }]}>
-                        {copied ? 'Copied!' : 'Copy'}
+                      <Text
+                        style={[
+                          styles.tabText,
+                          { color: activeTab === 'code' ? colors.onPrimaryFixed : colors.onSurfaceVariant },
+                        ]}
+                      >
+                        Code
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      style={[
+                        styles.tab,
+                        activeTab === 'qr' && { backgroundColor: colors.primaryFixed },
+                      ]}
+                      onPress={() => setActiveTab('qr')}
+                    >
+                      <Feather
+                        name="maximize"
+                        size={14}
+                        color={activeTab === 'qr' ? colors.onPrimaryFixed : colors.onSurfaceVariant}
+                      />
+                      <Text
+                        style={[
+                          styles.tabText,
+                          { color: activeTab === 'qr' ? colors.onPrimaryFixed : colors.onSurfaceVariant },
+                        ]}
+                      >
+                        QR Code
                       </Text>
                     </Pressable>
                   </View>
 
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.regenerateBtn,
-                      { backgroundColor: `${colors.primaryFixed}10`, borderColor: `${colors.primaryFixed}30` },
-                      pressed && styles.regenerateBtnPressed,
-                      isGenerating && styles.regenerateBtnDisabled,
-                    ]}
-                    onPress={onGenerate}
-                    disabled={isGenerating}
-                  >
-                    <Feather name="refresh-cw" size={14} color={colors.primaryFixed} />
-                    <Text style={[styles.regenerateBtnText, { color: colors.primaryFixed }]}>
-                      {isGenerating ? 'Regenerating...' : 'Change Code'}
-                    </Text>
-                  </Pressable>
+                  {/* Code View */}
+                  {activeTab === 'code' && (
+                    <View>
+                      <View style={[styles.codeContainer, { backgroundColor: colors.surfaceContainerHigh, borderColor: `${colors.primaryFixed}30` }]}>
+                        <Text style={[styles.codeText, { color: colors.primaryFixed }]}>{inviteCode}</Text>
+                        <Pressable
+                          style={({ pressed }) => [
+                            styles.copyBtn,
+                            { backgroundColor: colors.surfaceContainerHighest, borderColor: colors.glassBorder },
+                            pressed && styles.copyBtnPressed,
+                            copied && { backgroundColor: `${colors.primaryFixed}1A`, borderColor: `${colors.primaryFixed}30` },
+                          ]}
+                          onPress={handleCopy}
+                        >
+                          <Feather
+                            name={copied ? 'check' : 'copy'}
+                            size={16}
+                            color={copied ? colors.primaryFixed : colors.onSurfaceVariant}
+                          />
+                          <Text style={[styles.copyBtnText, { color: colors.onSurfaceVariant }, copied && { color: colors.primaryFixed }]}>
+                            {copied ? 'Copied!' : 'Copy'}
+                          </Text>
+                        </Pressable>
+                      </View>
+
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.regenerateBtn,
+                          { backgroundColor: `${colors.primaryFixed}10`, borderColor: `${colors.primaryFixed}30` },
+                          pressed && styles.regenerateBtnPressed,
+                          isGenerating && styles.regenerateBtnDisabled,
+                        ]}
+                        onPress={onGenerate}
+                        disabled={isGenerating}
+                      >
+                        <Feather name="refresh-cw" size={14} color={colors.primaryFixed} />
+                        <Text style={[styles.regenerateBtnText, { color: colors.primaryFixed }]}>
+                          {isGenerating ? 'Regenerating...' : 'Change Code'}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  )}
+
+                  {/* QR Code View */}
+                  {activeTab === 'qr' && (
+                    <View style={styles.qrContainer}>
+                      <View style={[styles.qrWrapper, { backgroundColor: '#FFFFFF', borderColor: `${colors.primaryFixed}30` }]}>
+                        <QRCode
+                          value={qrValue}
+                          size={180}
+                          color="#10131a"
+                          backgroundColor="#FFFFFF"
+                          ecl="M"
+                        />
+                      </View>
+                      <Text style={[styles.qrHintText, { color: colors.onSurfaceVariant }]}>
+                        Scan with another device to join
+                      </Text>
+                      <View style={[styles.qrCodeLabel, { backgroundColor: colors.surfaceContainerHigh, borderColor: `${colors.primaryFixed}30` }]}>
+                        <Feather name="hash" size={12} color={colors.primaryFixed} />
+                        <Text style={[styles.qrCodeLabelText, { color: colors.primaryFixed }]}>{inviteCode}</Text>
+                      </View>
+                    </View>
+                  )}
                 </View>
               ) : (
                 <Pressable
@@ -166,7 +246,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   iconCircle: {
     width: 56,
@@ -192,6 +272,28 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
+  // Tab toggle
+  tabContainer: {
+    flexDirection: 'row',
+    borderRadius: 10,
+    padding: 3,
+    marginBottom: 16,
+    borderWidth: 1,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  tabText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+  },
+  // Code display
   codeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -224,18 +326,47 @@ const styles = StyleSheet.create({
   copyBtnPressed: {
     opacity: 0.7,
   },
-  copyBtnCopied: {
-    backgroundColor: `${Colors.primaryFixed}1A`,
-    borderColor: `${Colors.primaryFixed}30`,
-  },
   copyBtnText: {
     fontFamily: 'Inter_400Regular',
     fontSize: 13,
     color: Colors.onSurfaceVariant,
   },
-  copyBtnTextCopied: {
-    color: Colors.primaryFixed,
+  // QR Code display
+  qrContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
   },
+  qrWrapper: {
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  qrHintText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13,
+    marginBottom: 10,
+  },
+  qrCodeLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  qrCodeLabelText: {
+    fontFamily: 'JetBrainsMono_500Medium',
+    fontSize: 14,
+    letterSpacing: 2,
+  },
+  // Generate button
   generateBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -257,36 +388,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.onPrimaryFixed,
   },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    marginBottom: 20,
-    paddingHorizontal: 4,
-  },
-  infoText: {
-    fontFamily: 'Inter_400Regular',
-    fontSize: 12,
-    color: `${Colors.onSurfaceVariant}60`,
-    lineHeight: 17,
-    flex: 1,
-  },
-  closeBtn: {
-    paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: Colors.surfaceContainerHigh,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-  },
-  closeBtnPressed: {
-    opacity: 0.7,
-  },
-  closeBtnText: {
-    fontFamily: 'Inter_400Regular',
-    fontSize: 15,
-    color: Colors.onSurfaceVariant,
-  },
+  // Regenerate button
   regenerateBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -310,5 +412,37 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_500Medium',
     fontSize: 13,
     color: Colors.primaryFixed,
+  },
+  // Info
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginBottom: 20,
+    paddingHorizontal: 4,
+  },
+  infoText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: `${Colors.onSurfaceVariant}60`,
+    lineHeight: 17,
+    flex: 1,
+  },
+  // Close
+  closeBtn: {
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: Colors.surfaceContainerHigh,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  closeBtnPressed: {
+    opacity: 0.7,
+  },
+  closeBtnText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 15,
+    color: Colors.onSurfaceVariant,
   },
 });

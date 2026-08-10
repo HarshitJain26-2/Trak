@@ -9,6 +9,7 @@ import { useProjectStore, Project } from '@/store/useProjectStore';
 import { ProjectCard } from '@/components/project/ProjectCard';
 import EmptyState from '@/components/common/EmptyState';
 import { JoinProjectModal } from '@/components/modals/JoinProjectModal';
+import { QRScannerModal } from '@/components/modals/QRScannerModal';
 import { MemberAvatar } from '@/components/common/MemberAvatar';
 
 export default function DashboardScreen() {
@@ -18,6 +19,16 @@ export default function DashboardScreen() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showJoinModal, setShowJoinModal] = useState(false);
+  const [showQRScanner, setShowQRScanner] = useState(false);
+
+  const handleQRScanned = async (code: string) => {
+    setShowQRScanner(false);
+    const res = await joinProjectByCode(code);
+    if (!res.success) {
+      // Re-open join modal with error preset, or user can try again
+      setShowJoinModal(true);
+    }
+  };
 
   // Fetch projects and subscribe to realtime updates on mount / focus
   useFocusEffect(
@@ -149,6 +160,14 @@ export default function DashboardScreen() {
         visible={showJoinModal}
         onClose={() => setShowJoinModal(false)}
         onJoin={joinProjectByCode}
+        onOpenQRScanner={() => setShowQRScanner(true)}
+      />
+
+      {/* QR Scanner Modal */}
+      <QRScannerModal
+        visible={showQRScanner}
+        onClose={() => setShowQRScanner(false)}
+        onCodeScanned={handleQRScanned}
       />
 
       {/* App Bar */}
@@ -212,6 +231,19 @@ export default function DashboardScreen() {
       {fabMenuOpen && (
         <Pressable style={styles.fabOverlay} onPress={() => setFabMenuOpen(false)}>
           <View style={styles.fabMenuContainer}>
+            {/* Scan QR Code option */}
+            <Pressable
+              style={({ pressed }) => [styles.fabMenuItem, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }, pressed && styles.fabMenuItemPressed]}
+              onPress={() => {
+                setFabMenuOpen(false);
+                setShowQRScanner(true);
+              }}
+            >
+              <View style={[styles.fabMenuIcon, { backgroundColor: `${colors.primaryFixed}1A`, borderColor: `${colors.primaryFixed}30` }]}>
+                <Feather name="maximize" size={18} color={colors.primaryFixed} />
+              </View>
+              <Text style={[styles.fabMenuLabel, { color: colors.onSurface }]}>Scan QR Code</Text>
+            </Pressable>
             {/* Join Project option */}
             <Pressable
               style={({ pressed }) => [styles.fabMenuItem, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }, pressed && styles.fabMenuItemPressed]}
@@ -223,7 +255,7 @@ export default function DashboardScreen() {
               <View style={[styles.fabMenuIcon, { backgroundColor: `${colors.secondary}1A`, borderColor: `${colors.secondary}30` }]}>
                 <Feather name="user-plus" size={18} color={colors.secondary} />
               </View>
-              <Text style={[styles.fabMenuLabel, { color: colors.onSurface }]}>Join Project</Text>
+              <Text style={[styles.fabMenuLabel, { color: colors.onSurface }]}>Join via Code</Text>
             </Pressable>
             {/* New Project option */}
             <Pressable

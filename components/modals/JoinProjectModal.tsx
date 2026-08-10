@@ -18,9 +18,10 @@ interface JoinProjectModalProps {
   visible: boolean;
   onClose: () => void;
   onJoin: (code: string) => Promise<{ success: boolean; projectName?: string; error?: string }>;
+  onOpenQRScanner?: () => void;
 }
 
-export function JoinProjectModal({ visible, onClose, onJoin }: JoinProjectModalProps) {
+export function JoinProjectModal({ visible, onClose, onJoin, onOpenQRScanner }: JoinProjectModalProps) {
   const colors = useThemeColors();
   const [code, setCode] = useState('');
   const [isJoining, setIsJoining] = useState(false);
@@ -65,9 +66,36 @@ export function JoinProjectModal({ visible, onClose, onJoin }: JoinProjectModalP
                   </View>
                   <Text style={[styles.title, { color: colors.onSurface }]}>Join a Project</Text>
                   <Text style={[styles.subtitle, { color: colors.onSurfaceVariant }]}>
-                    Enter the invite code shared by a project owner to start collaborating.
+                    Enter the invite code shared by a project owner or scan their QR code.
                   </Text>
                 </View>
+
+                {/* Scan QR Code Button */}
+                {onOpenQRScanner && (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.qrScanBtn,
+                      { backgroundColor: `${colors.primaryFixed}14`, borderColor: `${colors.primaryFixed}33` },
+                      pressed && styles.qrScanBtnPressed,
+                    ]}
+                    onPress={() => {
+                      handleClose();
+                      onOpenQRScanner();
+                    }}
+                  >
+                    <Feather name="maximize" size={18} color={colors.primaryFixed} />
+                    <Text style={[styles.qrScanBtnText, { color: colors.primaryFixed }]}>Scan QR Code</Text>
+                  </Pressable>
+                )}
+
+                {/* Divider / OR label */}
+                {onOpenQRScanner && (
+                  <View style={styles.dividerRow}>
+                    <View style={[styles.dividerLine, { backgroundColor: colors.glassBorder }]} />
+                    <Text style={[styles.dividerText, { color: `${colors.onSurfaceVariant}70` }]}>OR ENTER CODE</Text>
+                    <View style={[styles.dividerLine, { backgroundColor: colors.glassBorder }]} />
+                  </View>
+                )}
 
                 {/* Code input */}
                 <TextInput
@@ -81,7 +109,7 @@ export function JoinProjectModal({ visible, onClose, onJoin }: JoinProjectModalP
                   placeholderTextColor={`${colors.onSurfaceVariant}40`}
                   autoCapitalize="characters"
                   autoCorrect={false}
-                  autoFocus
+                  autoFocus={!onOpenQRScanner}
                   returnKeyType="go"
                   onSubmitEditing={handleJoin}
                   selectionColor={colors.primaryFixed}
@@ -272,5 +300,37 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_600SemiBold',
     fontSize: 15,
     color: Colors.onPrimaryFixed,
+  },
+  qrScanBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  qrScanBtnPressed: {
+    opacity: 0.8,
+  },
+  qrScanBtnText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 15,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+  },
+  dividerText: {
+    fontSize: 10,
+    fontFamily: 'JetBrainsMono_500Medium',
+    marginHorizontal: 10,
+    letterSpacing: 0.8,
   },
 });
