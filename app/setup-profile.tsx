@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Colors, useThemeColors } from '@/constants/colors';
+import { useThemeColors } from '@/constants/colors';
 import { useProfileStore } from '@/store/useProfileStore';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -116,8 +116,8 @@ export default function SetupProfileScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Ambient blobs */}
-      <View style={[styles.blob, styles.blobTL, { backgroundColor: `${colors.primaryFixed}07` }]} pointerEvents="none" />
-      <View style={[styles.blob, styles.blobBR, { backgroundColor: `${colors.secondaryContainer}07` }]} pointerEvents="none" />
+      <View style={[styles.blob, styles.blobTL, { backgroundColor: `${colors.primaryFixed}0A` }]} pointerEvents="none" />
+      <View style={[styles.blob, styles.blobBR, { backgroundColor: `${colors.secondaryContainer}0A` }]} pointerEvents="none" />
 
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
         <KeyboardAvoidingView
@@ -257,18 +257,23 @@ export default function SetupProfileScreen() {
           </ScrollView>
 
           {/* ── Save button ── */}
-          <View style={styles.footer}>
+          <View style={[styles.footer, { borderTopColor: colors.glassBorder }]}>
             <Pressable
-              style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+              style={({ pressed }) => [
+                styles.saveBtn,
+                { backgroundColor: colors.primaryFixed },
+                pressed && { opacity: 0.85 },
+                saving && styles.saveBtnDisabled,
+              ]}
               onPress={handleSave}
               disabled={saving}
             >
               {saving ? (
-                <ActivityIndicator color="#002203" size="small" />
+                <ActivityIndicator color={colors.onPrimaryFixed} size="small" />
               ) : (
                 <>
-                  <Feather name="check" size={18} color="#002203" />
-                  <Text style={styles.saveBtnText}>
+                  <Feather name="check" size={18} color={colors.onPrimaryFixed} />
+                  <Text style={[styles.saveBtnText, { color: colors.onPrimaryFixed }]}>
                     {isNewUser ? 'Save & Enter Trak' : 'Save Changes'}
                   </Text>
                 </>
@@ -276,7 +281,7 @@ export default function SetupProfileScreen() {
             </Pressable>
 
             <Pressable style={styles.skipFooterBtn} onPress={handleSkip}>
-              <Text style={styles.skipFooterText}>
+              <Text style={[styles.skipFooterText, { color: colors.onSurfaceVariant }]}>
                 {isNewUser ? 'Skip for now, I\'ll fill this in later' : 'Cancel, go back to app'}
               </Text>
             </Pressable>
@@ -289,11 +294,14 @@ export default function SetupProfileScreen() {
 
 // ─── Section label ─────────────────────────────────────────────────────────────
 function SectionLabel({ icon, label }: { icon: keyof typeof Feather.glyphMap; label: string }) {
+  const colors = useThemeColors();
+  const accentColor = colors.isDark ? colors.primaryFixed : colors.primaryFixedDim;
+
   return (
     <View style={sectionStyles.row}>
-      <Feather name={icon} size={12} color={`${Colors.primaryFixed}90`} />
-      <Text style={sectionStyles.text}>{label}</Text>
-      <View style={sectionStyles.line} />
+      <Feather name={icon} size={12} color={accentColor} />
+      <Text style={[sectionStyles.text, { color: accentColor }]}>{label}</Text>
+      <View style={[sectionStyles.line, { backgroundColor: colors.glassBorder }]} />
     </View>
   );
 }
@@ -309,13 +317,11 @@ const sectionStyles = StyleSheet.create({
   text: {
     fontFamily: 'JetBrainsMono_500Medium',
     fontSize: 10,
-    color: `${Colors.primaryFixed}90`,
     letterSpacing: 2,
   },
   line: {
     flex: 1,
     height: 1,
-    backgroundColor: `${Colors.outlineVariant}33`,
   },
 });
 
@@ -343,35 +349,49 @@ function InputField({
   mono?: boolean;
   hint?: string;
 }) {
+  const colors = useThemeColors();
+
+  const cardBg = colors.isDark ? colors.surfaceContainerHigh : colors.surfaceContainerLow;
+
   return (
     <View style={inputStyles.wrap}>
-      <Text style={inputStyles.label}>{label}</Text>
-      <View style={[inputStyles.row, multiline && inputStyles.rowMulti]}>
+      <Text style={[inputStyles.label, { color: colors.onSurface }]}>{label}</Text>
+      <View
+        style={[
+          inputStyles.row,
+          {
+            backgroundColor: cardBg,
+            borderColor: colors.glassBorder,
+          },
+          multiline && inputStyles.rowMulti,
+        ]}
+      >
         <Feather
           name={icon}
           size={15}
-          color={`${Colors.onSurfaceVariant}60`}
+          color={colors.onSurfaceVariant}
           style={{ marginTop: multiline ? 1 : 0 }}
         />
         <TextInput
           style={[
             inputStyles.input,
-            mono && inputStyles.inputMono,
+            { color: colors.onSurface },
+            mono && { color: colors.isDark ? colors.secondary : colors.secondaryFixedDim, fontFamily: 'JetBrainsMono_400Regular', fontSize: 14 },
             multiline && inputStyles.inputMulti,
           ]}
           placeholder={placeholder}
-          placeholderTextColor={`${Colors.onSurfaceVariant}35`}
+          placeholderTextColor={`${colors.onSurfaceVariant}66`}
           value={value}
           onChangeText={onChangeText}
           multiline={multiline}
           autoCapitalize={autoCapitalize}
           returnKeyType={returnKeyType}
-          selectionColor={Colors.primaryFixed}
+          selectionColor={colors.primaryFixed}
           textAlignVertical={multiline ? 'top' : 'center'}
           numberOfLines={multiline ? 3 : 1}
         />
       </View>
-      {hint ? <Text style={inputStyles.hint}>{hint}</Text> : null}
+      {hint ? <Text style={[inputStyles.hint, { color: colors.onSurfaceVariant }]}>{hint}</Text> : null}
     </View>
   );
 }
@@ -381,17 +401,14 @@ const inputStyles = StyleSheet.create({
   label: {
     fontFamily: 'Inter_500Medium',
     fontSize: 13,
-    color: Colors.onSurface,
-    opacity: 0.8,
+    opacity: 0.9,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: Colors.surfaceContainer,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: `${Colors.outlineVariant}4D`,
     paddingHorizontal: 14,
     paddingVertical: 13,
   },
@@ -403,13 +420,7 @@ const inputStyles = StyleSheet.create({
     flex: 1,
     fontFamily: 'Inter_400Regular',
     fontSize: 15,
-    color: Colors.onSurface,
     padding: 0,
-  },
-  inputMono: {
-    fontFamily: 'JetBrainsMono_400Regular',
-    color: Colors.secondary,
-    fontSize: 14,
   },
   inputMulti: {
     minHeight: 72,
@@ -418,7 +429,6 @@ const inputStyles = StyleSheet.create({
   hint: {
     fontFamily: 'Inter_400Regular',
     fontSize: 11,
-    color: `${Colors.onSurfaceVariant}55`,
     marginLeft: 2,
   },
 });
@@ -427,11 +437,9 @@ const inputStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: Colors.surfaceContainerLowest,
   },
   loadingWrap: {
     flex: 1,
-    backgroundColor: Colors.surfaceContainerLowest,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -444,12 +452,10 @@ const styles = StyleSheet.create({
   blobTL: {
     top: -SCREEN_WIDTH * 0.4,
     left: -SCREEN_WIDTH * 0.3,
-    backgroundColor: `${Colors.primaryFixed}07`,
   },
   blobBR: {
     bottom: -SCREEN_WIDTH * 0.4,
     right: -SCREEN_WIDTH * 0.3,
-    backgroundColor: `${Colors.secondaryContainer}07`,
   },
 
   // Top bar
@@ -460,7 +466,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: `${Colors.outlineVariant}25`,
   },
   topBarLeft: {
     flexDirection: 'row',
@@ -472,22 +477,18 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 10,
-    backgroundColor: `${Colors.primaryFixed}15`,
     borderWidth: 1,
-    borderColor: `${Colors.primaryFixed}25`,
     alignItems: 'center',
     justifyContent: 'center',
   },
   topTitle: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 15,
-    color: Colors.onSurface,
     letterSpacing: -0.2,
   },
   topSubtitle: {
     fontFamily: 'Inter_400Regular',
     fontSize: 11,
-    color: `${Colors.onSurfaceVariant}80`,
     marginTop: 1,
   },
   skipBtn: {
@@ -497,12 +498,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: `${Colors.surfaceContainerHigh}80`,
   },
   skipText: {
     fontFamily: 'Inter_400Regular',
     fontSize: 13,
-    color: `${Colors.onSurfaceVariant}90`,
   },
 
   // Form
@@ -519,21 +518,15 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === 'ios' ? 4 : 16,
     gap: 8,
     borderTopWidth: 1,
-    borderTopColor: `${Colors.outlineVariant}20`,
   },
   saveBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: Colors.primaryFixed,
     borderRadius: 12,
     paddingVertical: 15,
-    shadowColor: Colors.primaryFixed,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.28,
-    shadowRadius: 12,
-    elevation: 8,
+    elevation: 4,
   },
   saveBtnDisabled: {
     opacity: 0.6,
@@ -541,7 +534,6 @@ const styles = StyleSheet.create({
   saveBtnText: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 16,
-    color: '#002203',
   },
   skipFooterBtn: {
     alignItems: 'center',
@@ -550,7 +542,6 @@ const styles = StyleSheet.create({
   skipFooterText: {
     fontFamily: 'Inter_400Regular',
     fontSize: 12,
-    color: `${Colors.onSurfaceVariant}60`,
     textAlign: 'center',
   },
   errorBox: {
