@@ -133,10 +133,15 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
           }
         } catch {}
 
+        let baseUsername = authEmail ? authEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : '';
+        if (!baseUsername || baseUsername === 'developer') {
+          baseUsername = `dev_${userId.slice(0, 6)}`;
+        }
+
         const initialProf: Profile = {
           ...DEFAULT_PROFILE,
           name: authName || 'Developer',
-          username: authEmail ? authEmail.split('@')[0].toLowerCase() : 'developer',
+          username: baseUsername,
           email: authEmail,
         };
 
@@ -145,17 +150,22 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
 
         if (userId && authEmail) {
           void Promise.resolve(
-            supabase.from('profiles').upsert({
-              id: userId,
-              name: initialProf.name,
-              username: initialProf.username || null,
-              email: initialProf.email,
-              bio: initialProf.bio,
-              role: initialProf.role,
-              location: initialProf.location,
-              skills: initialProf.skills,
-            })
-          ).catch(() => {});
+            supabase.from('profiles').upsert(
+              {
+                id: userId,
+                name: initialProf.name,
+                username: initialProf.username,
+                email: initialProf.email,
+                bio: initialProf.bio,
+                role: initialProf.role,
+                location: initialProf.location,
+                skills: initialProf.skills,
+              },
+              { onConflict: 'id' }
+            )
+          ).catch((e) => {
+            console.warn('[useProfileStore] Profile auto-upsert notice:', e?.message);
+          });
         }
       }
     } catch (err) {

@@ -242,14 +242,27 @@ export default function AuthScreen() {
 
         // Check for sign-in errors
         if (error) {
+          console.error('[AuthScreen] signInWithPassword error:', {
+            message: error.message,
+            status: error.status,
+            name: error.name,
+            code: (error as any).code,
+          });
           setLoading(false);
+          const msg = (error.message || '').toLowerCase();
+          const code = (error as any).code || '';
+
           if (
-            error.message?.toLowerCase().includes('invalid login') ||
-            error.message?.toLowerCase().includes('invalid credentials') ||
-            error.message?.toLowerCase().includes('user not found') ||
-            error.message?.toLowerCase().includes('email not confirmed')
+            code === 'invalid_credentials' ||
+            msg.includes('invalid login') ||
+            msg.includes('invalid credentials') ||
+            msg.includes('user not found')
           ) {
-            setErrorMessage('Invalid email or password. If all users were deleted in Supabase, please tap "Sign up for Trak" below to register again.');
+            setErrorMessage('Invalid email or password. Please check your credentials and try again.');
+          } else if (code === 'email_not_confirmed' || msg.includes('email not confirmed')) {
+            setErrorMessage('Email not confirmed. Please check your inbox and confirm your email address before signing in.');
+          } else if (error.status === 429 || code === 'over_email_send_rate_limit' || msg.includes('rate limit')) {
+            setErrorMessage('Too many login attempts. Please wait a few minutes before trying again.');
           } else if (error.status && error.status >= 500) {
             setErrorMessage(
               'Supabase server error. Please check your Supabase Dashboard → Logs for details.'
