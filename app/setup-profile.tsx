@@ -68,7 +68,7 @@ export default function SetupProfileScreen() {
       const cleanGh = githubUsername.trim().replace(/^(https?:\/\/)?(www\.)?github\.com\//, '');
 
       const res = await updateProfile({
-        name: name.trim() || 'Developer',
+        name: name.trim(),
         username: cleanUsername,
         role: role.trim(),
         bio: bio.trim(),
@@ -93,10 +93,10 @@ export default function SetupProfileScreen() {
   };
 
   const handleSkip = async () => {
-    if (!profile.username || profile.username === 'developer') {
+    if (!profile.username) {
       const autoUsername = `dev_${Date.now().toString().slice(-6)}`;
       await updateProfile({
-        name: name.trim() || 'Developer',
+        name: name.trim(),
         username: autoUsername,
       });
     }

@@ -12,6 +12,7 @@ import {
   TouchableWithoutFeedback,
   KeyboardAvoidingView,
   Alert,
+  Linking,
 } from 'react-native';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
@@ -27,6 +28,9 @@ import { InviteCodeModal } from '@/components/modals/InviteCodeModal';
 import { CalendarPickerModal } from '@/components/modals/CalendarPickerModal';
 import { AestheticCheckbox } from '@/components/common/AestheticCheckbox';
 import { IncompleteTasksWarningModal } from '@/components/modals/IncompleteTasksWarningModal';
+import { supabase } from '@/services/supabase';
+import { getActiveUserId } from '@/utils/deviceUser';
+import { notificationService } from '@/services/notifications';
 
 function formatRemainingTime(deadlineStr: string): string {
   if (!deadlineStr || deadlineStr === 'No Deadline') return 'No Deadline';
@@ -257,6 +261,7 @@ export default function ProjectDetailsScreen() {
     deleteMilestone,
     markCompleted,
     deleteProject,
+    updateProject,
     generateInviteCode,
     leaveProject,
     fetchProjectMembers,
@@ -286,6 +291,17 @@ export default function ProjectDetailsScreen() {
   const [showActionSheet, setShowActionSheet] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
+
+  // Repository edit state
+  const [showEditRepoModal, setShowEditRepoModal] = useState(false);
+  const [repoInput, setRepoInput] = useState('');
+
+  const handleSaveRepo = async () => {
+    if (!project) return;
+    const clean = repoInput.trim().replace(/^https?:\/\//, '');
+    await updateProject(project.id, { repoUrl: clean });
+    setShowEditRepoModal(false);
+  };
 
   // Collaboration state
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -363,9 +379,12 @@ export default function ProjectDetailsScreen() {
 
   const handleGenerateInviteCode = async () => {
     if (!project) return;
-    setIsGeneratingCode(true);
-    await generateInviteCode(project.id);
-    setIsGeneratingCode(false);
+    setShowInviteModal(true);
+    if (!project.inviteCode) {
+      setIsGeneratingCode(true);
+      await generateInviteCode(project.id);
+      setIsGeneratingCode(false);
+    }
   };
 
   const handleLeaveProject = async () => {
@@ -670,18 +689,64 @@ export default function ProjectDetailsScreen() {
         </View>
 
         {/* Repo link */}
-        <Pressable style={[styles.glassCard, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]} onPress={() => {}}>
+        <View style={[styles.glassCard, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
           <View style={styles.repoRow}>
-            <View style={styles.repoLeft}>
-              <Feather name="github" size={20} color={colors.onSurfaceVariant} />
-              <View>
-                <Text style={[styles.repoLabel, { color: colors.onSurfaceVariant }]}>Repository</Text>
-                <Text style={[styles.repoUrl, { color: colors.secondary }]}>{project.repoUrl}</Text>
+            <Pressable
+              style={[styles.repoLeft, { flex: 1 }]}
+              onPress={() => {
+                if (project.repoUrl) {
+                  const url = project.repoUrl.startsWith('http')
+                    ? project.repoUrl
+                    : `https://${project.repoUrl}`;
+                  Linking.openURL(url).catch(() => {
+                    Alert.alert('Link Error', `Could not open ${project.repoUrl}`);
+                  });
+                } else if (!isSharedProject) {
+                  setRepoInput('');
+                  setShowEditRepoModal(true);
+                }
+              }}
+            >
+              <Feather name="github" size={20} color={project.repoUrl ? colors.primaryFixed : colors.onSurfaceVariant} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.repoLabel, { color: colors.onSurfaceVariant }]}>REPOSITORY</Text>
+                <Text
+                  style={[
+                    styles.repoUrl,
+                    { color: project.repoUrl ? colors.secondary : `${colors.onSurfaceVariant}70` },
+                    !project.repoUrl && { fontStyle: 'italic' },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {project.repoUrl || '+ Add Git repository URL'}
+                </Text>
               </View>
-            </View>
-            <Feather name="external-link" size={16} color={colors.onSurfaceVariant} />
+            </Pressable>
+
+            {!isSharedProject && (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.editRepoBtn,
+                  { backgroundColor: `${colors.primaryFixed}15`, borderColor: `${colors.primaryFixed}30` },
+                  pressed && { opacity: 0.7 },
+                ]}
+                onPress={() => {
+                  setRepoInput(project.repoUrl || '');
+                  setShowEditRepoModal(true);
+                }}
+                hitSlop={8}
+              >
+                <Feather name={project.repoUrl ? 'edit-2' : 'plus'} size={14} color={colors.primaryFixed} />
+                <Text style={[styles.editRepoBtnText, { color: colors.primaryFixed }]}>
+                  {project.repoUrl ? 'Edit' : 'Add'}
+                </Text>
+              </Pressable>
+            )}
+            {isSharedProject && project.repoUrl ? (
+              <Feather name="external-link" size={16} color={colors.onSurfaceVariant} />
+            ) : null}
           </View>
-        </Pressable>
+        </View>
 
         {/* Tech Stack */}
         <View style={styles.section}>
@@ -905,6 +970,70 @@ export default function ProjectDetailsScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Edit Repo Modal */}
+      <Modal transparent animationType="fade" visible={showEditRepoModal} onRequestClose={() => setShowEditRepoModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <TouchableWithoutFeedback onPress={() => setShowEditRepoModal(false)}>
+            <View style={editRepoStyles.overlay}>
+              <TouchableWithoutFeedback>
+                <View style={[editRepoStyles.card, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
+                  <View style={editRepoStyles.header}>
+                    <View style={[editRepoStyles.iconCircle, { backgroundColor: `${colors.primaryFixed}1A`, borderColor: `${colors.primaryFixed}30` }]}>
+                      <Feather name="github" size={20} color={colors.primaryFixed} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[editRepoStyles.title, { color: colors.onSurface }]}>
+                        {project?.repoUrl ? 'Edit Repository URL' : 'Add Git Repository'}
+                      </Text>
+                      <Text style={[editRepoStyles.subtitle, { color: colors.onSurfaceVariant }]}>
+                        Link your GitHub, GitLab, or Bitbucket repository
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Text style={[editRepoStyles.fieldLabel, { color: colors.onSurfaceVariant }]}>REPOSITORY URL</Text>
+                  <View style={[editRepoStyles.inputWrapper, { backgroundColor: colors.surfaceContainerHigh, borderColor: `${colors.primaryFixed}33` }]}>
+                    <Feather name="link" size={16} color={`${colors.onSurfaceVariant}80`} />
+                    <TextInput
+                      style={[editRepoStyles.input, { color: colors.onSurface }]}
+                      placeholder="github.com/username/repository"
+                      placeholderTextColor={`${colors.onSurfaceVariant}50`}
+                      value={repoInput}
+                      onChangeText={setRepoInput}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      selectionColor={colors.primaryFixed}
+                      returnKeyType="done"
+                      onSubmitEditing={handleSaveRepo}
+                    />
+                    {repoInput ? (
+                      <Pressable onPress={() => setRepoInput('')} hitSlop={8}>
+                        <Feather name="x" size={16} color={colors.onSurfaceVariant} />
+                      </Pressable>
+                    ) : null}
+                  </View>
+
+                  <View style={editRepoStyles.btnRow}>
+                    <Pressable
+                      style={[editRepoStyles.btn, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder, borderWidth: 1 }]}
+                      onPress={() => setShowEditRepoModal(false)}
+                    >
+                      <Text style={[editRepoStyles.btnCancelText, { color: colors.onSurfaceVariant }]}>Cancel</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[editRepoStyles.btn, { backgroundColor: colors.primaryFixed }]}
+                      onPress={handleSaveRepo}
+                    >
+                      <Text style={[editRepoStyles.btnSaveText, { color: colors.onPrimaryFixed }]}>Save URL</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </TouchableWithoutFeedback>
+            </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -1193,6 +1322,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.secondary,
     marginTop: 2,
+  },
+  editRepoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  editRepoBtnText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 13,
   },
   section: {
     gap: 12,
@@ -1586,5 +1728,86 @@ const inputStyles = StyleSheet.create({
     fontFamily: 'Inter_600SemiBold',
     fontSize: 15,
     color: Colors.onPrimaryFixed,
+  },
+});
+
+const editRepoStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  card: {
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 24,
+    elevation: 16,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 20,
+  },
+  iconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 17,
+  },
+  subtitle: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13,
+    marginTop: 2,
+  },
+  fieldLabel: {
+    fontFamily: 'JetBrainsMono_400Regular',
+    fontSize: 10,
+    letterSpacing: 1.5,
+    marginBottom: 8,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 20,
+  },
+  input: {
+    flex: 1,
+    fontFamily: 'Inter_400Regular',
+    fontSize: 15,
+  },
+  btnRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  btn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  btnCancelText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 15,
+  },
+  btnSaveText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 15,
   },
 });

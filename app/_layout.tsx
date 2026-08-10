@@ -26,6 +26,24 @@ LogBox.ignoreLogs([
   'expo-notifications',
   'SafeAreaView has been deprecated',
 ]);
+
+if (__DEV__) {
+  const filterExpoNotificationsWarning = (origFn: (...args: any[]) => void) => {
+    return (...args: any[]) => {
+      const msg = typeof args[0] === 'string' ? args[0] : '';
+      if (
+        msg.includes('expo-notifications: Android Push notifications') ||
+        msg.includes('was removed from Expo Go')
+      ) {
+        return;
+      }
+      origFn(...args);
+    };
+  };
+
+  console.warn = filterExpoNotificationsWarning(console.warn);
+  console.error = filterExpoNotificationsWarning(console.error);
+}
 import { supabase } from '@/services/supabase';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useProfileStore } from '@/store/useProfileStore';

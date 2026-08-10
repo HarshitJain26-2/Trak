@@ -11,6 +11,7 @@ import {
   Modal,
   TouchableWithoutFeedback,
   ScrollView,
+  PanResponder,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
@@ -306,13 +307,101 @@ export default function DashboardScreen() {
   );
 }
 
+// ─── Swipeable Notification Item ───────────────────────────────────────────────
+interface NotificationItemData {
+  id: string;
+  title: string;
+  desc: string;
+  time: string;
+  icon: keyof typeof Feather.glyphMap;
+  color: string;
+}
+
+function SwipeableNotificationItem({
+  item,
+  colors,
+  onClear,
+}: {
+  item: NotificationItemData;
+  colors: any;
+  onClear: (id: string) => void;
+}) {
+  const pan = useRef(new Animated.Value(0)).current;
+  const opacityAnim = useRef(new Animated.Value(1)).current;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return Math.abs(gestureState.dx) > 10 && Math.abs(gestureState.dy) < 15;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        pan.setValue(gestureState.dx);
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (Math.abs(gestureState.dx) > 90 || Math.abs(gestureState.vx) > 0.4) {
+          const toValue = gestureState.dx > 0 ? 500 : -500;
+          Animated.parallel([
+            Animated.timing(pan, {
+              toValue,
+              duration: 200,
+              useNativeDriver: false,
+            }),
+            Animated.timing(opacityAnim, {
+              toValue: 0,
+              duration: 200,
+              useNativeDriver: false,
+            }),
+          ]).start(() => {
+            onClear(item.id);
+          });
+        } else {
+          Animated.spring(pan, {
+            toValue: 0,
+            useNativeDriver: false,
+            bounciness: 12,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
+  return (
+    <Animated.View
+      style={{
+        transform: [{ translateX: pan }],
+        opacity: opacityAnim,
+      }}
+      {...panResponder.panHandlers}
+    >
+      <View style={[notifStyles.item, { borderBottomColor: colors.glassBorder }]}>
+        <View style={[notifStyles.iconBox, { backgroundColor: `${item.color}15`, borderColor: `${item.color}30` }]}>
+          <Feather name={item.icon} size={16} color={item.color} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[notifStyles.itemTitle, { color: colors.onSurface }]}>{item.title}</Text>
+          <Text style={[notifStyles.itemDesc, { color: colors.onSurfaceVariant }]}>{item.desc}</Text>
+        </View>
+        <View style={{ alignItems: 'flex-end', gap: 2 }}>
+          <Text style={[notifStyles.itemTime, { color: `${colors.onSurfaceVariant}80` }]}>{item.time}</Text>
+          <Feather name="chevron-right" size={12} color={`${colors.onSurfaceVariant}40`} />
+        </View>
+      </View>
+    </Animated.View>
+  );
+}
+
 // ─── Notifications Modal ────────────────────────────────────────────────────────
 function NotificationsModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const colors = useThemeColors();
   const { projects } = useProjectStore();
+  const [clearedIds, setClearedIds] = useState<string[]>([]);
+
+  const handleClear = (id: string) => {
+    setClearedIds((prev) => [...prev, id]);
+  };
 
   const notifications = React.useMemo(() => {
-    const list: { id: string; title: string; desc: string; time: string; icon: keyof typeof Feather.glyphMap; color: string }[] = [];
+    const list: NotificationItemData[] = [];
 
     projects.forEach((p) => {
       list.push({
@@ -352,6 +441,12 @@ function NotificationsModal({ visible, onClose }: { visible: boolean; onClose: (
     return list.slice(0, 10);
   }, [projects, colors]);
 
+  const activeNotifications = notifications.filter((n) => !clearedIds.includes(n.id));
+
+  const handleClearAll = () => {
+    setClearedIds(notifications.map((n) => n.id));
+  };
+
   return (
     <Modal transparent animationType="slide" visible={visible} onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={onClose}>
@@ -364,24 +459,36 @@ function NotificationsModal({ visible, onClose }: { visible: boolean; onClose: (
                   <Feather name="bell" size={20} color={colors.primaryFixed} />
                   <Text style={[notifStyles.title, { color: colors.onSurface }]}>Notifications & Activity</Text>
                 </View>
-                <Pressable onPress={onClose} hitSlop={8}>
-                  <Feather name="x" size={20} color={colors.onSurfaceVariant} />
-                </Pressable>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  {activeNotifications.length > 0 && (
+                    <Pressable onPress={handleClearAll} hitSlop={8}>
+                      <Text style={{ fontFamily: 'Inter_500Medium', fontSize: 12, color: colors.primaryFixed }}>Clear All</Text>
+                    </Pressable>
+                  )}
+                  <Pressable onPress={onClose} hitSlop={8}>
+                    <Feather name="x" size={20} color={colors.onSurfaceVariant} />
+                  </Pressable>
+                </View>
               </View>
 
+              {activeNotifications.length > 0 && (
+                <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 11, color: `${colors.onSurfaceVariant}60`, marginBottom: 8, fontStyle: 'italic' }}>
+                  Slide notification left or right to clear
+                </Text>
+              )}
+
               <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
-                {notifications.map((item) => (
-                  <View key={item.id} style={[notifStyles.item, { borderBottomColor: colors.glassBorder }]}>
-                    <View style={[notifStyles.iconBox, { backgroundColor: `${item.color}15`, borderColor: `${item.color}30` }]}>
-                      <Feather name={item.icon} size={16} color={item.color} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[notifStyles.itemTitle, { color: colors.onSurface }]}>{item.title}</Text>
-                      <Text style={[notifStyles.itemDesc, { color: colors.onSurfaceVariant }]}>{item.desc}</Text>
-                    </View>
-                    <Text style={[notifStyles.itemTime, { color: `${colors.onSurfaceVariant}80` }]}>{item.time}</Text>
+                {activeNotifications.length > 0 ? (
+                  activeNotifications.map((item) => (
+                    <SwipeableNotificationItem key={item.id} item={item} colors={colors} onClear={handleClear} />
+                  ))
+                ) : (
+                  <View style={{ paddingVertical: 32, alignItems: 'center' }}>
+                    <Feather name="check-circle" size={32} color={`${colors.primaryFixed}80`} />
+                    <Text style={{ fontFamily: 'Inter_500Medium', fontSize: 14, color: colors.onSurface, marginTop: 8 }}>All notifications cleared</Text>
+                    <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 12, color: colors.onSurfaceVariant, marginTop: 2 }}>You're all caught up!</Text>
                   </View>
-                ))}
+                )}
               </ScrollView>
             </View>
           </TouchableWithoutFeedback>

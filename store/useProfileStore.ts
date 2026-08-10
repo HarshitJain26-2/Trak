@@ -40,16 +40,16 @@ interface ProfileStore {
 }
 
 const DEFAULT_PROFILE: Profile = {
-  name: 'Developer',
-  username: 'developer',
+  name: '',
+  username: '',
   email: '',
-  bio: 'Building awesome apps with Trak.',
-  role: 'Full Stack Engineer',
-  location: 'Remote',
+  bio: '',
+  role: '',
+  location: '',
   avatarUrl: '',
   githubUrl: '',
   company: '',
-  skills: ['React Native', 'TypeScript', 'Supabase'],
+  skills: [],
   socialLinks: [],
   joinedDate: new Date().toISOString(),
 };
@@ -106,11 +106,11 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
 
       if (data) {
         const updatedProfile: Profile = {
-          name: data.name || 'Developer',
+          name: data.name || '',
           username: data.username || '',
           email: data.email || '',
           bio: data.bio || '',
-          role: data.role || 'Full Stack Engineer',
+          role: data.role || '',
           location: data.location || '',
           avatarUrl: data.avatar_url || '',
           githubUrl: data.github_url || '',
@@ -129,18 +129,18 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
           const { data: { user } } = await supabase.auth.getUser();
           if (user) {
             authEmail = user.email || '';
-            authName = user.user_metadata?.full_name || user.user_metadata?.name || (authEmail ? authEmail.split('@')[0] : 'Developer');
+            authName = user.user_metadata?.full_name || user.user_metadata?.name || (authEmail ? authEmail.split('@')[0] : '');
           }
         } catch {}
 
         let baseUsername = authEmail ? authEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : '';
-        if (!baseUsername || baseUsername === 'developer') {
+        if (!baseUsername) {
           baseUsername = `dev_${userId.slice(0, 6)}`;
         }
 
         const initialProf: Profile = {
           ...DEFAULT_PROFILE,
-          name: authName || 'Developer',
+          name: authName || '',
           username: baseUsername,
           email: authEmail,
         };

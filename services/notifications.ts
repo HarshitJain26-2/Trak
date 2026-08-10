@@ -202,16 +202,22 @@ class NotificationService {
   /**
    * Schedule a local reminder notification
    */
-  async scheduleReminder(reminder: ScheduledReminder): Promise<void> {
+  async scheduleReminder(
+    reminder: ScheduledReminder,
+    options?: { isTest?: boolean; silent?: boolean }
+  ): Promise<void> {
     const now = Date.now();
     let effectiveTriggerTime = reminder.triggerTime;
 
     if (effectiveTriggerTime <= now) {
-      console.warn(
-        `[NotificationService] Reminder trigger time (${new Date(effectiveTriggerTime).toLocaleString()}) is in the past or right now. Scheduling fallback test reminder in 10 seconds.`
-      );
-      // Fallback: schedule 10 seconds into the future for instant testing/verification
-      effectiveTriggerTime = now + 10000;
+      if (options?.isTest) {
+        // Fallback for manual testing only: schedule 10 seconds into the future
+        effectiveTriggerTime = now + 10000;
+      } else {
+        // Trigger time is in the past: mark fired and skip OS scheduling
+        await this.persistReminder({ ...reminder, fired: true });
+        return;
+      }
     }
 
     try {
@@ -252,13 +258,12 @@ class NotificationService {
           } as any,
         });
 
-        console.log(`[NotificationService] Scheduled OS local notification "${reminder.id}" for ${triggerDate.toLocaleString()} (${triggerDate.toISOString()})`);
-
-        // Debug: Log all scheduled notifications queued on the device
-        await this.logScheduledNotifications();
+        if (!options?.silent) {
+          console.log(`[NotificationService] Scheduled OS local notification "${reminder.id}" for ${triggerDate.toLocaleString()} (${triggerDate.toISOString()})`);
+        }
       }
 
-      await this.persistReminder({ ...reminder, triggerTime: effectiveTriggerTime });
+      await this.persistReminder({ ...reminder, triggerTime: effectiveTriggerTime, fired: false });
     } catch (e) {
       console.error('[NotificationService] Failed to schedule reminder:', e);
     }
@@ -324,10 +329,40 @@ class NotificationService {
       const list: ScheduledReminder[] = JSON.parse(raw);
       const now = Date.now();
 
-      for (const rem of list) {
-        if (!rem.fired && rem.triggerTime > now) {
-          await this.scheduleReminder(rem);
+      // Check what's currently registered with native OS
+      let scheduledInOS = new Set<string>();
+      if (Platform.OS !== 'web') {
+        try {
+          const osNotifications = await Notifications.getAllScheduledNotificationsAsync();
+          scheduledInOS = new Set(osNotifications.map((n) => n.identifier));
+        } catch (err) {
+          console.warn('[NotificationService] Could not inspect OS notification queue:', err);
         }
+      }
+
+      let storageUpdated = false;
+      const updatedList: ScheduledReminder[] = [];
+
+      for (const rem of list) {
+        if (rem.triggerTime <= now) {
+          // Past reminder - mark fired
+          if (!rem.fired) {
+            rem.fired = true;
+            storageUpdated = true;
+          }
+          updatedList.push(rem);
+        } else {
+          // Future reminder
+          if (!scheduledInOS.has(rem.id)) {
+            // Missing in OS queue (e.g., system wipe/reboot) -> restore silently
+            await this.scheduleReminder(rem, { silent: true });
+          }
+          updatedList.push(rem);
+        }
+      }
+
+      if (storageUpdated) {
+        await safeStorage.setItem('trak_scheduled_reminders', JSON.stringify(updatedList));
       }
     } catch (e) {
       console.error('[NotificationService] Failed to restore scheduled reminders:', e);
