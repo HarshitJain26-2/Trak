@@ -129,14 +129,68 @@ export default function AuthScreen() {
 
         // Check for Supabase auth errors (including duplicate email)
         if (error) {
-          setLoading(false);
-          if (
-            error.message?.toLowerCase().includes('already registered') ||
-            error.message?.toLowerCase().includes('already been registered') ||
-            error.message?.toLowerCase().includes('user already exists') ||
-            error.code === 'user_already_exists'
-          ) {
-            setErrorMessage('An account with this email already exists. Please sign in instead.');
+          // Detect "user already exists" from all possible error shapes:
+          // - Supabase proper error codes
+          // - Postgres 23505 unique constraint violation (comes as 500)
+          // - Various message formats across Supabase versions
+          const errMsg = (error.message || '').toLowerCase();
+          const errCode = (error as any).code || '';
+          const isUserExists =
+            error.code === 'user_already_exists' ||
+            errCode === '23505' ||
+            errMsg.includes('already registered') ||
+            errMsg.includes('already been registered') ||
+            errMsg.includes('user already exists') ||
+            errMsg.includes('duplicate key') ||
+            errMsg.includes('unique constraint') ||
+            errMsg.includes('users_email_partial_key');
+
+          if (isUserExists) {
+            // Auto-fallback: try signing in instead of just showing an error
+            try {
+              const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+                email: cleanEmail,
+                password: password.trim(),
+              });
+
+              if (signInError) {
+                setLoading(false);
+                setErrorMessage('An account with this email already exists but the password is incorrect. Please sign in with the correct password.');
+                return;
+              }
+
+              // Sign-in succeeded — continue with normal sign-in flow
+              const userId = signInData?.user?.id || emailToUUID(cleanEmail);
+              await setActiveUserId(userId);
+              useProjectStore.getState().clearProjects();
+              useProfileStore.getState().clearProfile();
+
+              await useProfileStore.getState().fetchProfile(true);
+              void useProjectStore.getState().fetchProjects({ forceRefresh: true });
+
+              setLoginCompleted(true);
+
+              const currentProfile = useProfileStore.getState().profile;
+              const hasUsername =
+                currentProfile.username &&
+                currentProfile.username.trim() !== '' &&
+                currentProfile.username !== 'developer';
+
+              if (hasUsername) {
+                router.replace('/(tabs)');
+              } else {
+                router.replace('/setup-profile');
+              }
+              return;
+            } catch {
+              setLoading(false);
+              setErrorMessage('An account with this email already exists. Please sign in instead.');
+              return;
+            }
+          } else if (error.status === 429 || errMsg.includes('rate limit')) {
+            setErrorMessage(
+              'Too many signup attempts. Please wait a few minutes before trying again.'
+            );
           } else if (error.status && error.status >= 500) {
             setErrorMessage(
               'Supabase server error. This is usually caused by a database trigger failing on signup. ' +
@@ -145,6 +199,7 @@ export default function AuthScreen() {
           } else {
             setErrorMessage(extractErrorMessage(error, 'Sign up failed. Please try again.'));
           }
+          setLoading(false);
           return;
         }
 
