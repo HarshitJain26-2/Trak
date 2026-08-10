@@ -45,6 +45,51 @@ export default function AuthScreen() {
 
   const isPasswordValid = hasMinChars && hasSpecialChar && hasNumericChar && hasMixedCase;
 
+  // Helper: extract a clean, human-readable error message from any error shape
+  const extractErrorMessage = (err: any, fallback: string): string => {
+    if (!err) return fallback;
+
+    // If it's a string, use it directly (unless it looks like serialized JSON)
+    if (typeof err === 'string') {
+      if (err.startsWith('{') || err.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(err);
+          return parsed.message || parsed.error_description || parsed.msg || fallback;
+        } catch {
+          return err;
+        }
+      }
+      return err;
+    }
+
+    // Standard Error object or Supabase AuthError
+    if (err.message && typeof err.message === 'string' && !err.message.startsWith('{')) {
+      return err.message;
+    }
+
+    // Sometimes error.message is a JSON string (e.g. from fetch Response)
+    if (err.message && typeof err.message === 'string') {
+      try {
+        const parsed = JSON.parse(err.message);
+        return parsed.message || parsed.error_description || parsed.msg || fallback;
+      } catch {
+        return err.message;
+      }
+    }
+
+    // Supabase error with status code
+    if (err.status && err.status >= 500) {
+      return 'Server error. Please check your Supabase database triggers and try again.';
+    }
+
+    // Raw Response object (shouldn't happen but safety net)
+    if (err.statusText || err.url) {
+      return `Server returned ${err.status || 'an error'}. Please try again later.`;
+    }
+
+    return fallback;
+  };
+
   const handleAuthSubmit = async () => {
     setErrorMessage('');
 
@@ -92,8 +137,13 @@ export default function AuthScreen() {
             error.code === 'user_already_exists'
           ) {
             setErrorMessage('An account with this email already exists. Please sign in instead.');
+          } else if (error.status && error.status >= 500) {
+            setErrorMessage(
+              'Supabase server error. This is usually caused by a database trigger failing on signup. ' +
+              'Please check your Supabase Dashboard → Logs → Auth/Postgres for details.'
+            );
           } else {
-            setErrorMessage(error.message || 'Sign up failed.');
+            setErrorMessage(extractErrorMessage(error, 'Sign up failed. Please try again.'));
           }
           return;
         }
@@ -106,7 +156,6 @@ export default function AuthScreen() {
           return;
         }
 
-        // Set active user ID from Supabase auth user
         // Set active user ID from Supabase auth user
         const userId = data?.user?.id || emailToUUID(cleanEmail);
         await setActiveUserId(userId);
@@ -145,8 +194,12 @@ export default function AuthScreen() {
             error.message?.toLowerCase().includes('email not confirmed')
           ) {
             setErrorMessage('Invalid email or password. If all users were deleted in Supabase, please tap "Sign up for Trak" below to register again.');
+          } else if (error.status && error.status >= 500) {
+            setErrorMessage(
+              'Supabase server error. Please check your Supabase Dashboard → Logs for details.'
+            );
           } else {
-            setErrorMessage(error.message || 'Sign in failed.');
+            setErrorMessage(extractErrorMessage(error, 'Sign in failed. Please try again.'));
           }
           return;
         }
@@ -178,7 +231,7 @@ export default function AuthScreen() {
       }
     } catch (err: any) {
       setLoading(false);
-      setErrorMessage(err.message || 'Authentication failed.');
+      setErrorMessage(extractErrorMessage(err, 'Authentication failed. Please try again.'));
     }
   };
 
