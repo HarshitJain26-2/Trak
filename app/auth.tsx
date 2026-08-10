@@ -129,10 +129,6 @@ export default function AuthScreen() {
 
         // Check for Supabase auth errors (including duplicate email)
         if (error) {
-          // Detect "user already exists" from all possible error shapes:
-          // - Supabase proper error codes
-          // - Postgres 23505 unique constraint violation (comes as 500)
-          // - Various message formats across Supabase versions
           const errMsg = (error.message || '').toLowerCase();
           const errCode = (error as any).code || '';
           const isUserExists =
@@ -145,56 +141,61 @@ export default function AuthScreen() {
             errMsg.includes('unique constraint') ||
             errMsg.includes('users_email_partial_key');
 
-          if (isUserExists) {
-            // Auto-fallback: try signing in instead of just showing an error
+          // If signup fails (due to existing user or 500 error from duplicate email),
+          // test sign-in with password to see if the account already exists
+          if (isUserExists || (error.status && error.status >= 500)) {
             try {
               const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
                 email: cleanEmail,
                 password: password.trim(),
               });
 
-              if (signInError) {
-                setLoading(false);
-                setErrorMessage('An account with this email already exists but the password is incorrect. Please sign in with the correct password.');
+              if (!signInError && signInData?.user) {
+                // Sign-in succeeded! Proceed into app
+                const userId = signInData.user.id || emailToUUID(cleanEmail);
+                await setActiveUserId(userId);
+                useProjectStore.getState().clearProjects();
+                useProfileStore.getState().clearProfile();
+
+                await useProfileStore.getState().fetchProfile(true);
+                void useProjectStore.getState().fetchProjects({ forceRefresh: true });
+
+                setLoginCompleted(true);
+
+                const currentProfile = useProfileStore.getState().profile;
+                const hasUsername =
+                  currentProfile.username &&
+                  currentProfile.username.trim() !== '' &&
+                  currentProfile.username !== 'developer';
+
+                if (hasUsername) {
+                  router.replace('/(tabs)');
+                } else {
+                  router.replace('/setup-profile');
+                }
                 return;
               }
 
-              // Sign-in succeeded — continue with normal sign-in flow
-              const userId = signInData?.user?.id || emailToUUID(cleanEmail);
-              await setActiveUserId(userId);
-              useProjectStore.getState().clearProjects();
-              useProfileStore.getState().clearProfile();
-
-              await useProfileStore.getState().fetchProfile(true);
-              void useProjectStore.getState().fetchProjects({ forceRefresh: true });
-
-              setLoginCompleted(true);
-
-              const currentProfile = useProfileStore.getState().profile;
-              const hasUsername =
-                currentProfile.username &&
-                currentProfile.username.trim() !== '' &&
-                currentProfile.username !== 'developer';
-
-              if (hasUsername) {
-                router.replace('/(tabs)');
-              } else {
-                router.replace('/setup-profile');
+              // If signInError exists, check why sign-in failed:
+              if (
+                signInError?.code === 'invalid_credentials' ||
+                signInError?.message?.toLowerCase().includes('invalid login') ||
+                signInError?.message?.toLowerCase().includes('invalid credentials')
+              ) {
+                setLoading(false);
+                setErrorMessage('An account with this email already exists. Please tap "Log In" below to sign in with your password.');
+                return;
               }
-              return;
             } catch {
-              setLoading(false);
-              setErrorMessage('An account with this email already exists. Please sign in instead.');
-              return;
+              // Ignore catch fallback to continue error display below
             }
-          } else if (error.status === 429 || errMsg.includes('rate limit')) {
-            setErrorMessage(
-              'Too many signup attempts. Please wait a few minutes before trying again.'
-            );
+          }
+
+          if (error.status === 429 || errMsg.includes('rate limit')) {
+            setErrorMessage('Too many signup attempts. Please wait a few minutes before trying again.');
           } else if (error.status && error.status >= 500) {
             setErrorMessage(
-              'Supabase server error. This is usually caused by a database trigger failing on signup. ' +
-              'Please check your Supabase Dashboard → Logs → Auth/Postgres for details.'
+              'Supabase server error on signup. If your account already exists, please tap "Log In" below to sign in.'
             );
           } else {
             setErrorMessage(extractErrorMessage(error, 'Sign up failed. Please try again.'));
