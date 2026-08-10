@@ -129,7 +129,6 @@ export default function AuthScreen() {
 
         // Check for Supabase auth errors (including duplicate email)
         if (error) {
-          setLoading(false);
           const errMsg = (error.message || '').toLowerCase();
           const errCode = (error as any).code || '';
           const isUserExists =
@@ -142,10 +141,49 @@ export default function AuthScreen() {
             errMsg.includes('unique constraint') ||
             errMsg.includes('users_email_partial_key');
 
-          if (isUserExists || (error.status && error.status >= 500)) {
-            setErrorMessage('An account with this email already exists. Please tap "Log In" below to sign in with your password.');
-          } else if (error.status === 429 || errMsg.includes('rate limit')) {
-            setErrorMessage('Supabase Email Rate Limit Exceeded on sign up. If your account already exists, please tap "Log In" below to sign in.');
+          // Check if user already exists by probing signInWithPassword
+          try {
+            const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+              email: cleanEmail,
+              password: password.trim(),
+            });
+
+            if (!signInError && signInData?.user) {
+              // Sign-in succeeded! Auto-login user
+              const userId = signInData.user.id || emailToUUID(cleanEmail);
+              await setActiveUserId(userId);
+              useProjectStore.getState().clearProjects();
+              useProfileStore.getState().clearProfile();
+
+              await useProfileStore.getState().fetchProfile(true);
+              void useProjectStore.getState().fetchProjects({ forceRefresh: true });
+
+              setLoginCompleted(true);
+
+              const currentProfile = useProfileStore.getState().profile;
+              const hasUsername =
+                currentProfile.username &&
+                currentProfile.username.trim() !== '' &&
+                currentProfile.username !== 'developer';
+
+              if (hasUsername) {
+                router.replace('/(tabs)');
+              } else {
+                router.replace('/setup-profile');
+              }
+              return;
+            }
+
+            if (signInError?.code === 'invalid_credentials' || isUserExists) {
+              setLoading(false);
+              setErrorMessage('An account with this email already exists. Please tap "Log In" below to sign in.');
+              return;
+            }
+          } catch {}
+
+          setLoading(false);
+          if (error.status === 429 || errMsg.includes('rate limit')) {
+            setErrorMessage('Rate limit reached. Please wait a minute or tap "Log In" below to sign in.');
           } else {
             setErrorMessage(extractErrorMessage(error, 'Sign up failed. Please try again.'));
           }
