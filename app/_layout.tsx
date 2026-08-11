@@ -44,7 +44,8 @@ if (__DEV__) {
   console.warn = filterExpoNotificationsWarning(console.warn);
   console.error = filterExpoNotificationsWarning(console.error);
 }
-import { supabase } from '@/services/supabase';
+import { supabase, createSessionFromUrl } from '@/services/supabase';
+import * as Linking from 'expo-linking';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useProfileStore } from '@/store/useProfileStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
@@ -93,9 +94,24 @@ export default function RootLayout() {
       }
     });
 
+  }, []);
+
+  // Listen to incoming deep link URLs for OAuth redirection callbacks
+  useEffect(() => {
+    const handleUrl = async (url: string | null) => {
+      if (!url) return;
+      try {
+        await createSessionFromUrl(url);
+      } catch (err) {
+        console.error('Error handling deep link OAuth URL:', err);
+      }
+    };
+
+    void Linking.getInitialURL().then(handleUrl);
+    const linkingSub = Linking.addEventListener('url', (event) => void handleUrl(event.url));
+
     return () => {
-      notificationSubscription.remove();
-      responseSubscription.remove();
+      linkingSub.remove();
     };
   }, []);
 

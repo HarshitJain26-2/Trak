@@ -314,15 +314,47 @@ export default function ProjectDetailsScreen() {
   useEffect(() => {
     if (!project) return;
     let isMounted = true;
+
+    // Fetch team members
     fetchProjectMembers(project.id).then((m) => {
       if (isMounted && m) {
         setFetchedMembers(m);
       }
     });
+
+    // If shared project (user is member), verify active membership
+    if (project.isShared) {
+      getActiveUserId().then(async (activeUserId) => {
+        const { data: memberRow } = await supabase
+          .from('project_members')
+          .select('id')
+          .eq('project_id', project.id)
+          .eq('user_id', activeUserId)
+          .maybeSingle();
+
+        if (isMounted && !memberRow) {
+          // User was removed by leader! Revoke access immediately
+          void notificationService.sendImmediateNotification(
+            '🚨 Removed from Project',
+            `The project leader removed you from "${project.name}".`
+          );
+          Alert.alert(
+            'Access Revoked',
+            `You have been removed from "${project.name}" by the project leader.`,
+            [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
+          );
+          // Purge removed project from local state
+          useProjectStore.setState((state) => ({
+            projects: state.projects.filter((p) => p.id !== project.id),
+          }));
+        }
+      });
+    }
+
     return () => {
       isMounted = false;
     };
-  }, [project?.id]);
+  }, [project?.id, project?.isShared]);
 
   const handleRemoveMember = async (member: ProjectMember) => {
     if (!project) return;
@@ -401,6 +433,12 @@ export default function ProjectDetailsScreen() {
       router.back();
     }
   };
+
+  useEffect(() => {
+    if (!project) {
+      router.replace('/(tabs)');
+    }
+  }, [project]);
 
   if (!project) {
     return (
