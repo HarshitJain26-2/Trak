@@ -14,6 +14,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import { Colors, useThemeColors } from '@/constants/colors';
 import { supabase } from '@/services/supabase';
 import { useProfileStore } from '@/store/useProfileStore';
@@ -21,6 +23,9 @@ import { useProjectStore } from '@/store/useProjectStore';
 import FuturisticLoadingScreen from '@/components/FuturisticLoadingScreen';
 
 import { setActiveUserId, emailToUUID } from '@/utils/deviceUser';
+
+// Ensure in-app WebBrowser sessions complete properly on Android/iOS
+WebBrowser.maybeCompleteAuthSession();
 
 type AuthMode = 'signin' | 'signup';
 
@@ -280,55 +285,196 @@ export default function AuthScreen() {
     }
   };
 
+  /**
+   * Shared helper: complete the native OAuth flow for any provider.
+   * 1. Gets the OAuth URL with skipBrowserRedirect.
+   * 2. Opens it via expo-web-browser.
+   * 3. Extracts tokens from the redirect callback.
+   * 4. Calls supabase.auth.setSession() to complete login.
+   * The existing onAuthStateChange listener in _layout.tsx handles navigation.
+   */
+  const performOAuthFlow = async (provider: 'google' | 'github') => {
+    const redirectUrl = Linking.createURL('auth/callback');
+
+    if (Platform.OS === 'web') {
+      // On Web, standard browser redirect is used.
+      // signInWithOAuth will navigate window.location to Google -> Supabase -> /auth/callback.
+      // app/auth/callback.tsx will process the tokens on return.
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: redirectUrl,
+          skipBrowserRedirect: false,
+        },
+      });
+
+      if (error) {
+        if (error.message?.includes('provider is not enabled') || error.message?.includes('Unsupported provider')) {
+          throw new Error(
+            `${provider === 'google' ? 'Google' : 'GitHub'} login is disabled in your Supabase Dashboard. ` +
+            `Please enable ${provider === 'google' ? 'Google' : 'GitHub'} under Supabase -> Auth -> Providers.`
+          );
+        }
+        throw error;
+      }
+      return;
+    }
+
+    // Native (Android / iOS) Flow via in-app browser session
+    console.log('[OAuth Mobile Debug] Step 1: Initiating OAuth flow for provider:', provider);
+    console.log('[OAuth Mobile Debug] Step 2: Generated redirect URL:', redirectUrl);
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: redirectUrl,
+        skipBrowserRedirect: true,
+      },
+    });
+
+    if (error) {
+      console.log('[OAuth Mobile Debug] Step 3: signInWithOAuth returned error:', error.message);
+      if (error.message?.includes('provider is not enabled') || error.message?.includes('Unsupported provider')) {
+        throw new Error(
+          `${provider === 'google' ? 'Google' : 'GitHub'} login is disabled in your Supabase Dashboard. ` +
+          `Please enable ${provider === 'google' ? 'Google' : 'GitHub'} under Supabase -> Auth -> Providers.`
+        );
+      }
+      throw error;
+    }
+
+    if (!data?.url) {
+      console.log('[OAuth Mobile Debug] Step 3: No OAuth URL returned by Supabase');
+      throw new Error('Unable to start sign-in. Please try again.');
+    }
+
+    console.log('[OAuth Mobile Debug] Step 4: OAuth URL received from Supabase successfully');
+    console.log('[OAuth Mobile Debug] Step 5: Opening WebBrowser.openAuthSessionAsync...');
+
+    // Open the OAuth URL in an in-app browser and wait for the callback
+    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+
+    console.log('[OAuth Mobile Debug] Step 6: WebBrowser result type:', result.type);
+
+    if (result.type !== 'success' || !result.url) {
+      console.log('[OAuth Mobile Debug] Step 6b: Browser closed or cancelled by user');
+      throw new Error('CANCELLED');
+    }
+
+    console.log('[OAuth Mobile Debug] Step 7: Received callback URL from WebBrowser modal');
+
+    // Extract tokens from the callback URL
+    const callbackUrl = result.url;
+    let params: URLSearchParams;
+
+    const hashIndex = callbackUrl.indexOf('#');
+    if (hashIndex !== -1) {
+      params = new URLSearchParams(callbackUrl.substring(hashIndex + 1));
+    } else {
+      const queryIndex = callbackUrl.indexOf('?');
+      params = new URLSearchParams(queryIndex !== -1 ? callbackUrl.substring(queryIndex + 1) : '');
+    }
+
+    // Check for error in callback
+    const errParam = params.get('error_description') || params.get('error');
+    if (errParam) {
+      console.log('[OAuth Mobile Debug] Step 7b: Callback contained OAuth error');
+      throw new Error(decodeURIComponent(errParam.replace(/\+/g, ' ')));
+    }
+
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+
+    console.log('[OAuth Mobile Debug] Step 8: Token presence in callback:', accessToken && refreshToken ? 'VALID_TOKENS_FOUND' : 'MISSING_TOKENS');
+
+    if (!accessToken || !refreshToken) {
+      throw new Error('Authentication failed. Please try again.');
+    }
+
+    console.log('[OAuth Mobile Debug] Step 9: Establishing Supabase session via setSession...');
+
+    // Complete the session on Native
+    const { error: sessionError } = await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+
+    if (sessionError) {
+      console.log('[OAuth Mobile Debug] Step 10: setSession returned error:', sessionError.message);
+      throw new Error('Unable to complete sign-in. Please try again.');
+    }
+
+    console.log('[OAuth Mobile Debug] Step 10: Supabase session established successfully!');
+  };
+
   const handleGoogleAuth = async () => {
+    if (loading) return; // prevent duplicate taps
     setLoading(true);
     setErrorMessage('');
     try {
       useProjectStore.getState().clearProjects();
       useProfileStore.getState().clearProfile();
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-      });
-      if (error) {
-        if (error.message?.includes('provider is not enabled') || error.message?.includes('Unsupported provider')) {
-          setErrorMessage('Google login is disabled in your Supabase Dashboard. Please enable Google under Supabase -> Auth -> Providers.');
-        } else {
-          setErrorMessage(error.message);
-        }
-      } else {
+      await performOAuthFlow('google');
+
+      // Mark login completed for the loading animation
+      setLoginCompleted(true);
+
+      // Fetch profile to decide navigation target
+      await useProfileStore.getState().fetchProfile(true);
+      void useProjectStore.getState().fetchProjects({ forceRefresh: true });
+
+      const currentProfile = useProfileStore.getState().profile;
+      const hasUsername =
+        currentProfile.username &&
+        currentProfile.username.trim() !== '' &&
+        currentProfile.username !== 'developer';
+
+      if (hasUsername) {
         router.replace('/(tabs)');
+      } else {
+        router.replace('/setup-profile');
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'Google login failed.');
+      if (err?.message === 'CANCELLED') {
+        // User cancelled — no error shown
+      } else {
+        setErrorMessage(err?.message || 'Google sign-in failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const handleGitHubAuth = async () => {
+    if (loading) return; // prevent duplicate taps
     setLoading(true);
     setErrorMessage('');
     try {
       useProjectStore.getState().clearProjects();
       useProfileStore.getState().clearProfile();
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'github',
-      });
-      if (error) {
-        if (error.message?.includes('provider is not enabled') || error.message?.includes('Unsupported provider')) {
-          setErrorMessage('GitHub login is disabled in your Supabase Dashboard. Please use Email & Password, or enable GitHub under Supabase -> Auth -> Providers.');
-        } else {
-          setErrorMessage(error.message);
-        }
-      } else {
+      await performOAuthFlow('github');
+
+      setLoginCompleted(true);
+
+      await useProfileStore.getState().fetchProfile(true);
+      void useProjectStore.getState().fetchProjects({ forceRefresh: true });
+
+      const currentProfile = useProfileStore.getState().profile;
+      const hasUsername =
+        currentProfile.username &&
+        currentProfile.username.trim() !== '' &&
+        currentProfile.username !== 'developer';
+
+      if (hasUsername) {
         router.replace('/(tabs)');
+      } else {
+        router.replace('/setup-profile');
       }
     } catch (err: any) {
-      const msg = err.message || 'GitHub login failed.';
-      if (msg.includes('provider is not enabled') || msg.includes('Unsupported provider')) {
-        setErrorMessage('GitHub login is disabled in your Supabase Dashboard. Please use Email & Password, or enable GitHub under Supabase -> Auth -> Providers.');
+      if (err?.message === 'CANCELLED') {
+        // User cancelled — no error shown
       } else {
-        setErrorMessage(msg);
+        setErrorMessage(err?.message || 'GitHub sign-in failed. Please try again.');
       }
     } finally {
       setLoading(false);

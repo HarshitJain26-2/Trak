@@ -329,14 +329,6 @@ const fetchProjectsBackground = async (
   ]);
 
   let ownedProjects = ownedRes.data || [];
-  if (ownedProjects.length === 0) {
-    const { data: fallbackProjects } = await supabase
-      .from('projects')
-      .select('id, name, version, description, status, tech_stack, deadline, progress, repo_url, priority, last_updated, notes, is_completed, is_deleted, is_pinned, user_id, invite_code');
-    if (fallbackProjects && fallbackProjects.length > 0) {
-      ownedProjects = fallbackProjects;
-    }
-  }
 
   const hasMembershipsData = Array.isArray(membershipsRes.data);
   const dbSharedProjectIds = (membershipsRes.data || []).map((m: any) => m.project_id);
@@ -361,45 +353,18 @@ const fetchProjectsBackground = async (
     sharedProjects = data || [];
   }
 
-  // If any shared project in sharedProjectIds was blocked by RLS, preserve it from local store cache
-  if (get) {
-    const fetchedIds = new Set([...ownedProjects, ...sharedProjects].map((p: any) => p.id));
-    const localProjects = get().projects;
-    for (const spId of sharedProjectIds) {
-      if (!fetchedIds.has(spId)) {
-        const localMatch = localProjects.find((p) => p.id === spId);
-        if (localMatch) {
-          sharedProjects.push({
-            id: localMatch.id,
-            name: localMatch.name,
-            version: localMatch.version,
-            description: localMatch.description,
-            status: localMatch.status,
-            tech_stack: localMatch.techStack,
-            deadline: localMatch.deadline,
-            progress: localMatch.progress,
-            repo_url: localMatch.repoUrl,
-            priority: localMatch.priority,
-            last_updated: localMatch.lastUpdated,
-            notes: localMatch.notes,
-            is_completed: localMatch.isCompleted,
-            is_deleted: localMatch.isDeleted,
-            isPinned: localMatch.isPinned,
-            user_id: 'owner_shared',
-            invite_code: localMatch.inviteCode,
-          });
-        }
-      }
-    }
-  }
+  // NOTE: We intentionally do NOT re-inject locally-cached shared projects
+  // that the DB didn't return. If RLS denied access (e.g. membership was removed),
+  // the database is authoritative and the project must disappear.
 
   const allDbProjects = [...ownedProjects, ...sharedProjects];
 
   // Auto-sync any local projects that are not yet in Supabase
+  let localProjectsToSync: Project[] = [];
   if (get) {
     const currentProjects = get().projects;
     const dbProjectIds = new Set(allDbProjects.map((p: any) => p.id));
-    const localProjectsToSync = currentProjects.filter((p) => !dbProjectIds.has(p.id));
+    localProjectsToSync = currentProjects.filter((p) => !dbProjectIds.has(p.id));
 
     for (const localP of localProjectsToSync) {
       try {
@@ -438,6 +403,20 @@ const fetchProjectsBackground = async (
   }
 
   if (allDbProjects.length === 0) {
+    if (hasMembershipsData && localProjectsToSync.length === 0) {
+      // Server query completed online and authoritatively returned 0 projects, AND no local unsynced projects exist.
+      await saveToLocalStorage(userId, []);
+      set({ projects: [], isLoading: false });
+      return;
+    }
+
+    if (localProjectsToSync.length > 0) {
+      await saveToLocalStorage(userId, localProjectsToSync);
+      set({ projects: localProjectsToSync, isLoading: false });
+      return;
+    }
+
+    // Offline / Network fallback if database query failed
     let userLocal: Project[] = [];
     try {
       const raw = await safeStorage.getItem(storageKey);
@@ -450,28 +429,6 @@ const fetchProjectsBackground = async (
     } catch (_) {}
 
     if (userLocal.length > 0) {
-      // Sync user's own local projects to Supabase
-      for (const p of userLocal) {
-        try {
-          await supabase.from('projects').upsert({
-            id: p.id,
-            user_id: userId,
-            name: p.name,
-            version: p.version,
-            description: p.description,
-            status: p.status,
-            tech_stack: p.techStack,
-            deadline: p.deadline,
-            progress: p.progress,
-            repo_url: p.repoUrl,
-            priority: p.priority,
-            last_updated: p.lastUpdated,
-            notes: p.notes,
-            is_completed: p.isCompleted ?? false,
-            is_deleted: p.isDeleted ?? false,
-          });
-        } catch (_) {}
-      }
       set({ projects: userLocal, isLoading: false });
       await saveToLocalStorage(userId, userLocal);
       return;
@@ -603,10 +560,12 @@ const fetchProjectsBackground = async (
     };
   });
 
-  const finalPinnedIds = formattedProjects.filter((p) => p.isPinned).map((p) => p.id);
+  const finalProjects = [...formattedProjects, ...localProjectsToSync];
+
+  const finalPinnedIds = finalProjects.filter((p) => p.isPinned).map((p) => p.id);
   await savePinnedIdsToLocalStorage(userId, finalPinnedIds);
-  await saveToLocalStorage(userId, formattedProjects);
-  set({ projects: formattedProjects, isLoading: false });
+  await saveToLocalStorage(userId, finalProjects);
+  set({ projects: finalProjects, isLoading: false });
 };
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
@@ -1486,16 +1445,30 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         'postgres_changes',
         { event: 'DELETE', schema: 'public', table: 'project_members' },
         async (payload: any) => {
-          get().fetchProjects();
           try {
             const activeUserId = await getActiveUserId();
             if (payload.old && payload.old.user_id === activeUserId) {
+              // Current user was removed from a project — immediately purge it
+              const removedProjectId = payload.old.project_id;
+              set((state) => ({
+                projects: state.projects.filter((p) => p.id !== removedProjectId),
+              }));
+
+              // Clean shared IDs cache
+              const currentSharedIds = await getSharedIdsFromLocalStorage(activeUserId);
+              const updatedSharedIds = currentSharedIds.filter((id) => id !== removedProjectId);
+              await saveSharedIdsToLocalStorage(activeUserId, updatedSharedIds);
+              await saveToLocalStorage(activeUserId, get().projects);
+
               void notificationService.sendImmediateNotification(
                 '⚠️ Removed from Project',
                 'The project leader has removed you from the project.'
               );
             }
           } catch (_) {}
+
+          // Refetch to reconcile state with the server for all users
+          get().fetchProjects({ forceRefresh: true });
         }
       )
       .subscribe();

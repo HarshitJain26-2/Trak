@@ -29,8 +29,6 @@ import { CalendarPickerModal } from '@/components/modals/CalendarPickerModal';
 import { AestheticCheckbox } from '@/components/common/AestheticCheckbox';
 import { IncompleteTasksWarningModal } from '@/components/modals/IncompleteTasksWarningModal';
 import { supabase } from '@/services/supabase';
-import { getActiveUserId } from '@/utils/deviceUser';
-import { notificationService } from '@/services/notifications';
 
 function formatRemainingTime(deadlineStr: string): string {
   if (!deadlineStr || deadlineStr === 'No Deadline') return 'No Deadline';
@@ -322,39 +320,33 @@ export default function ProjectDetailsScreen() {
       }
     });
 
-    // If shared project (user is member), verify active membership
-    if (project.isShared) {
-      getActiveUserId().then(async (activeUserId) => {
-        const { data: memberRow } = await supabase
-          .from('project_members')
-          .select('id')
-          .eq('project_id', project.id)
-          .eq('user_id', activeUserId)
-          .maybeSingle();
-
-        if (isMounted && !memberRow) {
-          // User was removed by leader! Revoke access immediately
-          void notificationService.sendImmediateNotification(
-            '🚨 Removed from Project',
-            `The project leader removed you from "${project.name}".`
-          );
+    // Verify authorization via RLS-backed query.
+    // If the current user no longer has access (membership removed, etc.),
+    // the RLS policy will return no rows and we immediately revoke access.
+    supabase
+      .from('projects')
+      .select('id')
+      .eq('id', project.id)
+      .maybeSingle()
+      .then(({ data: projectRow }) => {
+        if (isMounted && !projectRow) {
+          // RLS denied access — user is not owner or member
           Alert.alert(
             'Access Revoked',
-            `You have been removed from "${project.name}" by the project leader.`,
+            'You no longer have access to this project.',
             [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
           );
-          // Purge removed project from local state
+          // Purge from local state so it doesn't reappear
           useProjectStore.setState((state) => ({
             projects: state.projects.filter((p) => p.id !== project.id),
           }));
         }
       });
-    }
 
     return () => {
       isMounted = false;
     };
-  }, [project?.id, project?.isShared]);
+  }, [project?.id]);
 
   const handleRemoveMember = async (member: ProjectMember) => {
     if (!project) return;

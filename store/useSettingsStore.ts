@@ -37,6 +37,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         const parsed = JSON.parse(raw);
         set((state) => ({ ...state, ...parsed }));
         setHapticsEnabled(parsed.hapticsEnabled ?? true);
+        await notificationService.syncNotifications(parsed.notificationsEnabled ?? true);
       } else {
         // First visit default
         const deviceLang = getDeviceLanguage();
