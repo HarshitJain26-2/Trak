@@ -16,7 +16,6 @@ import {
 import { View, ActivityIndicator, Platform, LogBox } from 'react-native';
 import { useThemeColors } from '@/constants/colors';
 import { useEffect } from 'react';
-import * as Notifications from 'expo-notifications';
 
 // Ignore Expo Go SDK 53+ push warning box and require cycles when running inside Expo Go app
 LogBox.ignoreLogs([
@@ -49,7 +48,6 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { useProfileStore } from '@/store/useProfileStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { setActiveUserId } from '@/utils/deviceUser';
-import { notificationService } from '@/services/notifications';
 import FuturisticLoadingScreen from '@/components/FuturisticLoadingScreen';
 
 export default function RootLayout() {
@@ -72,31 +70,6 @@ export default function RootLayout() {
 
   useEffect(() => {
     loadSettings();
-    if (Platform.OS !== 'web') {
-      notificationService.ensureAndroidChannels();
-    }
-  }, []);
-
-  // Listen for local notifications received and tapped
-  useEffect(() => {
-    if (Platform.OS === 'web') return;
-
-    const notificationSubscription = Notifications.addNotificationReceivedListener((notification) => {
-      console.log('[RootLayout] Local Notification Received:', notification.request.content.title);
-    });
-
-    const responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      console.log('[RootLayout] Local Notification Response Tapped:', response.notification.request.content);
-      const data = response.notification.request.content.data;
-      if (data?.projectId) {
-        // Optionally handle deep link or navigation when user taps a notification
-      }
-    });
-
-    return () => {
-      notificationSubscription.remove();
-      responseSubscription.remove();
-    };
   }, []);
 
   // Listen to auth state changes to keep data in sync with the logged-in user
@@ -157,6 +130,7 @@ export default function RootLayout() {
           }}
         >
           <Stack.Screen name="auth" options={{ animation: 'fade' }} />
+          <Stack.Screen name="auth/callback" options={{ animation: 'fade' }} />
           <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
           <Stack.Screen name="setup-profile" options={{ animation: 'fade', gestureEnabled: false }} />
           <Stack.Screen name="new-project" options={{ presentation: 'transparentModal', animation: 'fade' }} />

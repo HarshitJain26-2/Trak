@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { safeStorage } from './storage';
 import { triggerHaptic } from '@/utils/haptics';
 
@@ -14,15 +15,43 @@ export interface ScheduledReminder {
   fired?: boolean;
 }
 
-// Configure foreground notification presentation handler
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+/**
+ * Check if the app is currently running inside Expo Go.
+ * In Expo SDK 53+, push notifications & channels are not supported in Expo Go on Android.
+ */
+export const isExpoGo = (): boolean => {
+  try {
+    return (
+      Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
+      (Constants as any).appOwnership === 'expo'
+    );
+  } catch {
+    return false;
+  }
+};
+
+let handlerConfigured = false;
+
+/**
+ * Lazily configure foreground notification presentation handler.
+ * Called ONLY when notifications are explicitly enabled by user action.
+ */
+export function ensureNotificationHandler() {
+  if (handlerConfigured || isExpoGo() || Platform.OS === 'web') return;
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+    handlerConfigured = true;
+  } catch (e) {
+    console.warn('[NotificationService] Could not configure notification handler:', e);
+  }
+}
 
 class NotificationService {
   private channelInitialized = false;
@@ -31,9 +60,10 @@ class NotificationService {
    * Ensure Android notification channels are set up (required for Android 8.0+)
    */
   async ensureAndroidChannels(): Promise<void> {
-    if (Platform.OS !== 'android' || this.channelInitialized) return;
+    if (Platform.OS !== 'android' || isExpoGo() || this.channelInitialized) return;
 
     try {
+      ensureNotificationHandler();
       await Notifications.setNotificationChannelAsync('default', {
         name: 'Default Notifications',
         importance: Notifications.AndroidImportance.MAX,
@@ -53,7 +83,7 @@ class NotificationService {
 
       this.channelInitialized = true;
     } catch (e) {
-      console.error('[NotificationService] Failed to set up Android notification channels:', e);
+      console.warn('[NotificationService] Failed to set up Android notification channels:', e);
     }
   }
 
@@ -62,6 +92,10 @@ class NotificationService {
    */
   async getPermissionStatus(): Promise<PermissionStatus> {
     try {
+      if (isExpoGo()) {
+        return 'denied';
+      }
+
       if (Platform.OS === 'web') {
         if (typeof window !== 'undefined' && 'Notification' in window) {
           const perm = window.Notification.permission;
@@ -77,16 +111,21 @@ class NotificationService {
       if (status === 'denied') return 'denied';
       return 'pending';
     } catch (e) {
-      console.error('[NotificationService] Error checking permissions:', e);
       return 'pending';
     }
   }
 
   /**
    * Request system notification permissions
+   * MUST ONLY be called after explicit user action (e.g. Settings toggle)
    */
   async requestPermission(): Promise<PermissionStatus> {
     try {
+      if (isExpoGo()) {
+        console.warn('[NotificationService] Push notifications are not supported in Expo Go mode.');
+        return 'denied';
+      }
+
       if (Platform.OS === 'web') {
         if (typeof window !== 'undefined' && 'Notification' in window) {
           const res = await window.Notification.requestPermission();
@@ -96,6 +135,7 @@ class NotificationService {
         return 'denied';
       }
 
+      ensureNotificationHandler();
       await this.ensureAndroidChannels();
 
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -124,8 +164,11 @@ class NotificationService {
 
   /**
    * Deliver an immediate notification (local)
+   * Will NOT automatically ask for permissions if not granted.
    */
   async sendImmediateNotification(title: string, body: string): Promise<boolean> {
+    if (isExpoGo()) return false;
+
     triggerHaptic([0, 40, 60, 40]);
 
     if (Platform.OS === 'web') {
@@ -140,12 +183,14 @@ class NotificationService {
     }
 
     try {
-      await this.ensureAndroidChannels();
       const status = await this.getPermissionStatus();
       if (status !== 'granted') {
-        const requested = await this.requestPermission();
-        if (requested !== 'granted') return false;
+        // Do NOT automatically prompt for permission
+        return false;
       }
+
+      ensureNotificationHandler();
+      await this.ensureAndroidChannels();
 
       await Notifications.scheduleNotificationAsync({
         content: {
@@ -167,6 +212,13 @@ class NotificationService {
    * Send a test notification from Settings screen
    */
   async sendTestNotification(): Promise<{ success: boolean; message: string }> {
+    if (isExpoGo()) {
+      return {
+        success: false,
+        message: 'Push notifications are not supported in Expo Go (Expo SDK 53+). Please use a development build.',
+      };
+    }
+
     const status = await this.getPermissionStatus();
 
     if (status === 'denied') {
@@ -206,15 +258,15 @@ class NotificationService {
     reminder: ScheduledReminder,
     options?: { isTest?: boolean; silent?: boolean }
   ): Promise<void> {
+    if (isExpoGo()) return;
+
     const now = Date.now();
     let effectiveTriggerTime = reminder.triggerTime;
 
     if (effectiveTriggerTime <= now) {
       if (options?.isTest) {
-        // Fallback for manual testing only: schedule 10 seconds into the future
         effectiveTriggerTime = now + 10000;
       } else {
-        // Trigger time is in the past: mark fired and skip OS scheduling
         await this.persistReminder({ ...reminder, fired: true });
         return;
       }
@@ -222,7 +274,6 @@ class NotificationService {
 
     try {
       if (Platform.OS === 'web') {
-        // Web fallback using setTimeout
         const delay = effectiveTriggerTime - now;
         setTimeout(() => {
           this.sendImmediateNotification(
@@ -231,10 +282,7 @@ class NotificationService {
           );
         }, delay);
       } else {
-        // Native Mobile: Local OS Scheduled Notification
         await this.ensureAndroidChannels();
-
-        // Cancel any existing notification with the same ID before rescheduling
         await Notifications.cancelScheduledNotificationAsync(reminder.id).catch(() => {});
 
         const triggerDate = new Date(effectiveTriggerTime);
@@ -259,7 +307,7 @@ class NotificationService {
         });
 
         if (!options?.silent) {
-          console.log(`[NotificationService] Scheduled OS local notification "${reminder.id}" for ${triggerDate.toLocaleString()} (${triggerDate.toISOString()})`);
+          console.log(`[NotificationService] Scheduled OS local notification "${reminder.id}" for ${triggerDate.toLocaleString()}`);
         }
       }
 
@@ -274,7 +322,7 @@ class NotificationService {
    */
   async logScheduledNotifications(): Promise<void> {
     try {
-      if (Platform.OS === 'web') return;
+      if (Platform.OS === 'web' || isExpoGo()) return;
       const scheduled = await Notifications.getAllScheduledNotificationsAsync();
       console.log(`[NotificationService] === Active Queued OS Notifications: ${scheduled.length} ===`);
       scheduled.forEach((n, idx) => {
@@ -290,7 +338,7 @@ class NotificationService {
    */
   async cancelReminder(reminderId: string): Promise<void> {
     try {
-      if (Platform.OS !== 'web') {
+      if (Platform.OS !== 'web' && !isExpoGo()) {
         await Notifications.cancelScheduledNotificationAsync(reminderId);
         console.log(`[NotificationService] Cancelled notification "${reminderId}"`);
       }
@@ -305,6 +353,7 @@ class NotificationService {
    */
   async syncNotifications(enabled: boolean): Promise<void> {
     try {
+      if (isExpoGo()) return;
       if (!enabled) {
         if (Platform.OS !== 'web') {
           await Notifications.cancelAllScheduledNotificationsAsync();
@@ -319,17 +368,17 @@ class NotificationService {
   }
 
   /**
-   * Restore and re-schedule saved reminders (e.g. after app update or restart)
+   * Restore and re-schedule saved reminders
    */
   private async restoreScheduledReminders(): Promise<void> {
     try {
+      if (isExpoGo()) return;
       const raw = await safeStorage.getItem('trak_scheduled_reminders');
       if (!raw) return;
 
       const list: ScheduledReminder[] = JSON.parse(raw);
       const now = Date.now();
 
-      // Check what's currently registered with native OS
       let scheduledInOS = new Set<string>();
       if (Platform.OS !== 'web') {
         try {
@@ -345,16 +394,13 @@ class NotificationService {
 
       for (const rem of list) {
         if (rem.triggerTime <= now) {
-          // Past reminder - mark fired
           if (!rem.fired) {
             rem.fired = true;
             storageUpdated = true;
           }
           updatedList.push(rem);
         } else {
-          // Future reminder
           if (!scheduledInOS.has(rem.id)) {
-            // Missing in OS queue (e.g., system wipe/reboot) -> restore silently
             await this.scheduleReminder(rem, { silent: true });
           }
           updatedList.push(rem);
@@ -369,9 +415,6 @@ class NotificationService {
     }
   }
 
-  /**
-   * Save reminder to local storage
-   */
   private async persistReminder(reminder: ScheduledReminder): Promise<void> {
     try {
       const raw = await safeStorage.getItem('trak_scheduled_reminders');
@@ -388,9 +431,6 @@ class NotificationService {
     }
   }
 
-  /**
-   * Remove reminder from local storage
-   */
   private async removePersistedReminder(reminderId: string): Promise<void> {
     try {
       const raw = await safeStorage.getItem('trak_scheduled_reminders');
