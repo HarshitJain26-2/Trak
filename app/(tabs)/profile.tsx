@@ -526,6 +526,8 @@ export default function ProfileScreen() {
     multiline?: boolean;
   }>({ visible: false, field: 'name', title: '' });
 
+  const [showAddSkill, setShowAddSkill] = useState(false);
+
 
 
   // Link modal state
