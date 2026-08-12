@@ -10,6 +10,10 @@ import {
   Alert,
   useColorScheme,
   Modal,
+  TextInput,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
@@ -38,6 +42,191 @@ function SectionHeader({ title, color }: { title: string; color: string }) {
   );
 }
 
+// ─── Change Password Modal ───────────────────────────────────────────────────
+function ChangePasswordModal({
+  visible,
+  email,
+  colors,
+  onClose,
+}: {
+  visible: boolean;
+  email: string;
+  colors: ReturnType<typeof getThemeColors>;
+  onClose: () => void;
+}) {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPass, setShowPass] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  useEffect(() => {
+    if (visible) {
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setErrorMsg('');
+      setSuccessMsg('');
+      setLoading(false);
+    }
+  }, [visible]);
+
+  const handleChangePassword = async () => {
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    if (!currentPassword) {
+      setErrorMsg('Please enter your current password.');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setErrorMsg('New password must be at least 8 characters long.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setErrorMsg('New passwords do not match.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // 1. Verify current password
+      const targetEmail = email || (await supabase.auth.getUser()).data.user?.email;
+      if (!targetEmail) {
+        setErrorMsg('Unable to determine user email.');
+        return;
+      }
+
+      const { error: verifyErr } = await supabase.auth.signInWithPassword({
+        email: targetEmail,
+        password: currentPassword,
+      });
+
+      if (verifyErr) {
+        setErrorMsg('Current password is incorrect.');
+        return;
+      }
+
+      // 2. Update to new password
+      const { error: updateErr } = await supabase.auth.updateUser({ password: newPassword });
+      if (updateErr) {
+        setErrorMsg(updateErr.message || 'Failed to update password.');
+      } else {
+        setSuccessMsg('Password updated successfully!');
+        setTimeout(() => {
+          onClose();
+        }, 1200);
+      }
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Failed to update password.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <TouchableWithoutFeedback onPress={onClose}>
+          <View style={modalStyles.overlay}>
+            <TouchableWithoutFeedback>
+              <View style={[modalStyles.card, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                  <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: `${colors.primaryFixed}1A`, alignItems: 'center', justifyContent: 'center' }}>
+                    <Feather name="key" size={18} color={colors.primaryFixed} />
+                  </View>
+                  <Text style={[modalStyles.title, { color: colors.onSurface }]}>Change Password</Text>
+                </View>
+
+                {errorMsg ? (
+                  <View style={{ backgroundColor: `${colors.error}1A`, borderWidth: 1, borderColor: `${colors.error}30`, borderRadius: 8, padding: 10, marginBottom: 12 }}>
+                    <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 13, color: colors.error }}>{errorMsg}</Text>
+                  </View>
+                ) : null}
+
+                {successMsg ? (
+                  <View style={{ backgroundColor: `${colors.primaryFixed}1A`, borderWidth: 1, borderColor: `${colors.primaryFixed}30`, borderRadius: 8, padding: 10, marginBottom: 12 }}>
+                    <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 13, color: colors.primaryFixed }}>{successMsg}</Text>
+                  </View>
+                ) : null}
+
+                {/* CURRENT PASSWORD */}
+                <Text style={[modalStyles.label, { color: colors.onSurfaceVariant }]}>CURRENT PASSWORD</Text>
+                <View style={[modalStyles.inputWrap, { backgroundColor: colors.surfaceContainerHigh, borderColor: `${colors.primaryFixed}33` }]}>
+                  <TextInput
+                    style={[modalStyles.input, { color: colors.onSurface }]}
+                    value={currentPassword}
+                    onChangeText={setCurrentPassword}
+                    secureTextEntry={!showPass}
+                    placeholder="Enter current password"
+                    placeholderTextColor={`${colors.onSurfaceVariant}50`}
+                    selectionColor={colors.primaryFixed}
+                    autoCapitalize="none"
+                  />
+                  <Pressable onPress={() => setShowPass(!showPass)} hitSlop={8}>
+                    <Feather name={showPass ? 'eye-off' : 'eye'} size={18} color={colors.onSurfaceVariant} />
+                  </Pressable>
+                </View>
+
+                {/* NEW PASSWORD */}
+                <Text style={[modalStyles.label, { color: colors.onSurfaceVariant }]}>NEW PASSWORD</Text>
+                <View style={[modalStyles.inputWrap, { backgroundColor: colors.surfaceContainerHigh, borderColor: `${colors.primaryFixed}33` }]}>
+                  <TextInput
+                    style={[modalStyles.input, { color: colors.onSurface }]}
+                    value={newPassword}
+                    onChangeText={setNewPassword}
+                    secureTextEntry={!showPass}
+                    placeholder="Min 8 characters"
+                    placeholderTextColor={`${colors.onSurfaceVariant}50`}
+                    selectionColor={colors.primaryFixed}
+                    autoCapitalize="none"
+                  />
+                </View>
+
+                {/* CONFIRM NEW PASSWORD */}
+                <Text style={[modalStyles.label, { color: colors.onSurfaceVariant }]}>CONFIRM NEW PASSWORD</Text>
+                <View style={[modalStyles.inputWrap, { backgroundColor: colors.surfaceContainerHigh, borderColor: `${colors.primaryFixed}33`, marginBottom: 16 }]}>
+                  <TextInput
+                    style={[modalStyles.input, { color: colors.onSurface }]}
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    secureTextEntry={!showPass}
+                    placeholder="Repeat new password"
+                    placeholderTextColor={`${colors.onSurfaceVariant}50`}
+                    selectionColor={colors.primaryFixed}
+                    autoCapitalize="none"
+                  />
+                </View>
+
+                <View style={modalStyles.btnRow}>
+                  <Pressable style={[modalStyles.btn, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder, borderWidth: 1 }]} onPress={onClose} disabled={loading}>
+                    <Text style={[modalStyles.btnCancelText, { color: colors.onSurfaceVariant }]}>Cancel</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[modalStyles.btn, { backgroundColor: colors.primaryFixed }, (!currentPassword || !newPassword || loading) && modalStyles.btnDisabled]}
+                    disabled={!currentPassword || !newPassword || loading}
+                    onPress={handleChangePassword}
+                  >
+                    {loading ? (
+                      <ActivityIndicator size="small" color={colors.onPrimaryFixed} />
+                    ) : (
+                      <Text style={[modalStyles.btnSaveText, { color: colors.onPrimaryFixed }]}>Update</Text>
+                    )}
+                  </Pressable>
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
 export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -48,6 +237,7 @@ export default function SettingsScreen() {
   const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>('pending');
   const [testingNotification, setTestingNotification] = useState(false);
   const [showTestAnimation, setShowTestAnimation] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
 
   const {
     themeMode,
@@ -67,6 +257,7 @@ export default function SettingsScreen() {
 
   const colors = getThemeColors(themeMode, systemColorScheme);
   const { projects } = useProjectStore();
+  const { profile } = useProfileStore();
 
   useEffect(() => {
     loadSettings();
@@ -184,6 +375,13 @@ export default function SettingsScreen() {
     <View style={[styles.root, { backgroundColor: colors.surface }]}>
       <ConfirmDialog {...dialogProps} />
       <ActionSheet {...actionSheetProps} />
+
+      <ChangePasswordModal
+        visible={showChangePassword}
+        email={profile.email}
+        colors={colors}
+        onClose={() => setShowChangePassword(false)}
+      />
 
       {/* Full-Screen Test Animation Modal */}
       <Modal
@@ -534,6 +732,46 @@ export default function SettingsScreen() {
 
         {/* ── ACCOUNT ── */}
         <SectionHeader title={t('account', language)} color={`${colors.onSurfaceVariant}90`} />
+        <View style={[styles.glassCard, { backgroundColor: colors.glassBg, borderColor: colors.glassBorder }]}>
+          {/* Email Address */}
+          <Pressable
+            style={styles.row}
+            onPress={() => Alert.alert('Read-Only Field', 'Email address is managed by Supabase Authentication and cannot be edited.')}
+          >
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconWrap, { backgroundColor: colors.surfaceContainerHigh }]}>
+                <Feather name="mail" size={16} color={colors.onSurfaceVariant} />
+              </View>
+              <View style={styles.rowLabelWrap}>
+                <Text style={[styles.rowTitle, { color: colors.onSurface }]}>Email Address</Text>
+                <Text style={[styles.rowSubtitle, { color: `${colors.onSurfaceVariant}90` }]}>
+                  {profile.email || 'No email set'}
+                </Text>
+              </View>
+            </View>
+            <Feather name="lock" size={14} color={`${colors.onSurfaceVariant}60`} />
+          </Pressable>
+
+          <View style={[styles.divider, { backgroundColor: `${colors.outlineVariant}20` }]} />
+
+          {/* Change Password */}
+          <Pressable style={styles.row} onPress={() => setShowChangePassword(true)}>
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconWrap, { backgroundColor: colors.surfaceContainerHigh }]}>
+                <Feather name="key" size={16} color={colors.onSurfaceVariant} />
+              </View>
+              <View style={styles.rowLabelWrap}>
+                <Text style={[styles.rowTitle, { color: colors.onSurface }]}>Password</Text>
+                <Text style={[styles.rowSubtitle, { color: `${colors.onSurfaceVariant}90` }]}>
+                  ••••••••••••
+                </Text>
+              </View>
+            </View>
+            <Feather name="chevron-right" size={18} color={`${colors.onSurfaceVariant}60`} />
+          </Pressable>
+        </View>
+
+        {/* Log Out */}
         <View style={[styles.glassCard, styles.logoutCard]}>
           <Pressable style={styles.logoutBtn} onPress={handleLogOut}>
             <Feather name="log-out" size={16} color="#FF5252" style={{ marginRight: 8 }} />
@@ -723,4 +961,54 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#FF5252',
   },
+});
+
+const modalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  card: {
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 24,
+    elevation: 16,
+  },
+  title: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 17,
+  },
+  label: {
+    fontFamily: 'JetBrainsMono_400Regular',
+    fontSize: 10,
+    letterSpacing: 1,
+    opacity: 0.7,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+  },
+  inputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+  input: {
+    flex: 1,
+    paddingVertical: 11,
+    fontFamily: 'Inter_400Regular',
+    fontSize: 15,
+  },
+  btnRow: { flexDirection: 'row', gap: 10 },
+  btn: { flex: 1, paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
+  btnDisabled: { opacity: 0.4 },
+  btnCancelText: { fontFamily: 'Inter_400Regular', fontSize: 15 },
+  btnSaveText: { fontFamily: 'Inter_600SemiBold', fontSize: 15 },
 });
