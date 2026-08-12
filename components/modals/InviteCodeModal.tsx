@@ -143,22 +143,6 @@ export function InviteCodeModal({
                           </Text>
                         </Pressable>
                       </View>
-
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.regenerateBtn,
-                          { backgroundColor: `${colors.primaryFixed}10`, borderColor: `${colors.primaryFixed}30` },
-                          pressed && styles.regenerateBtnPressed,
-                          isGenerating && styles.regenerateBtnDisabled,
-                        ]}
-                        onPress={onGenerate}
-                        disabled={isGenerating}
-                      >
-                        <Feather name="refresh-cw" size={14} color={colors.primaryFixed} />
-                        <Text style={[styles.regenerateBtnText, { color: colors.primaryFixed }]}>
-                          {isGenerating ? 'Regenerating...' : 'Change Code'}
-                        </Text>
-                      </Pressable>
                     </View>
                   )}
 
