@@ -53,11 +53,20 @@ export default function AuthCallbackScreen() {
           return;
         }
 
-        // 2. Extract session tokens
+        // 2. Check for PKCE Code or Session Tokens
+        const code = params.get('code');
         const accessToken = params.get('access_token');
         const refreshToken = params.get('refresh_token');
 
-        if (accessToken && refreshToken) {
+        if (code) {
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          if (exchangeError) {
+            if (isMounted) {
+              setErrorMessage(`Unable to establish session: ${exchangeError.message}`);
+            }
+            return;
+          }
+        } else if (accessToken && refreshToken) {
           const { error: sessionError } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,

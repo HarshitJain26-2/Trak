@@ -359,12 +359,22 @@ const fetchProjectsBackground = async (
 
   const allDbProjects = [...ownedProjects, ...sharedProjects];
 
-  // Auto-sync any local projects that are not yet in Supabase
+  // Auto-sync any local projects that are not yet in Supabase (OWNED projects only)
   let localProjectsToSync: Project[] = [];
   if (get) {
     const currentProjects = get().projects;
     const dbProjectIds = new Set(allDbProjects.map((p: any) => p.id));
-    localProjectsToSync = currentProjects.filter((p) => !dbProjectIds.has(p.id));
+    // Only treat projects owned by active user as local unsynced projects. Shared projects NOT returned by DB are purged.
+    localProjectsToSync = currentProjects.filter((p) => !p.isShared && p.id && !dbProjectIds.has(p.id));
+
+    // Purge any local shared projects that DB did NOT return (membership was revoked)
+    const currentSharedProjects = currentProjects.filter((p) => p.isShared);
+    const staleSharedProjects = currentSharedProjects.filter((p) => !dbProjectIds.has(p.id));
+    if (staleSharedProjects.length > 0) {
+      const staleIds = new Set(staleSharedProjects.map((p) => p.id));
+      const updatedSharedIds = localSharedIds.filter((id) => !staleIds.has(id));
+      await saveSharedIdsToLocalStorage(userId, updatedSharedIds);
+    }
 
     for (const localP of localProjectsToSync) {
       try {
@@ -1138,161 +1148,68 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         return { success: false, error: 'Please enter a valid invite code' };
       }
 
-      // 1. Extract clean normalized token (e.g. "TRK-A4F9" -> "A4F9", "a4f9" -> "A4F9")
-      const normalizedInput = code.trim().toUpperCase().replace(/^TRK-/, '').replace(/[^A-Z0-9]/g, '');
-
-      if (!normalizedInput) {
-        return { success: false, error: 'Invalid invite code format' };
-      }
-
+      const cleanInput = code.trim();
       const userId = await getActiveUserId();
-      const userIdsToQuery = [userId];
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user?.email) {
-          const altId = emailToUUID(user.email);
-          if (altId && !userIdsToQuery.includes(altId)) {
-            userIdsToQuery.push(altId);
-          }
-        }
-      } catch (_) {}
 
-      // 2. Direct JavaScript search across all projects in Supabase (100% case & prefix insensitive)
-      const { data: allProjects } = await supabase
-        .from('projects')
-        .select('id, name, user_id, invite_code');
-
-      let targetProject = (allProjects || []).find((p: any) => {
-        if (!p.invite_code) return false;
-        const normalizedDBCode = p.invite_code.trim().toUpperCase().replace(/^TRK-/, '').replace(/[^A-Z0-9]/g, '');
-        return normalizedDBCode === normalizedInput;
+      // Call secure RPC v2 first
+      let rpcResult: { data: any; error: any } = await supabase.rpc('join_project_by_invite_code_v2', {
+        p_code: cleanInput,
       });
 
-      // 3. Fallback to RPC function if direct query returned no rows (e.g. strict RLS)
-      if (!targetProject) {
-        const fullCodeToTry = `TRK-${normalizedInput}`;
-        const codesToTry = [fullCodeToTry, normalizedInput];
-        for (const tryCode of codesToTry) {
-          try {
-            const { data: rpcRes, error: rpcErr } = await supabase.rpc('join_project_by_invite_code', {
-              code: tryCode,
-              p_user_id: userId,
-            });
-            if (!rpcErr && rpcRes) {
-              await get().fetchProjects({ forceRefresh: true });
-              const joinedProject = get().projects.find((p) => p.id === rpcRes);
-              return {
-                success: true,
-                projectName: joinedProject?.name || 'Project',
-              };
-            }
-          } catch (_) {}
+      // Fallback to legacy RPC if v2 is not yet deployed on Supabase
+      if (rpcResult.error && (rpcResult.error.code === 'PGRST202' || rpcResult.error.message?.includes('join_project_by_invite_code_v2'))) {
+        rpcResult = await supabase.rpc('join_project_by_invite_code', {
+          code: cleanInput,
+          p_user_id: userId,
+        });
+      }
+
+      const { data: rpcData, error: rpcError } = rpcResult;
+
+      if (rpcError) {
+        const errMsg = rpcError.message || rpcError.details || '';
+        if (errMsg.includes('OWNER_CANNOT_JOIN') || errMsg.includes('owner of this project')) {
+          return { success: false, error: 'You are the owner of this project' };
         }
-      }
-
-      if (!targetProject) {
-        return { success: false, error: 'Invalid invite code. Please check the code and try again.' };
-      }
-
-      // 4. Check if user is the project owner (across all user ID aliases)
-      if (userIdsToQuery.includes(targetProject.user_id)) {
-        return { success: false, error: 'You are the owner of this project' };
-      }
-
-      // 5. Check if user is already a member (across all user ID aliases)
-      const { data: existingMembers } = await supabase
-        .from('project_members')
-        .select('id')
-        .eq('project_id', targetProject.id)
-        .in('user_id', userIdsToQuery);
-
-      if (existingMembers && existingMembers.length > 0) {
-        return { success: false, error: 'You are already a member of this project' };
-      }
-
-      // 6. Insert new member into project_members
-      const memberId = `pm_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-      const { error: insertError } = await supabase.from('project_members').insert({
-        id: memberId,
-        project_id: targetProject.id,
-        user_id: userId,
-        role: 'member',
-      });
-
-      if (insertError) {
-        if (insertError.message?.toLowerCase().includes('unique') || insertError.message?.toLowerCase().includes('duplicate')) {
+        if (errMsg.includes('ALREADY_MEMBER') || errMsg.includes('Already a member')) {
           return { success: false, error: 'You are already a member of this project' };
         }
-        console.warn('Supabase member insert warning:', insertError.message);
+        if (errMsg.includes('UNAUTHENTICATED')) {
+          return { success: false, error: 'Please sign in first.' };
+        }
+        if (errMsg.includes('INVALID_CODE') || errMsg.includes('Invalid invite code')) {
+          return { success: false, error: 'Invalid invite code. Please check the code and try again.' };
+        }
+        return { success: false, error: 'Unable to join the project. Please try again.' };
       }
 
-      // Fetch target project's full row and milestones
-      const [fullProjRes, fullMilestonesRes] = await Promise.all([
-        supabase.from('projects').select('*').eq('id', targetProject.id).maybeSingle(),
-        supabase.from('milestones').select('*').eq('project_id', targetProject.id),
-      ]);
+      const joinedProjectId = Array.isArray(rpcData) && rpcData[0]?.project_id ? rpcData[0].project_id : (typeof rpcData === 'string' ? rpcData : null);
 
-      const fullProj = fullProjRes.data;
-      const fullMilestones = fullMilestonesRes.data || [];
-
-      const joinedProjectObject: Project = {
-        id: targetProject.id,
-        name: fullProj?.name || targetProject.name,
-        version: fullProj?.version || '',
-        description: fullProj?.description || '',
-        status: (fullProj?.status as ProjectStatus) || 'active',
-        techStack: fullProj?.tech_stack || [],
-        deadline: fullProj?.deadline || '',
-        progress: fullProj?.progress ?? 0,
-        repoUrl: fullProj?.repo_url || '',
-        priority: (fullProj?.priority as Priority) || 'medium',
-        lastUpdated: fullProj?.last_updated || 'recently',
-        notes: fullProj?.notes || '',
-        isCompleted: fullProj?.is_completed ?? false,
-        isDeleted: fullProj?.is_deleted ?? false,
-        isPinned: false,
-        milestones: fullMilestones.map((m: any) => ({
-          id: m.id,
-          title: m.title,
-          completed: m.completed ?? false,
-          completedBy: m.completed_by || undefined,
-          addedBy: m.added_by || undefined,
-        })),
-        inviteCode: fullProj?.invite_code || targetProject.invite_code,
-        members: [],
-        isShared: true,
-        ownerName: 'Project Lead',
-      };
-
-      // Persist shared project ID locally so it appears immediately on Home screen
-      const currentSharedIds = await getSharedIdsFromLocalStorage(userId);
-      if (!currentSharedIds.includes(targetProject.id)) {
-        await saveSharedIdsToLocalStorage(userId, [...currentSharedIds, targetProject.id]);
+      if (joinedProjectId) {
+        const currentSharedIds = await getSharedIdsFromLocalStorage(userId);
+        if (!currentSharedIds.includes(joinedProjectId)) {
+          await saveSharedIdsToLocalStorage(userId, [...currentSharedIds, joinedProjectId]);
+        }
       }
 
-      // Add joined project into local state & storage immediately
-      const updatedProjects = [
-        joinedProjectObject,
-        ...get().projects.filter((p) => p.id !== joinedProjectObject.id),
-      ];
-      set({ projects: updatedProjects });
-      await saveToLocalStorage(userId, updatedProjects);
+      // RPC succeeded and inserted membership. Now fetch the full project via authorized query
+      await get().fetchProjects({ forceRefresh: true });
 
-      // Trigger background sync
-      fetchProjectsBackground(userId, getProjectStorageKey(userId), set, get).catch(() => {});
+      const joinedProject = joinedProjectId ? get().projects.find((p) => p.id === joinedProjectId) : undefined;
+      const joinedName = (Array.isArray(rpcData) && rpcData[0]?.project_name) || joinedProject?.name || 'Project';
 
       // Notify joining user of successful join via code
       void notificationService.sendImmediateNotification(
         '🎉 Project Joined',
-        `Successfully joined project "${joinedProjectObject.name}" via invite code.`
+        `Successfully joined project "${joinedName}" via invite code.`
       );
 
       return {
         success: true,
-        projectName: joinedProjectObject.name,
+        projectName: joinedName,
       };
     } catch (err: any) {
-      return { success: false, error: err?.message || 'Failed to join project' };
+      return { success: false, error: err?.message || 'Unable to join the project. Please try again.' };
     }
   },
 

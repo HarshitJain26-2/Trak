@@ -321,15 +321,31 @@ export default function ProjectDetailsScreen() {
     });
 
     // Verify authorization via RLS-backed query.
-    // If the current user no longer has access (membership removed, etc.),
-    // the RLS policy will return no rows and we immediately revoke access.
     supabase
       .from('projects')
       .select('id')
       .eq('id', project.id)
       .maybeSingle()
-      .then(({ data: projectRow }) => {
-        if (isMounted && !projectRow) {
+      .then(({ data: projectRow, error: checkError }) => {
+        if (!isMounted) return;
+
+        if (checkError) {
+          const isNetworkError =
+            checkError.message?.toLowerCase().includes('fetch') ||
+            checkError.message?.toLowerCase().includes('network') ||
+            checkError.message?.toLowerCase().includes('offline');
+
+          if (isNetworkError) {
+            // Connection error — do NOT tell user they were removed
+            console.log('[ProjectDetail] Network check failed, preserving local view.');
+          } else {
+            // Generic database error — log diagnostic without exposing internals to UI
+            console.error('[ProjectDetail] Authorization check error:', checkError.message);
+          }
+          return;
+        }
+
+        if (!projectRow) {
           // RLS denied access — user is not owner or member
           Alert.alert(
             'Access Revoked',
