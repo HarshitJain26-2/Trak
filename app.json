@@ -2,6 +2,7 @@
   "expo": {
     "name": "Trak",
     "slug": "trak",
+    "scheme": "trak",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -20,9 +21,9 @@
       "adaptiveIcon": {
         "backgroundColor": "#071B2B",
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "monochromeImage": "./assets/android-icon-monochrome.png",
+        "package": "com.trak.app"
       },
-      "package": "com.trak.app",
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -54,7 +55,6 @@
         }
       ]
     ],
-    "scheme": "trak",
     "experiments": {
       "typedRoutes": true
     },

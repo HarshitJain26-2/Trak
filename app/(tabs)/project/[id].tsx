@@ -13,6 +13,7 @@ import {
   KeyboardAvoidingView,
   Alert,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
@@ -29,6 +30,7 @@ import { CalendarPickerModal } from '@/components/modals/CalendarPickerModal';
 import { AestheticCheckbox } from '@/components/common/AestheticCheckbox';
 import { IncompleteTasksWarningModal } from '@/components/modals/IncompleteTasksWarningModal';
 import { supabase } from '@/services/supabase';
+import { triggerHaptic } from '@/utils/haptics';
 
 function formatRemainingTime(deadlineStr: string): string {
   if (!deadlineStr || deadlineStr === 'No Deadline') return 'No Deadline';
@@ -283,6 +285,34 @@ export default function ProjectDetailsScreen() {
   const [notesExpanded, setNotesExpanded] = useState(false);
   const notesHeight = useRef(new Animated.Value(0)).current;
   const chevronRotation = useRef(new Animated.Value(0)).current;
+
+  // Developer notes edit state
+  const [showNotesModal, setShowNotesModal] = useState(false);
+  const [notesInput, setNotesInput] = useState('');
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
+
+  const handleOpenNotesModal = () => {
+    if (!project) return;
+    setNotesInput(project.notes || '');
+    setShowNotesModal(true);
+  };
+
+  const handleSaveNotes = async () => {
+    if (!project) return;
+    setIsSavingNotes(true);
+    try {
+      await updateProject(project.id, { notes: notesInput });
+      setShowNotesModal(false);
+      triggerHaptic(30);
+      if (!notesExpanded) {
+        toggleNotes();
+      }
+    } catch (err) {
+      console.error('Failed to save notes:', err);
+    } finally {
+      setIsSavingNotes(false);
+    }
+  };
 
   // Milestone management state
   const [actionTarget, setActionTarget] = useState<Milestone | null>(null);
@@ -938,39 +968,76 @@ export default function ProjectDetailsScreen() {
           ))}
         </View>
 
-        {/* Developer Notes (collapsible) */}
+        {/* Developer Notes (collapsible & editable) */}
         <View style={[styles.glassCardNoPad, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
-          <Pressable style={styles.notesToggle} onPress={toggleNotes}>
-            <View style={styles.notesToggleLeft}>
-              <Feather name="file-text" size={18} color={colors.onSurfaceVariant} />
-              <Text style={[styles.notesTitle, { color: colors.onSurface }]}>Developer Notes</Text>
-            </View>
-            <Animated.View style={{ transform: [{ rotate: chevronDeg }] }}>
-              <Feather name="chevron-down" size={20} color={colors.onSurfaceVariant} />
-            </Animated.View>
-          </Pressable>
+          <View style={styles.notesHeaderContainer}>
+            <Pressable style={styles.notesToggleLeftPressable} onPress={toggleNotes}>
+              <View style={styles.notesToggleLeft}>
+                <Feather name="file-text" size={18} color={colors.primaryFixed} />
+                <Text style={[styles.notesTitle, { color: colors.onSurface }]}>Developer Notes</Text>
+              </View>
+              <Animated.View style={{ transform: [{ rotate: chevronDeg }] }}>
+                <Feather name="chevron-down" size={20} color={colors.onSurfaceVariant} />
+              </Animated.View>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.editNotesHeaderBtn,
+                { backgroundColor: `${colors.primaryFixed}1A`, borderColor: `${colors.primaryFixed}33` },
+                pressed && { opacity: 0.7 },
+              ]}
+              onPress={handleOpenNotesModal}
+              hitSlop={6}
+            >
+              <Feather name="edit-3" size={14} color={colors.primaryFixed} />
+              <Text style={[styles.editNotesHeaderBtnText, { color: colors.primaryFixed }]}>
+                {project.notes?.trim() ? 'Edit' : 'Add'}
+              </Text>
+            </Pressable>
+          </View>
+
           <Animated.View style={{ maxHeight: notesMaxHeight, overflow: 'hidden' }}>
             <View style={[styles.notesBorder, { backgroundColor: colors.glassBorder }]} />
             <View style={styles.notesContent}>
-              {project.notes.split('\n').map((line, i) => (
-                <Text
-                  key={i}
-                  style={[
-                    styles.notesText,
-                    { color: colors.onSurfaceVariant },
-                    line.startsWith('###') && { color: colors.onSurface, fontFamily: 'Inter_600SemiBold' },
-                  ]}
-                >
-                  {line.startsWith('-') ? (
-                    <Text>
-                      <Text style={{ color: colors.primaryFixed }}>- </Text>
-                      {line.slice(2)}
-                    </Text>
-                  ) : (
-                    line.replace('### ', '')
-                  )}
-                </Text>
-              ))}
+              {project.notes?.trim() ? (
+                project.notes.split('\n').map((line, i) => (
+                  <Text
+                    key={i}
+                    style={[
+                      styles.notesText,
+                      { color: colors.onSurfaceVariant },
+                      line.startsWith('###') && { color: colors.onSurface, fontFamily: 'Inter_600SemiBold', fontSize: 13, marginTop: 4 },
+                    ]}
+                  >
+                    {line.startsWith('-') ? (
+                      <Text>
+                        <Text style={{ color: colors.primaryFixed }}>- </Text>
+                        {line.slice(2)}
+                      </Text>
+                    ) : (
+                      line.replace('### ', '')
+                    )}
+                  </Text>
+                ))
+              ) : (
+                <View style={styles.emptyNotesContainer}>
+                  <Text style={[styles.emptyNotesText, { color: colors.onSurfaceVariant }]}>
+                    No developer notes added yet. Keep track of technical scope, setup instructions, or roadmap notes.
+                  </Text>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.addNotesBtn,
+                      { backgroundColor: colors.primaryFixed },
+                      pressed && { opacity: 0.9 },
+                    ]}
+                    onPress={handleOpenNotesModal}
+                  >
+                    <Feather name="plus" size={15} color={colors.onPrimaryFixed} />
+                    <Text style={[styles.addNotesBtnText, { color: colors.onPrimaryFixed }]}>Add Developer Notes</Text>
+                  </Pressable>
+                </View>
+              )}
             </View>
           </Animated.View>
         </View>
@@ -1072,6 +1139,102 @@ export default function ProjectDetailsScreen() {
                       onPress={handleSaveRepo}
                     >
                       <Text style={[editRepoStyles.btnSaveText, { color: colors.onPrimaryFixed }]}>Save URL</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </TouchableWithoutFeedback>
+            </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Edit Developer Notes Modal */}
+      <Modal
+        transparent
+        animationType="fade"
+        visible={showNotesModal}
+        onRequestClose={() => setShowNotesModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <TouchableWithoutFeedback onPress={() => setShowNotesModal(false)}>
+            <View style={editNotesStyles.overlay}>
+              <TouchableWithoutFeedback>
+                <View style={[editNotesStyles.card, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
+                  <View style={editNotesStyles.header}>
+                    <View style={[editNotesStyles.iconCircle, { backgroundColor: `${colors.primaryFixed}1A`, borderColor: `${colors.primaryFixed}30` }]}>
+                      <Feather name="file-text" size={20} color={colors.primaryFixed} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[editNotesStyles.title, { color: colors.onSurface }]}>
+                        {project?.notes?.trim() ? 'Edit Developer Notes' : 'Add Developer Notes'}
+                      </Text>
+                      <Text style={[editNotesStyles.subtitle, { color: colors.onSurfaceVariant }]}>
+                        Markdown formatted project scope & notes
+                      </Text>
+                    </View>
+                    <Pressable onPress={() => setShowNotesModal(false)} hitSlop={8}>
+                      <Feather name="x" size={20} color={colors.onSurfaceVariant} />
+                    </Pressable>
+                  </View>
+
+                  {/* Formatting shortcut helpers */}
+                  <View style={editNotesStyles.shortcutRow}>
+                    <Pressable
+                      style={({ pressed }) => [
+                        editNotesStyles.shortcutChip,
+                        { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder },
+                        pressed && { opacity: 0.8 },
+                      ]}
+                      onPress={() => setNotesInput((prev) => (prev ? `${prev}\n### Section Title\n` : '### Section Title\n'))}
+                    >
+                      <Text style={[editNotesStyles.shortcutChipText, { color: colors.primaryFixed }]}>+ Heading</Text>
+                    </Pressable>
+                    <Pressable
+                      style={({ pressed }) => [
+                        editNotesStyles.shortcutChip,
+                        { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder },
+                        pressed && { opacity: 0.8 },
+                      ]}
+                      onPress={() => setNotesInput((prev) => (prev ? `${prev}\n- ` : '- '))}
+                    >
+                      <Text style={[editNotesStyles.shortcutChipText, { color: colors.primaryFixed }]}>+ Bullet</Text>
+                    </Pressable>
+                  </View>
+
+                  <View style={[editNotesStyles.inputWrapper, { backgroundColor: colors.surfaceContainerHigh, borderColor: `${colors.primaryFixed}33` }]}>
+                    <TextInput
+                      style={[editNotesStyles.input, { color: colors.onSurface }]}
+                      placeholder={'### Technical Scope\n- Setup environment\n- Configure database connection\n- Test authentication flow'}
+                      placeholderTextColor={`${colors.onSurfaceVariant}50`}
+                      value={notesInput}
+                      onChangeText={setNotesInput}
+                      multiline
+                      numberOfLines={8}
+                      textAlignVertical="top"
+                      selectionColor={colors.primaryFixed}
+                    />
+                  </View>
+
+                  <View style={editNotesStyles.btnRow}>
+                    <Pressable
+                      style={[editNotesStyles.btn, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder, borderWidth: 1 }]}
+                      onPress={() => setShowNotesModal(false)}
+                    >
+                      <Text style={[editNotesStyles.btnCancelText, { color: colors.onSurfaceVariant }]}>Cancel</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[editNotesStyles.btn, { backgroundColor: colors.primaryFixed }, isSavingNotes && { opacity: 0.7 }]}
+                      onPress={handleSaveNotes}
+                      disabled={isSavingNotes}
+                    >
+                      {isSavingNotes ? (
+                        <ActivityIndicator size="small" color={colors.onPrimaryFixed} />
+                      ) : (
+                        <Text style={[editNotesStyles.btnSaveText, { color: colors.onPrimaryFixed }]}>Save Notes</Text>
+                      )}
                     </Pressable>
                   </View>
                 </View>
@@ -1639,6 +1802,56 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.statusWarning,
   },
+  notesHeaderContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  notesToggleLeftPressable: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginRight: 12,
+  },
+  editNotesHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  editNotesHeaderBtnText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 12,
+  },
+  emptyNotesContainer: {
+    alignItems: 'center',
+    paddingVertical: 16,
+    gap: 12,
+  },
+  emptyNotesText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  addNotesBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  addNotesBtnText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 13,
+  },
 });
 
 // ─── Action Sheet Styles ───────────────────────────────────────────────────────
@@ -1847,6 +2060,95 @@ const editRepoStyles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
+  },
+  btnCancelText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 15,
+  },
+  btnSaveText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 15,
+  },
+});
+
+const editNotesStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  card: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 20,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
+  iconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 17,
+  },
+  subtitle: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  shortcutRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  shortcutChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  shortcutChipText: {
+    fontFamily: 'JetBrainsMono_400Regular',
+    fontSize: 11,
+  },
+  inputWrapper: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 18,
+    minHeight: 160,
+  },
+  input: {
+    fontFamily: 'JetBrainsMono_400Regular',
+    fontSize: 13,
+    lineHeight: 20,
+    minHeight: 140,
+  },
+  btnRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  btn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   btnCancelText: {
     fontFamily: 'Inter_400Regular',

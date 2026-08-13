@@ -35,7 +35,7 @@ export const getApiUrl = (): string => {
   }
 
   // 3. Fallback URL for production builds if EXPO_PUBLIC_API_URL is missing
-  return 'https://api.yourdomain.com';
+  return 'https://api.trak.com';
 };
 
 export const API_URL = getApiUrl();
