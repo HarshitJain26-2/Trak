@@ -209,12 +209,12 @@ class NotificationService {
     const now = Date.now();
     let effectiveTriggerTime = reminder.triggerTime;
 
-    if (effectiveTriggerTime <= now) {
+    // Buffer to ensure past or immediate times don't accidentally fire
+    if (effectiveTriggerTime <= now + 1000) {
       if (options?.isTest) {
-        // Fallback for manual testing only: schedule 10 seconds into the future
         effectiveTriggerTime = now + 10000;
       } else {
-        // Trigger time is in the past: mark fired and skip OS scheduling
+        // Mark as fired and DO NOT pass to OS scheduler
         await this.persistReminder({ ...reminder, fired: true });
         return;
       }
@@ -222,20 +222,20 @@ class NotificationService {
 
     try {
       if (Platform.OS === 'web') {
-        // Web fallback using setTimeout
         const delay = effectiveTriggerTime - now;
-        setTimeout(() => {
-          this.sendImmediateNotification(
-            `Reminder: ${reminder.projectName}`,
-            `Upcoming Deadline (${reminder.offsetLabel}): Prepare to ship!`
-          );
-        }, delay);
+        if (delay > 0) {
+          setTimeout(() => {
+            this.sendImmediateNotification(
+              `Reminder: ${reminder.projectName}`,
+              `Upcoming Deadline (${reminder.offsetLabel}): Prepare to ship!`
+            );
+          }, delay);
+        }
       } else {
-        // Native Mobile: Local OS Scheduled Notification
         await this.ensureAndroidChannels();
 
         // Cancel any existing notification with the same ID before rescheduling
-        await Notifications.cancelScheduledNotificationAsync(reminder.id).catch(() => {});
+        await Notifications.cancelScheduledNotificationAsync(reminder.id).catch(() => { });
 
         const triggerDate = new Date(effectiveTriggerTime);
 
@@ -259,7 +259,7 @@ class NotificationService {
         });
 
         if (!options?.silent) {
-          console.log(`[NotificationService] Scheduled OS local notification "${reminder.id}" for ${triggerDate.toLocaleString()} (${triggerDate.toISOString()})`);
+          console.log(`[NotificationService] Scheduled OS local notification "${reminder.id}" for ${triggerDate.toLocaleString()}`);
         }
       }
 
@@ -329,7 +329,6 @@ class NotificationService {
       const list: ScheduledReminder[] = JSON.parse(raw);
       const now = Date.now();
 
-      // Check what's currently registered with native OS
       let scheduledInOS = new Set<string>();
       if (Platform.OS !== 'web') {
         try {
@@ -344,17 +343,16 @@ class NotificationService {
       const updatedList: ScheduledReminder[] = [];
 
       for (const rem of list) {
-        if (rem.triggerTime <= now) {
-          // Past reminder - mark fired
+        // Skip/mark any past or overdue items explicitly without scheduling
+        if (rem.triggerTime <= now + 1000) {
           if (!rem.fired) {
             rem.fired = true;
             storageUpdated = true;
           }
           updatedList.push(rem);
         } else {
-          // Future reminder
+          // Future reminder - only reschedule if missing from native OS queue
           if (!scheduledInOS.has(rem.id)) {
-            // Missing in OS queue (e.g., system wipe/reboot) -> restore silently
             await this.scheduleReminder(rem, { silent: true });
           }
           updatedList.push(rem);
