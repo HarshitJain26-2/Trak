@@ -21,10 +21,10 @@
       "adaptiveIcon": {
         "backgroundColor": "#071B2B",
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png",
-        "package": "com.trak.app"
+        "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.trak.app"
     },
     "web": {
       "favicon": "./assets/favicon.png",

@@ -21,6 +21,7 @@ import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Colors, useThemeColors } from '@/constants/colors';
 import { useProjectStore, Milestone, ProjectMember } from '@/store/useProjectStore';
+import { useProfileStore } from '@/store/useProfileStore';
 import { TechPill } from '@/components/common/TechPill';
 import { StatusDot } from '@/components/common/StatusDot';
 import { ConfirmDialog, useConfirmDialog } from '@/components/common/ConfirmDialog';
@@ -267,9 +268,12 @@ export default function ProjectDetailsScreen() {
     fetchProjectMembers,
     removeMember,
   } = useProjectStore();
+  const profile = useProfileStore((state) => state.profile);
   const project = getProject(id);
   const insets = useSafeAreaInsets();
   const { dialogProps, ask } = useConfirmDialog();
+
+  const myDisplayName = profile?.name?.trim() || profile?.username?.trim() || 'You';
 
   const handleToggleMilestone = async (milestoneId: string) => {
     if (!project) return;
@@ -716,8 +720,10 @@ export default function ProjectDetailsScreen() {
             {/* Leader avatar (always shown) */}
             {!isSharedProject ? (
               <View style={[styles.memberChip, { backgroundColor: `${colors.primaryFixed}15`, borderColor: `${colors.primaryFixed}40` }]}>
-                <MemberAvatar name="You" size={28} />
-                <Text style={[styles.memberName, { color: colors.primaryFixed, fontFamily: 'Inter_600SemiBold' }]}>You (Leader)</Text>
+                <MemberAvatar name={myDisplayName} size={28} />
+                <Text style={[styles.memberName, { color: colors.primaryFixed, fontFamily: 'Inter_600SemiBold' }]}>
+                  {myDisplayName === 'You' ? 'You (Leader)' : `${myDisplayName} (Leader)`}
+                </Text>
               </View>
             ) : (
               project.ownerName && (

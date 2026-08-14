@@ -13,7 +13,7 @@ import {
   JetBrainsMono_400Regular,
   JetBrainsMono_500Medium,
 } from '@expo-google-fonts/jetbrains-mono';
-import { View, ActivityIndicator, Platform, LogBox } from 'react-native';
+import { View, ActivityIndicator, Platform, LogBox, AppState, AppStateStatus } from 'react-native';
 import { useThemeColors } from '@/constants/colors';
 import { useEffect } from 'react';
 import * as Notifications from 'expo-notifications';
@@ -57,6 +57,8 @@ export default function RootLayout() {
   const colors = useThemeColors();
   const fetchProjects = useProjectStore((s) => s.fetchProjects);
   const clearProjects = useProjectStore((s) => s.clearProjects);
+  const subscribeToRealtime = useProjectStore((s) => s.subscribeToRealtime);
+  const unsubscribeFromRealtime = useProjectStore((s) => s.unsubscribeFromRealtime);
   const fetchProfile = useProfileStore((s) => s.fetchProfile);
   const clearProfile = useProfileStore((s) => s.clearProfile);
   const loadSettings = useSettingsStore((s) => s.loadSettings);
@@ -75,6 +77,24 @@ export default function RootLayout() {
     if (Platform.OS !== 'web') {
       notificationService.ensureAndroidChannels();
     }
+  }, []);
+
+  // Global Realtime Subscription & AppState Lifecycle Reconnection
+  useEffect(() => {
+    subscribeToRealtime();
+
+    const appStateSubscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        console.log('[Realtime] App foregrounded — verifying realtime connection and refreshing projects');
+        subscribeToRealtime();
+        void fetchProjects({ forceRefresh: true });
+      }
+    });
+
+    return () => {
+      appStateSubscription.remove();
+      unsubscribeFromRealtime();
+    };
   }, []);
 
   // Listen for local notifications received and tapped

@@ -51,8 +51,6 @@ export default function DashboardScreen() {
 
   useEffect(() => {
     fetchProjects();
-    subscribeToRealtime();
-    return () => unsubscribeFromRealtime();
   }, []);
 
   const activeProjects = projects

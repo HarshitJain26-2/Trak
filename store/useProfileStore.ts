@@ -98,11 +98,35 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       }
 
       // Fetch profile from Supabase for this user ID
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, name, username, email, bio, role, location, avatar_url, github_url, company, skills, social_links, created_at')
-        .eq('id', userId)
-        .maybeSingle();
+      let profileData: any = null;
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, name, username, email, bio, role, location, avatar_url, github_url, company, skills, social_links, created_at')
+          .eq('id', userId)
+          .maybeSingle();
+
+        if (error) {
+          // Fallback to basic columns if extended columns do not exist yet
+          const { data: baseData } = await supabase
+            .from('profiles')
+            .select('id, name, username, email, bio, role, avatar_url, created_at')
+            .eq('id', userId)
+            .maybeSingle();
+          profileData = baseData;
+        } else {
+          profileData = data;
+        }
+      } catch (_) {
+        const { data: baseData } = await supabase
+          .from('profiles')
+          .select('id, name, username, email, bio, role, avatar_url, created_at')
+          .eq('id', userId)
+          .maybeSingle();
+        profileData = baseData;
+      }
+
+      const data = profileData;
 
       if (data) {
         const updatedProfile: Profile = {
@@ -148,18 +172,16 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
         set({ profile: initialProf, isLoading: false });
         await saveProfileToLocalStorage(userId, initialProf);
 
-        if (userId && authEmail) {
+        if (userId) {
           void Promise.resolve(
             supabase.from('profiles').upsert(
               {
                 id: userId,
                 name: initialProf.name,
                 username: initialProf.username,
-                email: initialProf.email,
-                bio: initialProf.bio,
-                role: initialProf.role,
-                location: initialProf.location,
-                skills: initialProf.skills,
+                email: initialProf.email || null,
+                bio: initialProf.bio || '',
+                role: initialProf.role || '',
               },
               { onConflict: 'id' }
             )
@@ -227,63 +249,49 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       await saveProfileToLocalStorage(userId, newProfile);
 
       try {
-        const profileData = {
+        // 1. Always sync core profile columns first (guaranteed to exist in table)
+        const coreProfileData = {
+          id: userId,
           name: newProfile.name,
           username: newProfile.username || null,
-          bio: newProfile.bio,
-          role: newProfile.role,
-          location: newProfile.location,
-          avatar_url: newProfile.avatarUrl,
-          github_url: newProfile.githubUrl,
-          company: newProfile.company,
-          skills: newProfile.skills,
-          social_links: newProfile.socialLinks,
-          joined_date: newProfile.joinedDate,
           email: newProfile.email || null,
+          bio: newProfile.bio || '',
+          role: newProfile.role || '',
+          avatar_url: newProfile.avatarUrl || '',
         };
 
-        // Check if a profile row already exists for this user
-        const { data: existing } = await supabase
+        const { error: coreErr } = await supabase
           .from('profiles')
-          .select('id')
-          .eq('id', userId)
-          .maybeSingle();
+          .upsert(coreProfileData, { onConflict: 'id' });
 
-        let syncError: any = null;
+        if (coreErr) {
+          // If upsert failed due to unique constraint on username/email
+          if (coreErr.code === '23505') {
+            if (coreErr.message?.includes('username')) {
+              set({ profile: current });
+              return { success: false, error: `Username "${newProfile.username}" is already taken.` };
+            }
+            if (coreErr.message?.includes('email')) {
+              set({ profile: current });
+              return { success: false, error: 'An account with this email already exists.' };
+            }
+          }
+          console.warn('Supabase core profile sync notice:', coreErr.message || coreErr);
+        }
 
-        if (existing) {
-          // Row exists — UPDATE (uses UPDATE RLS policy only)
-          const { error } = await supabase
+        // 2. Try syncing extended profile columns if they exist
+        try {
+          await supabase
             .from('profiles')
-            .update(profileData)
+            .update({
+              location: newProfile.location || '',
+              github_url: newProfile.githubUrl || '',
+              company: newProfile.company || '',
+              skills: newProfile.skills || [],
+              social_links: newProfile.socialLinks || [],
+            })
             .eq('id', userId);
-          syncError = error;
-        } else {
-          // No row yet — INSERT (uses INSERT RLS policy only)
-          const { error } = await supabase
-            .from('profiles')
-            .insert({ id: userId, ...profileData });
-          syncError = error;
-        }
-
-        if (syncError) {
-          // Handle DB-level unique constraint violation for username
-          if (syncError.code === '23505' && syncError.message?.includes('username')) {
-            // Roll back optimistic update
-            set({ profile: current });
-            return { success: false, error: `Username "${newProfile.username}" is already taken.` };
-          }
-          // Handle DB-level unique constraint violation for email
-          if (syncError.code === '23505' && syncError.message?.includes('email')) {
-            set({ profile: current });
-            return { success: false, error: 'An account with this email already exists.' };
-          }
-          if (syncError.code === '42501') {
-            console.warn('Supabase profile sync RLS warning (handled offline/locally):', syncError.message);
-          } else {
-            console.warn('Supabase profile sync warning:', syncError.message || syncError);
-          }
-        }
+        } catch (_) {}
       } catch (err: any) {
         console.warn('Supabase profile sync warning:', err?.message || err);
       }
