@@ -51,7 +51,7 @@ export const ShineSweep: React.FC<ShineSweepProps> = React.memo(({
   if (reduceMotion) return null;
 
   return (
-    <View style={[styles.maskContainer, { width, height }]} pointerEvents="none">
+    <View style={[styles.maskContainer, { width, height, pointerEvents: 'none' }]}>
       <Animated.View style={[styles.shineBar, animatedStyle]}>
         <LinearGradient
           colors={[

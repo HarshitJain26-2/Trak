@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, Animated, useColorScheme, PanResponder, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Animated, useColorScheme, PanResponder, Dimensions, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { getThemeColors } from '@/constants/colors';
@@ -20,16 +20,21 @@ interface ProjectCardProps {
 
 export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }) => {
   const router = useRouter();
-  const systemColorScheme = useColorScheme();
-  const { compactCards, themeMode } = useSettingsStore();
-  const colors = getThemeColors(themeMode, systemColorScheme);
-  const { markCompleted, deleteProject, togglePinProject, leaveProject } = useProjectStore();
-
+  const colorScheme = useColorScheme();
+  const colors = getThemeColors(colorScheme === 'dark');
+  const deleteProject = useProjectStore((s) => s.deleteProject);
+  const leaveProject = useProjectStore((s) => s.leaveProject);
+  const markCompleted = useProjectStore((s) => s.markCompleted);
   const [modalVisible, setModalVisible] = useState(false);
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const panX = useRef(new Animated.Value(0)).current;
+  const [warningModalVisible, setWarningModalVisible] = useState(false);
   const lastTapRef = useRef<number>(0);
+  const swipeHapticPlayedRef = useRef(false);
+
+  // Swipe-to-Action PanResponder
+  const panX = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
   const timerRef = useRef<any>(null);
+  const { compactCards } = useSettingsStore();
 
   const PRIORITY_ACCENT_COLORS: Record<string, string> = {
     high: colors.error,
@@ -52,33 +57,41 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
 
   const progressWidth = `${computedProgress}%` as any;
 
-  const [warningModalVisible, setWarningModalVisible] = useState(false);
-
-  // Swipe pan responder
   const panResponder = useRef(
     PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        return Math.abs(gestureState.dx) > 15 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+        // Only capture horizontal gestures that exceed 12px threshold
+        return Math.abs(gestureState.dx) > 12 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5;
+      },
+      onPanResponderGrant: () => {
+        swipeHapticPlayedRef.current = false;
       },
       onPanResponderMove: (_, gestureState) => {
         panX.setValue(gestureState.dx);
+        if (Math.abs(gestureState.dx) > 80 && !swipeHapticPlayedRef.current) {
+          triggerHaptic(15);
+          swipeHapticPlayedRef.current = true;
+        } else if (Math.abs(gestureState.dx) <= 80) {
+          swipeHapticPlayedRef.current = false;
+        }
       },
       onPanResponderRelease: (_, gestureState) => {
         const threshold = 80;
         if (gestureState.dx > threshold) {
-          // Slide Right -> Check for incomplete tasks or progress < 100 before completing
+          // Slide Right -> Mark as Completed
           const incomplete = project.milestones?.filter((m) => !m.completed) || [];
           const isNotFullyDone = incomplete.length > 0 || computedProgress < 100;
           if (isNotFullyDone) {
             triggerHaptic(25);
             setWarningModalVisible(true);
-            Animated.spring(panX, { toValue: 0, useNativeDriver: true }).start();
+            Animated.spring(panX, { toValue: 0, useNativeDriver: Platform.OS !== 'web' }).start();
           } else {
             triggerHaptic(25);
             Animated.timing(panX, {
               toValue: SCREEN_WIDTH,
               duration: 250,
-              useNativeDriver: true,
+              useNativeDriver: Platform.OS !== 'web',
             }).start(() => {
               markCompleted(project.id);
             });
@@ -89,7 +102,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
           Animated.timing(panX, {
             toValue: -SCREEN_WIDTH,
             duration: 250,
-            useNativeDriver: true,
+            useNativeDriver: Platform.OS !== 'web',
           }).start(() => {
             if (project.isShared) {
               leaveProject(project.id);
@@ -101,7 +114,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
           // Snap back
           Animated.spring(panX, {
             toValue: 0,
-            useNativeDriver: true,
+            useNativeDriver: Platform.OS !== 'web',
             speed: 30,
             bounciness: 8,
           }).start();
@@ -143,11 +156,11 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
   });
 
   const handlePressIn = () => {
-    Animated.spring(scaleAnim, { toValue: 0.97, useNativeDriver: true, speed: 30 }).start();
+    Animated.spring(scaleAnim, { toValue: 0.97, useNativeDriver: Platform.OS !== 'web', speed: 30 }).start();
   };
 
   const handlePressOut = () => {
-    Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 30 }).start();
+    Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: Platform.OS !== 'web', speed: 30 }).start();
   };
 
   const handlePress = () => {

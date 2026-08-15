@@ -32,9 +32,9 @@ function CompletedCard({
   const scale = useRef(new Animated.Value(1)).current;
 
   const onPressIn = () =>
-    Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 30 }).start();
+    Animated.spring(scale, { toValue: 0.97, useNativeDriver: Platform.OS !== 'web', speed: 30 }).start();
   const onPressOut = () =>
-    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 30 }).start();
+    Animated.spring(scale, { toValue: 1, useNativeDriver: Platform.OS !== 'web', speed: 30 }).start();
 
   const completedCount = project.milestones.filter((m) => m.completed).length;
   const totalCount = project.milestones.length;

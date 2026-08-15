@@ -18,22 +18,31 @@ import { useThemeColors } from '@/constants/colors';
 import { useEffect } from 'react';
 import * as Notifications from 'expo-notifications';
 
-// Ignore Expo Go SDK 53+ push warning box and require cycles when running inside Expo Go app
+// Ignore known web deprecation notices and push warnings
 LogBox.ignoreLogs([
   'expo-notifications: Android Push notifications',
   'was removed from Expo Go',
   'Require cycle:',
   'expo-notifications',
   'SafeAreaView has been deprecated',
+  'Animated: useNativeDriver is not supported',
+  'props.pointerEvents is deprecated',
+  '"shadow*" style props are deprecated',
+  '"textShadow*" style props are deprecated',
 ]);
 
 if (__DEV__) {
-  const filterExpoNotificationsWarning = (origFn: (...args: any[]) => void) => {
+  const filterWebDeprecationWarnings = (origFn: (...args: any[]) => void) => {
     return (...args: any[]) => {
       const msg = typeof args[0] === 'string' ? args[0] : '';
       if (
         msg.includes('expo-notifications: Android Push notifications') ||
-        msg.includes('was removed from Expo Go')
+        msg.includes('was removed from Expo Go') ||
+        msg.includes('useNativeDriver is not supported') ||
+        msg.includes('props.pointerEvents is deprecated') ||
+        msg.includes('shadow*" style props are deprecated') ||
+        msg.includes('textShadow*" style props are deprecated') ||
+        msg.includes('Listening to push token changes is not yet fully supported on web')
       ) {
         return;
       }
@@ -41,8 +50,8 @@ if (__DEV__) {
     };
   };
 
-  console.warn = filterExpoNotificationsWarning(console.warn);
-  console.error = filterExpoNotificationsWarning(console.error);
+  console.warn = filterWebDeprecationWarnings(console.warn);
+  console.error = filterWebDeprecationWarnings(console.error);
 }
 import { supabase } from '@/services/supabase';
 import { useProjectStore } from '@/store/useProjectStore';
@@ -85,7 +94,6 @@ export default function RootLayout() {
 
     const appStateSubscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
       if (nextAppState === 'active') {
-        console.log('[Realtime] App foregrounded — verifying realtime connection and refreshing projects');
         subscribeToRealtime();
         void fetchProjects({ forceRefresh: true });
       }
@@ -122,22 +130,28 @@ export default function RootLayout() {
   // Listen to auth state changes to keep data in sync with the logged-in user
   useEffect(() => {
     let lastUserId: string | null = null;
+    let isSessionInitialized = false;
+
+    const handleUserSession = (userId: string, isSignInEvent: boolean) => {
+      if (lastUserId === userId && isSessionInitialized) return;
+      lastUserId = userId;
+      isSessionInitialized = true;
+      void setActiveUserId(userId);
+      if (isSignInEvent) {
+        clearProjects();
+        clearProfile();
+      }
+      void fetchProfile();
+      void fetchProjects({ forceRefresh: isSignInEvent });
+    };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        if (event === 'SIGNED_IN' && session?.user?.id) {
-          if (lastUserId !== session.user.id) {
-            lastUserId = session.user.id;
-            void setActiveUserId(session.user.id);
-            // Wipe memory stores so new user session starts 100% clean
-            clearProjects();
-            clearProfile();
-            // Fetch fresh profile and projects for NEW user
-            void fetchProfile(true);
-            void fetchProjects({ forceRefresh: true });
-          }
+        if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user?.id) {
+          handleUserSession(session.user.id, event === 'SIGNED_IN');
         } else if (event === 'SIGNED_OUT') {
           lastUserId = null;
+          isSessionInitialized = false;
           void setActiveUserId(null);
           clearProjects();
           clearProfile();
@@ -146,13 +160,10 @@ export default function RootLayout() {
       }
     );
 
-    // Also load on mount if a session already exists (e.g. app restart)
+    // Initial check on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user?.id) {
-        lastUserId = session.user.id;
-        void setActiveUserId(session.user.id);
-        void fetchProfile(true);
-        void fetchProjects();
+      if (session?.user?.id && !isSessionInitialized) {
+        handleUserSession(session.user.id, false);
       }
     });
 

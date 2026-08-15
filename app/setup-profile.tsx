@@ -116,8 +116,8 @@ export default function SetupProfileScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Ambient blobs */}
-      <View style={[styles.blob, styles.blobTL, { backgroundColor: `${colors.primaryFixed}0A` }]} pointerEvents="none" />
-      <View style={[styles.blob, styles.blobBR, { backgroundColor: `${colors.secondaryContainer}0A` }]} pointerEvents="none" />
+      <View style={[styles.blob, styles.blobTL, { backgroundColor: `${colors.primaryFixed}0A`, pointerEvents: 'none' }]} />
+      <View style={[styles.blob, styles.blobBR, { backgroundColor: `${colors.secondaryContainer}0A`, pointerEvents: 'none' }]} />
 
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
         <KeyboardAvoidingView

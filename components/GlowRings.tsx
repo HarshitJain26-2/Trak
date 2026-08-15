@@ -35,7 +35,7 @@ export const GlowRings: React.FC<GlowRingsProps> = React.memo(({ reduceMotion = 
   if (reduceMotion) return null;
 
   return (
-    <View style={styles.container} pointerEvents="none">
+    <View style={[styles.container, { pointerEvents: 'none' }]}>
       {RINGS.map((ring) => {
         const animatedStyle = useAnimatedStyle(() => {
           // Stagger each ring's phase offset

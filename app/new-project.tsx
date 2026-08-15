@@ -165,9 +165,9 @@ export default function NewProjectScreen() {
   const handleClose = () => router.back();
 
   const handleSavePressIn = () =>
-    Animated.spring(saveScale, { toValue: 0.95, useNativeDriver: true, speed: 30 }).start();
+    Animated.spring(saveScale, { toValue: 0.95, useNativeDriver: Platform.OS !== 'web', speed: 30 }).start();
   const handleSavePressOut = () =>
-    Animated.spring(saveScale, { toValue: 1, useNativeDriver: true, speed: 30 }).start();
+    Animated.spring(saveScale, { toValue: 1, useNativeDriver: Platform.OS !== 'web', speed: 30 }).start();
 
   return (
     <View style={styles.root}>

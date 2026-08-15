@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, Platform } from 'react-native';
 import Animated, {
   SharedValue,
   useAnimatedReaction,
@@ -50,9 +50,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     letterSpacing: 1,
     color: '#39FF88',
-    textShadowColor: 'rgba(57, 255, 136, 0.5)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 8,
+    ...Platform.select({
+      web: {
+        textShadow: '0px 0px 8px rgba(57, 255, 136, 0.5)',
+      },
+      default: {
+        textShadowColor: 'rgba(57, 255, 136, 0.5)',
+        textShadowOffset: { width: 0, height: 0 },
+        textShadowRadius: 8,
+      },
+    }),
   },
 });
 

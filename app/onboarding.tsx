@@ -31,8 +31,8 @@ export default function OnboardingScreen() {
     // Soft pulse for ambient blobs
     Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 0.7, duration: 2000, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 0.3, duration: 2000, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 0.7, duration: 2000, useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(pulseAnim, { toValue: 0.3, duration: 2000, useNativeDriver: Platform.OS !== 'web' }),
       ])
     ).start();
 
@@ -47,17 +47,17 @@ export default function OnboardingScreen() {
     // Logo glow pulse
     Animated.loop(
       Animated.sequence([
-        Animated.timing(glowAnim, { toValue: 1, duration: 1500, useNativeDriver: true }),
-        Animated.timing(glowAnim, { toValue: 0.7, duration: 1500, useNativeDriver: true }),
+        Animated.timing(glowAnim, { toValue: 1, duration: 1500, useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(glowAnim, { toValue: 0.7, duration: 1500, useNativeDriver: Platform.OS !== 'web' }),
       ])
     ).start();
   }, []);
 
   const handlePressIn = () =>
-    Animated.spring(btnScale, { toValue: 0.95, useNativeDriver: true, speed: 30 }).start();
+    Animated.spring(btnScale, { toValue: 0.95, useNativeDriver: Platform.OS !== 'web', speed: 30 }).start();
 
   const handlePressOut = () =>
-    Animated.spring(btnScale, { toValue: 1, useNativeDriver: true, speed: 30 }).start();
+    Animated.spring(btnScale, { toValue: 1, useNativeDriver: Platform.OS !== 'web', speed: 30 }).start();
 
   const handleGetStarted = () => {
     router.replace('/auth');
@@ -71,15 +71,14 @@ export default function OnboardingScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Grid dot pattern background */}
-      <View style={styles.gridPattern} pointerEvents="none" />
+      <View style={[styles.gridPattern, { pointerEvents: 'none' }]} />
 
       {/* Ambient top-left blob */}
-      <Animated.View style={[styles.ambientBlobTL, { backgroundColor: `${colors.primaryFixed}0D`, opacity: pulseAnim }]} pointerEvents="none" />
+      <Animated.View style={[styles.ambientBlobTL, { backgroundColor: `${colors.primaryFixed}0D`, opacity: pulseAnim, pointerEvents: 'none' }]} />
 
       {/* Ambient bottom-right blob */}
       <Animated.View
-        style={[styles.ambientBlobBR, { backgroundColor: `${colors.secondaryContainer}0D`, opacity: pulseAnim }]}
-        pointerEvents="none"
+        style={[styles.ambientBlobBR, { backgroundColor: `${colors.secondaryContainer}0D`, opacity: pulseAnim, pointerEvents: 'none' }]}
       />
 
       <SafeAreaView style={styles.safeArea}>

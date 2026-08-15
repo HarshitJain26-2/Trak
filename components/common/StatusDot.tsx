@@ -23,8 +23,8 @@ export const StatusDot: React.FC<StatusDotProps> = ({ status, size = 8, animated
     if (animated) {
       Animated.loop(
         Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 0.3, duration: 800, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 0.3, duration: 800, useNativeDriver: Platform.OS !== 'web' }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: Platform.OS !== 'web' }),
         ])
       ).start();
     }

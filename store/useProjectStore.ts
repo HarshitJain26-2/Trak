@@ -290,6 +290,9 @@ let realtimeChannel: RealtimeChannel | null = null;
 // Flag to force refresh on next fetchProjects call (set after join/leave)
 let _forceNextRefresh = false;
 
+// Track in-flight background fetch promise to prevent duplicate simultaneous network calls
+let inFlightFetchProjects: Promise<void> | null = null;
+
 const getLocalProjectsFromStorage = async (): Promise<Project[]> => {
   try {
     const allKeys = await safeStorage.getAllKeys();
@@ -346,7 +349,6 @@ const fetchProjectsBackground = async (
   } catch (_) {}
 
   // Parallel fetch: 1) owned projects, 2) shared project memberships
-  console.log('[TRAK-DEBUG] fetchProjectsBackground: userIdsToQuery =', userIdsToQuery);
   const [ownedRes, membershipsRes] = await Promise.all([
     supabase
       .from('projects')
@@ -357,9 +359,6 @@ const fetchProjectsBackground = async (
       .select('project_id')
       .in('user_id', userIdsToQuery),
   ]);
-
-  console.log('[TRAK-DEBUG] ownedRes:', { data: ownedRes.data?.length, error: ownedRes.error?.message });
-  console.log('[TRAK-DEBUG] membershipsRes:', { data: membershipsRes.data, error: membershipsRes.error?.message });
 
   let ownedProjects = ownedRes.data || [];
 
@@ -377,32 +376,26 @@ const fetchProjectsBackground = async (
     await saveSharedIdsToLocalStorage(userId, dbSharedProjectIds);
   }
 
-  console.log('[TRAK-DEBUG] sharedProjectIds:', sharedProjectIds);
-
   let sharedProjects: any[] = [];
   if (sharedProjectIds.length > 0) {
     const { data, error: sharedErr } = await supabase
       .from('projects')
       .select('id, name, version, description, status, tech_stack, deadline, progress, repo_url, priority, last_updated, notes, is_completed, is_deleted, user_id, invite_code')
       .in('id', sharedProjectIds);
-    console.log('[TRAK-DEBUG] shared projects query:', { data: data?.map((p: any) => ({ id: p.id, name: p.name })), error: sharedErr?.message });
     sharedProjects = data || [];
 
     // Fallback: If direct query returned fewer projects than shared memberships, call secure RPC
     if (sharedProjects.length < sharedProjectIds.length) {
       try {
-        const { data: rpcData, error: rpcErr } = await supabase.rpc('get_shared_projects', {
+        const { data: rpcData } = await supabase.rpc('get_shared_projects', {
           p_project_ids: sharedProjectIds,
         });
         if (rpcData && Array.isArray(rpcData) && rpcData.length > 0) {
-          console.log('[TRAK-DEBUG] shared projects RPC fallback succeeded:', rpcData.length, 'projects');
           sharedProjects = rpcData;
         }
       } catch (_) {}
     }
   }
-
-  console.log('[TRAK-DEBUG] allDbProjects count:', ownedProjects.length + sharedProjects.length, '(owned:', ownedProjects.length, '+ shared:', sharedProjects.length, ')');
 
   const allDbProjects = [...ownedProjects, ...sharedProjects];
 
@@ -419,7 +412,6 @@ const fetchProjectsBackground = async (
       (p) => p.isShared && validSharedIdSet.has(p.id) && !dbProjectIds.has(p.id)
     );
     if (cachedSharedProjectsToKeep.length > 0) {
-      console.log('[TRAK-DEBUG] Preserving cached shared projects:', cachedSharedProjectsToKeep.map((p) => p.name));
       localProjectsToSync.push(...cachedSharedProjectsToKeep);
     }
 
@@ -636,7 +628,6 @@ const fetchProjectsBackground = async (
 
   const finalPinnedIds = finalProjects.filter((p) => p.isPinned).map((p) => p.id);
   await savePinnedIdsToLocalStorage(userId, finalPinnedIds);
-  console.log('[TRAK-DEBUG] Final set projects:', finalProjects.map(p => ({ id: p.id, name: p.name, isShared: p.isShared, isDeleted: p.isDeleted, isCompleted: p.isCompleted })));
   await saveToLocalStorage(userId, finalProjects);
   set({ projects: finalProjects, isLoading: false });
 };
@@ -659,6 +650,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       // Consume the module-level force-refresh flag (set after join/leave)
       const shouldForce = opts?.forceRefresh || _forceNextRefresh;
       if (_forceNextRefresh) _forceNextRefresh = false;
+
+      // If an identical background fetch is already in flight and not forcing refresh, await it
+      if (inFlightFetchProjects && !shouldForce) {
+        await inFlightFetchProjects;
+        return;
+      }
 
       const userId = await getActiveUserId();
       set({ currentUserId: userId });
@@ -691,13 +688,29 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         set({ projects: [], isLoading: true });
       }
 
+      const executeFetch = async () => {
+        try {
+          await fetchProjectsBackground(userId, storageKey, set, get);
+        } catch (_) {}
+      };
+
       if (hasLocal && !shouldForce && get().projects.length > 0) {
-        // Still await the background fetch so state gets updated with server data
-        await fetchProjectsBackground(userId, storageKey, set, get).catch(() => {});
+        // Run background fetch with in-flight deduplication
+        inFlightFetchProjects = executeFetch();
+        try {
+          await inFlightFetchProjects;
+        } finally {
+          inFlightFetchProjects = null;
+        }
         return;
       }
 
-      await fetchProjectsBackground(userId, storageKey, set, get);
+      inFlightFetchProjects = executeFetch();
+      try {
+        await inFlightFetchProjects;
+      } finally {
+        inFlightFetchProjects = null;
+      }
     } catch (err) {
       console.error('Error fetching projects:', err);
       set({ isLoading: false });
@@ -712,10 +725,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     try {
       const myName = await getCurrentUserName();
       if (userId && myName && myName !== 'Developer' && myName !== 'User') {
-        await supabase.from('profiles').upsert(
-          { id: userId, name: myName },
-          { onConflict: 'id' }
-        );
+        await supabase.from('profiles').update({ name: myName }).eq('id', userId);
       }
     } catch (_) {}
 
@@ -1182,10 +1192,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       try {
         const myName = await getCurrentUserName();
         if (userId && myName && myName !== 'Developer' && myName !== 'User') {
-          await supabase.from('profiles').upsert(
-            { id: userId, name: myName },
-            { onConflict: 'id' }
-          );
+          await supabase.from('profiles').update({ name: myName }).eq('id', userId);
         }
       } catch (_) {}
 
@@ -1238,10 +1245,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       try {
         const myName = await getCurrentUserName();
         if (userId && myName && myName !== 'Developer' && myName !== 'User') {
-          await supabase.from('profiles').upsert(
-            { id: userId, name: myName },
-            { onConflict: 'id' }
-          );
+          await supabase.from('profiles').update({ name: myName }).eq('id', userId);
         }
       } catch (_) {}
 
@@ -1259,8 +1263,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       }
 
       const { data: rpcData, error: rpcError } = rpcResult;
-
-      console.log('[TRAK-DEBUG] joinProjectByCode: RPC result:', { rpcData, rpcError: rpcError?.message });
 
       if (rpcError) {
         const errMsg = rpcError.message || rpcError.details || '';
@@ -1293,11 +1295,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       _forceNextRefresh = true;
 
       // RPC succeeded and inserted membership. Now fetch the full project via authorized query
-      console.log('[TRAK-DEBUG] joinProjectByCode: about to fetchProjects with forceRefresh');
       await get().fetchProjects({ forceRefresh: true });
 
       const joinedProject = joinedProjectId ? get().projects.find((p) => p.id === joinedProjectId) : undefined;
-      console.log('[TRAK-DEBUG] joinProjectByCode: after fetchProjects, joinedProject found?', !!joinedProject, 'total projects:', get().projects.length, 'shared projects:', get().projects.filter(p => p.isShared).length);
       const joinedName = (Array.isArray(rpcData) && rpcData[0]?.project_name) || joinedProject?.name || 'Project';
 
       // Notify joining user of successful join via code
@@ -1444,14 +1444,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   subscribeToRealtime: () => {
     if (realtimeChannel) {
-      console.log('[Realtime] Cleaning up existing channel before reconnecting');
       try {
         supabase.removeChannel(realtimeChannel);
       } catch (_) {}
       realtimeChannel = null;
     }
-
-    console.log('[Realtime] Subscription starting: channel trak-collab');
 
     const channel = supabase
       .channel('trak-collab')
@@ -1460,7 +1457,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'projects' },
         (payload: any) => {
-          console.log('[Realtime] Project INSERT received:', payload.new?.id, payload.new?.name);
           void get().fetchProjects({ forceRefresh: true });
         }
       )
@@ -1468,7 +1464,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'projects' },
         (payload: any) => {
-          console.log('[Realtime] Project UPDATE received:', payload.new?.id, payload.new?.name);
           const updatedRow = payload.new;
           if (updatedRow && updatedRow.id) {
             // Apply immediate optimistic state update directly into Zustand store
@@ -1503,7 +1498,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         'postgres_changes',
         { event: 'DELETE', schema: 'public', table: 'projects' },
         (payload: any) => {
-          console.log('[Realtime] Project DELETE received:', payload.old?.id);
           const deletedId = payload.old?.id;
           if (deletedId) {
             // Instantly remove from Zustand store so UI drops card immediately
@@ -1521,7 +1515,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         'postgres_changes',
         { event: '*', schema: 'public', table: 'milestones' },
         (payload: any) => {
-          console.log('[Realtime] Milestone change received:', payload.eventType, payload.new?.id || payload.old?.id);
           void get().fetchProjects({ forceRefresh: true });
         }
       )
@@ -1530,7 +1523,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'project_members' },
         async (payload: any) => {
-          console.log('[Realtime] Member INSERT received for project:', payload.new?.project_id);
           void get().fetchProjects({ forceRefresh: true });
           try {
             const activeUserId = await getActiveUserId();
@@ -1548,7 +1540,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         'postgres_changes',
         { event: 'DELETE', schema: 'public', table: 'project_members' },
         async (payload: any) => {
-          console.log('[Realtime] Member DELETE received for project:', payload.old?.project_id);
           try {
             const activeUserId = await getActiveUserId();
             if (payload.old && payload.old.user_id === activeUserId) {
@@ -1580,17 +1571,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'profiles' },
         (payload: any) => {
-          console.log('[Realtime] Profile UPDATE received for user:', payload.new?.id, payload.new?.name);
           void get().fetchProjects({ forceRefresh: true });
         }
       )
       .subscribe((status: string, err?: any) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('[Realtime] Subscription status: SUBSCRIBED');
-        } else if (status === 'CHANNEL_ERROR') {
+        if (status === 'CHANNEL_ERROR') {
           console.warn('[Realtime] Subscription error:', err?.message || err || 'CHANNEL_ERROR');
-        } else if (status === 'CLOSED') {
-          console.log('[Realtime] Subscription closed');
         } else if (status === 'TIMED_OUT') {
           console.warn('[Realtime] Subscription timed out, re-initiating...');
           setTimeout(() => {
@@ -1604,7 +1590,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   unsubscribeFromRealtime: () => {
     if (realtimeChannel) {
-      console.log('[Realtime] Subscription closed (unsubscribeFromRealtime called)');
       try {
         supabase.removeChannel(realtimeChannel);
       } catch (_) {}

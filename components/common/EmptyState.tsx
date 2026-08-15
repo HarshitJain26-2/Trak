@@ -19,24 +19,24 @@ export default function EmptyState({ onCreatePress }: EmptyStateProps) {
     // Cursor blink (step, not eased)
     Animated.loop(
       Animated.sequence([
-        Animated.timing(cursorOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
-        Animated.timing(cursorOpacity, { toValue: 0, duration: 500, useNativeDriver: true }),
+        Animated.timing(cursorOpacity, { toValue: 1, duration: 500, useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(cursorOpacity, { toValue: 0, duration: 500, useNativeDriver: Platform.OS !== 'web' }),
       ])
     ).start();
 
     // Loading bar scan left→right
     Animated.loop(
       Animated.sequence([
-        Animated.timing(loadingX, { toValue: 3, duration: 2000, useNativeDriver: true }),
-        Animated.timing(loadingX, { toValue: -1, duration: 0, useNativeDriver: true }),
+        Animated.timing(loadingX, { toValue: 3, duration: 2000, useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(loadingX, { toValue: -1, duration: 0, useNativeDriver: Platform.OS !== 'web' }),
       ])
     ).start();
   }, []);
 
   const handlePressIn = () =>
-    Animated.spring(btnScale, { toValue: 0.95, useNativeDriver: true, speed: 30 }).start();
+    Animated.spring(btnScale, { toValue: 0.95, useNativeDriver: Platform.OS !== 'web', speed: 30 }).start();
   const handlePressOut = () =>
-    Animated.spring(btnScale, { toValue: 1, useNativeDriver: true, speed: 30 }).start();
+    Animated.spring(btnScale, { toValue: 1, useNativeDriver: Platform.OS !== 'web', speed: 30 }).start();
 
   return (
     <View style={styles.container}>

@@ -88,7 +88,7 @@ export const LogoVectorOverlay: React.FC<LogoVectorOverlayProps> = React.memo(({
   });
 
   return (
-    <View style={[styles.container, { width, height }]} pointerEvents="none">
+    <View style={[styles.container, { width, height, pointerEvents: 'none' }]}>
       <Svg width={width} height={height} viewBox="0 0 200 200" fill="none">
         <Defs>
           {/* Energy Beam Gradient (Cyan -> Lime Green -> White core) */}

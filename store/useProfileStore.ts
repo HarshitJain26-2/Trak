@@ -65,6 +65,9 @@ const saveProfileToLocalStorage = async (userId: string, profile: Profile) => {
   }
 };
 
+// Track in-flight profile fetch promise to deduplicate concurrent startup calls
+let inFlightFetchProfile: Promise<void> | null = null;
+
 export const useProfileStore = create<ProfileStore>((set, get) => ({
   profile: DEFAULT_PROFILE,
   isLoading: false,
@@ -74,125 +77,163 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
   },
 
   fetchProfile: async (forceRefresh?: boolean) => {
-    try {
-      const userId = await getActiveUserId();
-      const storageKey = getProfileStorageKey(userId);
+    if (inFlightFetchProfile && !forceRefresh) {
+      await inFlightFetchProfile;
+      return;
+    }
 
-      // Attempt loading from local storage for active user ID
-      const localData = await safeStorage.getItem(storageKey);
-      let hasLocal = false;
-      if (localData) {
-        try {
-          const parsed = JSON.parse(localData);
-          if (parsed && typeof parsed === 'object' && parsed.email) {
-            set({ profile: { ...DEFAULT_PROFILE, ...parsed }, isLoading: false });
-            hasLocal = true;
-          }
-        } catch {
-          // Fallback
-        }
-      }
-
-      if (!hasLocal) {
-        set({ isLoading: true });
-      }
-
-      // Fetch profile from Supabase for this user ID
-      let profileData: any = null;
+    const executeFetch = async () => {
       try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id, name, username, email, bio, role, location, avatar_url, github_url, company, skills, social_links, created_at')
-          .eq('id', userId)
-          .maybeSingle();
+        const userId = await getActiveUserId();
+        const storageKey = getProfileStorageKey(userId);
 
-        if (error) {
-          // Fallback to basic columns if extended columns do not exist yet
-          const { data: baseData } = await supabase
+        // Attempt loading from local storage for active user ID
+        const localData = await safeStorage.getItem(storageKey);
+        let hasLocal = false;
+        if (localData) {
+          try {
+            const parsed = JSON.parse(localData);
+            if (parsed && typeof parsed === 'object' && parsed.email) {
+              set({ profile: { ...DEFAULT_PROFILE, ...parsed }, isLoading: false });
+              hasLocal = true;
+            }
+          } catch {
+            // Fallback
+          }
+        }
+
+        if (!hasLocal) {
+          set({ isLoading: true });
+        }
+
+        // 1. Fetch profile from Supabase by user ID
+        let profileData: any = null;
+        try {
+          const { data, error } = await supabase
             .from('profiles')
-            .select('id, name, username, email, bio, role, avatar_url, created_at')
+            .select('id, name, username, email, bio, role, location, avatar_url, github_url, company, skills, social_links, joined_date, updated_at')
             .eq('id', userId)
             .maybeSingle();
-          profileData = baseData;
-        } else {
-          profileData = data;
-        }
-      } catch (_) {
-        const { data: baseData } = await supabase
-          .from('profiles')
-          .select('id, name, username, email, bio, role, avatar_url, created_at')
-          .eq('id', userId)
-          .maybeSingle();
-        profileData = baseData;
-      }
 
-      const data = profileData;
+          if (!error && data) {
+            profileData = data;
+          }
+        } catch (_) {}
 
-      if (data) {
-        const updatedProfile: Profile = {
-          name: data.name || '',
-          username: data.username || '',
-          email: data.email || '',
-          bio: data.bio || '',
-          role: data.role || '',
-          location: data.location || '',
-          avatarUrl: data.avatar_url || '',
-          githubUrl: data.github_url || '',
-          company: data.company || '',
-          skills: data.skills || [],
-          socialLinks: (data.social_links as SocialLink[]) || [],
-          joinedDate: data.created_at || new Date().toISOString(),
-        };
-        set({ profile: updatedProfile, isLoading: false });
-        await saveProfileToLocalStorage(userId, updatedProfile);
-      } else {
-        // No profile in DB yet — check Supabase auth user
+        // 2. If not found by ID, check if a profile row already exists by auth email
         let authEmail = '';
         let authName = '';
         try {
           const { data: { user } } = await supabase.auth.getUser();
           if (user) {
-            authEmail = user.email || '';
+            authEmail = (user.email || '').trim().toLowerCase();
             authName = user.user_metadata?.full_name || user.user_metadata?.name || (authEmail ? authEmail.split('@')[0] : '');
           }
         } catch {}
 
-        let baseUsername = authEmail ? authEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : '';
-        if (!baseUsername) {
-          baseUsername = `dev_${userId.slice(0, 6)}`;
+        if (!profileData && authEmail) {
+          try {
+            const { data: emailData } = await supabase
+              .from('profiles')
+              .select('id, name, username, email, bio, role, location, avatar_url, github_url, company, skills, social_links, joined_date, updated_at')
+              .eq('email', authEmail)
+              .maybeSingle();
+
+            if (emailData) {
+              profileData = emailData;
+              // If the profile had a legacy or different ID, update it to active user ID
+              if (emailData.id !== userId) {
+                await supabase.from('profiles').update({ id: userId }).eq('id', emailData.id).catch(() => {});
+              }
+            }
+          } catch (_) {}
         }
 
-        const initialProf: Profile = {
-          ...DEFAULT_PROFILE,
-          name: authName || '',
-          username: baseUsername,
-          email: authEmail,
-        };
+        const data = profileData;
 
-        set({ profile: initialProf, isLoading: false });
-        await saveProfileToLocalStorage(userId, initialProf);
+        if (data) {
+          const updatedProfile: Profile = {
+            name: data.name || authName || '',
+            username: data.username || (authEmail ? authEmail.split('@')[0] : ''),
+            email: data.email || authEmail || '',
+            bio: data.bio || '',
+            role: data.role || '',
+            location: data.location || '',
+            avatarUrl: data.avatar_url || '',
+            githubUrl: data.github_url || '',
+            company: data.company || '',
+            skills: data.skills || [],
+            socialLinks: (data.social_links as SocialLink[]) || [],
+            joinedDate: data.joined_date || (data.updated_at ? new Date(data.updated_at).toISOString() : new Date().toISOString()),
+          };
+          set({ profile: updatedProfile, isLoading: false });
+          await saveProfileToLocalStorage(userId, updatedProfile);
+        } else {
+          // Brand new user — no profile found by ID or email
+          let baseUsername = authEmail ? authEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : '';
+          if (!baseUsername) {
+            baseUsername = `dev_${userId.slice(0, 6)}`;
+          } else if (userId) {
+            baseUsername = `${baseUsername}_${userId.slice(0, 4)}`;
+          }
 
-        if (userId) {
-          void Promise.resolve(
-            supabase.from('profiles').upsert(
-              {
-                id: userId,
-                name: initialProf.name,
-                username: initialProf.username,
-                email: initialProf.email || null,
-                bio: initialProf.bio || '',
-                role: initialProf.role || '',
-              },
-              { onConflict: 'id' }
-            )
-          ).catch((e) => {
-            console.warn('[useProfileStore] Profile auto-upsert notice:', e?.message);
-          });
+          const initialProf: Profile = {
+            ...DEFAULT_PROFILE,
+            name: authName || '',
+            username: baseUsername,
+            email: authEmail,
+          };
+
+          set({ profile: initialProf, isLoading: false });
+          await saveProfileToLocalStorage(userId, initialProf);
+
+          if (userId) {
+            try {
+              const { error: upsertErr } = await supabase.from('profiles').upsert(
+                {
+                  id: userId,
+                  name: initialProf.name,
+                  username: initialProf.username,
+                  email: initialProf.email || null,
+                  bio: initialProf.bio || '',
+                  role: initialProf.role || '',
+                  joined_date: new Date().toISOString(),
+                },
+                { onConflict: 'id' }
+              );
+
+              if (upsertErr && upsertErr.code === '23505') {
+                // Retry with random suffix if username already taken
+                const fallbackUsername = `user_${userId.slice(0, 6)}_${Math.floor(Math.random() * 1000)}`;
+                await supabase.from('profiles').upsert(
+                  {
+                    id: userId,
+                    name: initialProf.name,
+                    username: fallbackUsername,
+                    email: initialProf.email || null,
+                    bio: initialProf.bio || '',
+                    role: initialProf.role || '',
+                    joined_date: new Date().toISOString(),
+                  },
+                  { onConflict: 'id' }
+                );
+              }
+            } catch (e: any) {
+              console.warn('[useProfileStore] Profile auto-upsert notice:', e?.message);
+            }
+          }
         }
+      } catch (err) {
+        console.error('Error fetching profile:', err);
+        set({ isLoading: false });
       }
-    } catch (err) {
-      console.error('Error fetching profile:', err);
-      set({ isLoading: false });
+    };
+
+    inFlightFetchProfile = executeFetch();
+    try {
+      await inFlightFetchProfile;
+    } finally {
+      inFlightFetchProfile = null;
     }
   },
 

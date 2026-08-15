@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, Pressable, Animated, Easing } from 'react-native';
+import { View, StyleSheet, Pressable, Animated, Easing, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { Colors, useThemeColors } from '@/constants/colors';
 
@@ -36,7 +36,7 @@ export function AestheticCheckbox({
           toValue: 1,
           duration: 750,
           easing: Easing.linear,
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         })
       );
       spinLoop.start();
@@ -47,13 +47,13 @@ export function AestheticCheckbox({
             toValue: 1.2,
             duration: 350,
             easing: Easing.ease,
-            useNativeDriver: true,
+            useNativeDriver: Platform.OS !== 'web',
           }),
           Animated.timing(pulseAnim, {
             toValue: 0.85,
             duration: 350,
             easing: Easing.ease,
-            useNativeDriver: true,
+            useNativeDriver: Platform.OS !== 'web',
           }),
         ])
       );
@@ -76,7 +76,7 @@ export function AestheticCheckbox({
         toValue: completed ? 1 : 0,
         friction: 6,
         tension: 100,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }).start();
     }
   }, [completed, loading]);
@@ -126,7 +126,7 @@ export function AestheticCheckbox({
       >
         {loading ? (
           // Fancy aesthetic loader (Orbiting glow arc + pulsing core)
-          <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+          <View style={[StyleSheet.absoluteFillObject, { pointerEvents: 'none' }]}>
             <Animated.View
               style={[
                 styles.spinnerOrbit,

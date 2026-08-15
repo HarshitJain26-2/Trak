@@ -36,18 +36,18 @@ export function QRScannerModal({ visible, onClose, onCodeScanned }: QRScannerMod
 
   useEffect(() => {
     if (visible && !scanned) {
-      // Scan line animation
+      // Continuous laser scan line animation
       const scanAnimation = Animated.loop(
         Animated.sequence([
           Animated.timing(scanLineAnim, {
             toValue: 1,
             duration: 2000,
-            useNativeDriver: true,
+            useNativeDriver: Platform.OS !== 'web',
           }),
           Animated.timing(scanLineAnim, {
             toValue: 0,
             duration: 2000,
-            useNativeDriver: true,
+            useNativeDriver: Platform.OS !== 'web',
           }),
         ])
       );
@@ -59,12 +59,12 @@ export function QRScannerModal({ visible, onClose, onCodeScanned }: QRScannerMod
           Animated.timing(cornerPulse, {
             toValue: 1.05,
             duration: 1200,
-            useNativeDriver: true,
+            useNativeDriver: Platform.OS !== 'web',
           }),
           Animated.timing(cornerPulse, {
             toValue: 1,
             duration: 1200,
-            useNativeDriver: true,
+            useNativeDriver: Platform.OS !== 'web',
           }),
         ])
       );

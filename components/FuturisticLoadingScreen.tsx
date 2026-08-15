@@ -161,7 +161,7 @@ export const FuturisticLoadingScreen: React.FC<FuturisticLoadingScreenProps> = (
       <FloatingParticles reduceMotion={reduceMotion} />
 
       {/* Stage 8 Completion Background Flash */}
-      <Animated.View style={[styles.bgFlash, bgFlashStyle]} pointerEvents="none" />
+      <Animated.View style={[styles.bgFlash, bgFlashStyle, { pointerEvents: 'none' }]} />
 
       {/* Center Stage: Radial Pulse Rings, Orbit Particles, and Logo */}
       <View style={styles.centerStage}>
@@ -172,7 +172,7 @@ export const FuturisticLoadingScreen: React.FC<FuturisticLoadingScreenProps> = (
         <OrbitParticles reduceMotion={reduceMotion} />
 
         {/* Stage 8 Completion Shockwave Ring */}
-        <Animated.View style={[styles.shockwaveRing, shockwaveStyle]} pointerEvents="none" />
+        <Animated.View style={[styles.shockwaveRing, shockwaveStyle, { pointerEvents: 'none' }]} />
 
         {/* Centerpiece Animated Logo */}
         <AnimatedLogo
@@ -224,10 +224,17 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: '#39FF88',
     backgroundColor: 'rgba(57, 255, 136, 0.25)',
-    shadowColor: '#39FF88',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 20,
+    ...Platform.select({
+      web: {
+        boxShadow: '0px 0px 20px rgba(57, 255, 136, 1)',
+      },
+      default: {
+        shadowColor: '#39FF88',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: 20,
+      },
+    }),
   },
 });
 

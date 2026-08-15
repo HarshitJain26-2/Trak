@@ -53,10 +53,10 @@ function SearchResultCard({ project }: { project: Project }) {
       />
       <Pressable
         onPressIn={() =>
-          Animated.spring(scaleAnim, { toValue: 0.97, useNativeDriver: true, speed: 30 }).start()
+          Animated.spring(scaleAnim, { toValue: 0.97, useNativeDriver: Platform.OS !== 'web', speed: 30 }).start()
         }
         onPressOut={() =>
-          Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 30 }).start()
+          Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: Platform.OS !== 'web', speed: 30 }).start()
         }
         onPress={() => router.push(`/project/${project.id}`)}
         onLongPress={() => setModalVisible(true)}

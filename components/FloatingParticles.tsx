@@ -53,7 +53,7 @@ export const FloatingParticles: React.FC<FloatingParticlesProps> = React.memo(({
   if (reduceMotion) return null;
 
   return (
-    <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+    <View style={[StyleSheet.absoluteFillObject, { pointerEvents: 'none' }]}>
       {AMBIENT_PARTICLES.map((particle) => {
         const animatedStyle = useAnimatedStyle(() => {
           const translateY = particle.initialY - floatProgress.value * particle.speedY;

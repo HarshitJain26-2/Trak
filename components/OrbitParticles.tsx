@@ -35,7 +35,7 @@ export const OrbitParticles: React.FC<OrbitParticlesProps> = React.memo(({ reduc
   if (reduceMotion) return null;
 
   return (
-    <View style={styles.container} pointerEvents="none">
+    <View style={[styles.container, { pointerEvents: 'none' }]}>
       {PARTICLES.map((particle) => {
         const animatedStyle = useAnimatedStyle(() => {
           const turns = 12000 / particle.duration;

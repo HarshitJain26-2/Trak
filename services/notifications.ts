@@ -14,15 +14,17 @@ export interface ScheduledReminder {
   fired?: boolean;
 }
 
-// Configure foreground notification presentation handler
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+// Configure foreground notification presentation handler for native platforms
+if (Platform.OS !== 'web') {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+}
 
 class NotificationService {
   private channelInitialized = false;

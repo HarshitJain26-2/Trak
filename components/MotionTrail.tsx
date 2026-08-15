@@ -29,7 +29,7 @@ export const MotionTrail: React.FC<MotionTrailProps> = React.memo(({
   if (reduceMotion) return null;
 
   return (
-    <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+    <View style={[StyleSheet.absoluteFillObject, { pointerEvents: 'none' }]}>
       {TRAIL_COPIES.map((copy) => {
         const animatedStyle = useAnimatedStyle(() => {
           const activeProgress = interpolate(

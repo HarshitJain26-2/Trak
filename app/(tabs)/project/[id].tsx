@@ -425,7 +425,7 @@ export default function ProjectDetailsScreen() {
       Animated.timing(chevronRotation, {
         toValue: toExpand ? 1 : 0,
         duration: 300,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
     ]).start();
   };

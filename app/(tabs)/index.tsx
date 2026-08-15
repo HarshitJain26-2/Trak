@@ -42,16 +42,12 @@ export default function DashboardScreen() {
     }
   };
 
-  // Fetch projects and subscribe to realtime updates on mount / focus
+  // Fetch projects on screen mount and focus
   useFocusEffect(
     React.useCallback(() => {
       fetchProjects();
     }, [fetchProjects])
   );
-
-  useEffect(() => {
-    fetchProjects();
-  }, []);
 
   const activeProjects = projects
     .filter((p) => {
@@ -83,9 +79,9 @@ export default function DashboardScreen() {
   const fabScale = useRef(new Animated.Value(1)).current;
 
   const handleFabPressIn = () =>
-    Animated.spring(fabScale, { toValue: 0.92, useNativeDriver: true, speed: 30 }).start();
+    Animated.spring(fabScale, { toValue: 0.92, useNativeDriver: Platform.OS !== 'web', speed: 30 }).start();
   const handleFabPressOut = () =>
-    Animated.spring(fabScale, { toValue: 1, useNativeDriver: true, speed: 30 }).start();
+    Animated.spring(fabScale, { toValue: 1, useNativeDriver: Platform.OS !== 'web', speed: 30 }).start();
 
   const [fabMenuOpen, setFabMenuOpen] = useState(false);
 

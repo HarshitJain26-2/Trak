@@ -46,7 +46,7 @@ export const EnergyBeam: React.FC<EnergyBeamProps> = React.memo(({
   };
 
   return (
-    <View style={styles.tipContainer} pointerEvents="none">
+    <View style={[styles.tipContainer, { pointerEvents: 'none' }]}>
       {SPARKS.map((spark) => {
         const animatedStyle = useAnimatedStyle(() => {
           const rad = (spark.angle * Math.PI) / 180;
