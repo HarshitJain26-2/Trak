@@ -5,6 +5,7 @@ import {
   Text,
   StyleSheet,
   Pressable,
+  Alert,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -67,6 +68,16 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
 
   const handleToggleComplete = async () => {
     if (!project) return;
+    if (isShared) {
+      Alert.alert(
+        'Leader Only',
+        isCompleted
+          ? 'Only the project leader can reactivate this project.'
+          : 'Only the project leader can mark this project as complete.'
+      );
+      return;
+    }
+
     if (isCompleted) {
       const ok = await ask({
         title: 'Reactivate Project',
@@ -248,21 +259,38 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
                     <View
                       style={[
                         styles.iconWrap,
-                        { backgroundColor: isCompleted ? `${colors.secondary}1A` : `${colors.primaryFixed}1A` },
+                        {
+                          backgroundColor: isShared
+                            ? `${colors.onSurfaceVariant}15`
+                            : isCompleted
+                            ? `${colors.secondary}1A`
+                            : `${colors.primaryFixed}1A`,
+                        },
                       ]}
                     >
                       <Feather
-                        name={isCompleted ? 'rotate-ccw' : 'check-circle'}
+                        name={isShared ? 'lock' : isCompleted ? 'rotate-ccw' : 'check-circle'}
                         size={18}
-                        color={isCompleted ? colors.secondary : colors.primaryFixed}
+                        color={isShared ? colors.onSurfaceVariant : isCompleted ? colors.secondary : colors.primaryFixed}
                       />
                     </View>
                     <View style={styles.optionContent}>
-                      <Text style={[styles.optionTitle, { color: colors.onSurface }]}>
-                        {isCompleted ? 'Reactivate Project' : 'Mark as Completed'}
-                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={[styles.optionTitle, { color: colors.onSurface }]}>
+                          {isCompleted ? 'Reactivate Project' : 'Mark as Completed'}
+                        </Text>
+                        {isShared && (
+                          <View style={{ backgroundColor: `${colors.onSurfaceVariant}1A`, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 }}>
+                            <Text style={{ fontFamily: 'JetBrainsMono_500Medium', fontSize: 10, color: colors.onSurfaceVariant }}>LEADER ONLY</Text>
+                          </View>
+                        )}
+                      </View>
                       <Text style={[styles.optionSub, { color: colors.onSurfaceVariant }]}>
-                        {isCompleted ? 'Move back to Active Deployments' : 'Move project to shipped tab'}
+                        {isShared
+                          ? 'Only the project leader can change project completion status'
+                          : isCompleted
+                          ? 'Move back to Active Deployments'
+                          : 'Move project to shipped tab'}
                       </Text>
                     </View>
                   </Pressable>

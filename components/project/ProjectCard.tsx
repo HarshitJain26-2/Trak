@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, Animated, useColorScheme, PanResponder, Dimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Animated, useColorScheme, PanResponder, Dimensions, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { getThemeColors } from '@/constants/colors';
@@ -20,11 +20,13 @@ interface ProjectCardProps {
 
 export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }) => {
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const colors = getThemeColors(colorScheme === 'dark');
+  const systemColorScheme = useColorScheme();
+  const { compactCards, themeMode } = useSettingsStore();
+  const colors = getThemeColors(themeMode, systemColorScheme);
   const deleteProject = useProjectStore((s) => s.deleteProject);
   const leaveProject = useProjectStore((s) => s.leaveProject);
   const markCompleted = useProjectStore((s) => s.markCompleted);
+  const togglePinProject = useProjectStore((s) => s.togglePinProject);
   const [modalVisible, setModalVisible] = useState(false);
   const [warningModalVisible, setWarningModalVisible] = useState(false);
   const lastTapRef = useRef<number>(0);
@@ -34,7 +36,6 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
   const panX = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const timerRef = useRef<any>(null);
-  const { compactCards } = useSettingsStore();
 
   const PRIORITY_ACCENT_COLORS: Record<string, string> = {
     high: colors.error,
@@ -79,7 +80,22 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
       onPanResponderRelease: (_, gestureState) => {
         const threshold = 80;
         if (gestureState.dx > threshold) {
-          // Slide Right -> Mark as Completed
+          // Slide Right -> Mark as Completed (Leader Only)
+          if (project.isShared) {
+            triggerHaptic(25);
+            Animated.spring(panX, {
+              toValue: 0,
+              useNativeDriver: Platform.OS !== 'web',
+              speed: 30,
+              bounciness: 8,
+            }).start();
+            Alert.alert(
+              'Leader Only',
+              'Only the project leader can mark this project as complete.'
+            );
+            return;
+          }
+
           const incomplete = project.milestones?.filter((m) => !m.completed) || [];
           const isNotFullyDone = incomplete.length > 0 || computedProgress < 100;
           if (isNotFullyDone) {
@@ -210,11 +226,13 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
         }}
       />
 
-      {/* Slide Right Action Background (Mark Complete - Vibrant Green) */}
-      <View style={[styles.swipeActionBg, styles.swipeRightBg, { backgroundColor: '#22C55E' }]}>
+      {/* Slide Right Action Background (Mark Complete for Leader, Leader Only for Member) */}
+      <View style={[styles.swipeActionBg, styles.swipeRightBg, { backgroundColor: project.isShared ? '#64748B' : '#22C55E' }]}>
         <Animated.View style={[styles.swipeContentLeft, { opacity: rightOpacity, transform: [{ scale: rightScale }] }]}>
-          <Feather name="check-circle" size={24} color="#FFFFFF" />
-          <Text style={[styles.swipeText, { color: '#FFFFFF' }]}>Mark Complete</Text>
+          <Feather name={project.isShared ? 'lock' : 'check-circle'} size={24} color="#FFFFFF" />
+          <Text style={[styles.swipeText, { color: '#FFFFFF' }]}>
+            {project.isShared ? 'Leader Only' : 'Mark Complete'}
+          </Text>
         </Animated.View>
       </View>
 

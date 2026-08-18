@@ -67,8 +67,8 @@ interface ProjectStore {
   editMilestone: (projectId: string, milestoneId: string, updates: { title?: string; description?: string; deadline?: string }) => Promise<void>;
   renameMilestone: (projectId: string, milestoneId: string, newTitle: string) => Promise<void>;
   deleteMilestone: (projectId: string, milestoneId: string) => Promise<void>;
-  markCompleted: (projectId: string) => Promise<void>;
-  unmarkCompleted: (projectId: string) => Promise<void>;
+  markCompleted: (projectId: string) => Promise<{ success: boolean; error?: string }>;
+  unmarkCompleted: (projectId: string) => Promise<{ success: boolean; error?: string }>;
   togglePinProject: (projectId: string) => Promise<void>;
   getProject: (id: string) => Project | undefined;
   clearProjects: () => void;
@@ -1125,11 +1125,20 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
 
   markCompleted: async (projectId) => {
+    const project = get().projects.find((p) => p.id === projectId);
+    if (!project) return { success: false, error: 'Project not found' };
+    if (project.isShared) {
+      return { success: false, error: 'Only the project leader can mark this project as complete.' };
+    }
+
     set((state) => ({
       projects: state.projects.map((p) =>
         p.id === projectId ? { ...p, isCompleted: true, progress: 100 } : p
       ),
     }));
+
+    const userId = await getActiveUserId();
+    await saveToLocalStorage(userId, get().projects);
 
     try {
       await supabase
@@ -1139,14 +1148,25 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     } catch (err) {
       console.error('Failed to sync markCompleted to Supabase:', err);
     }
+
+    return { success: true };
   },
 
   unmarkCompleted: async (projectId) => {
+    const project = get().projects.find((p) => p.id === projectId);
+    if (!project) return { success: false, error: 'Project not found' };
+    if (project.isShared) {
+      return { success: false, error: 'Only the project leader can reactivate this project.' };
+    }
+
     set((state) => ({
       projects: state.projects.map((p) =>
         p.id === projectId ? { ...p, isCompleted: false } : p
       ),
     }));
+
+    const userId = await getActiveUserId();
+    await saveToLocalStorage(userId, get().projects);
 
     try {
       await supabase
@@ -1156,6 +1176,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     } catch (err) {
       console.error('Failed to sync unmarkCompleted to Supabase:', err);
     }
+
+    return { success: true };
   },
 
   togglePinProject: async (projectId) => {

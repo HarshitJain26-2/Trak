@@ -7,6 +7,7 @@ import {
   Pressable,
   Animated,
   Platform,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
@@ -92,10 +93,17 @@ function CompletedCard({
               <Text style={[styles.footerLabel, { color: colors.onSurfaceVariant }]}>VERSION</Text>
               <Text style={[styles.footerValue, { color: colors.onSurface }]}>{project.version}</Text>
             </View>
-            <Pressable style={[styles.reactivateBtn, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]} onPress={onReactivate}>
-              <Feather name="refresh-cw" size={12} color={colors.onSurfaceVariant} />
-              <Text style={[styles.reactivateBtnText, { color: colors.onSurfaceVariant }]}>Reactivate</Text>
-            </Pressable>
+            {project.isShared ? (
+              <View style={[styles.reactivateBtn, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder, opacity: 0.6 }]}>
+                <Feather name="lock" size={12} color={colors.onSurfaceVariant} />
+                <Text style={[styles.reactivateBtnText, { color: colors.onSurfaceVariant }]}>Leader Only</Text>
+              </View>
+            ) : (
+              <Pressable style={[styles.reactivateBtn, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]} onPress={onReactivate}>
+                <Feather name="refresh-cw" size={12} color={colors.onSurfaceVariant} />
+                <Text style={[styles.reactivateBtnText, { color: colors.onSurfaceVariant }]}>Reactivate</Text>
+              </Pressable>
+            )}
           </View>
         </View>
       </Animated.View>
@@ -130,6 +138,13 @@ export default function CompletedScreen() {
   const { dialogProps, ask } = useConfirmDialog();
 
   const handleReactivate = async (project: Project) => {
+    if (project.isShared) {
+      Alert.alert(
+        'Permission Denied',
+        'Only the project leader can reactivate this project.'
+      );
+      return;
+    }
     const ok = await ask({
       title: 'Reactivate Project',
       message: `Move "${project.name}" back to Active Deployments?`,
