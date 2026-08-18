@@ -296,29 +296,84 @@ export default function NewProjectScreen() {
             </View>
 
             {/* Custom Tag Modal */}
-            <Modal transparent animationType="fade" visible={showOtherTagModal} onRequestClose={() => setShowOtherTagModal(false)}>
-              <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-                <Pressable style={styles.backdrop} onPress={() => setShowOtherTagModal(false)}>
-                  <View style={[styles.inputWrapper, { backgroundColor: colors.surfaceContainer, borderColor: colors.primaryFixed, width: '85%', padding: 16, borderRadius: 14 }]}>
-                    <Text style={[styles.fieldLabel, { color: colors.onSurface, marginBottom: 8, fontSize: 13 }]}>ADD CUSTOM TECH TAG</Text>
+            <Modal
+              transparent
+              animationType="fade"
+              visible={showOtherTagModal}
+              onRequestClose={() => setShowOtherTagModal(false)}
+            >
+              <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                style={styles.modalOverlay}
+              >
+                <Pressable
+                  style={styles.modalBackdrop}
+                  onPress={() => setShowOtherTagModal(false)}
+                >
+                  <Pressable
+                    style={[
+                      styles.customTagCard,
+                      { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder },
+                    ]}
+                    onPress={(e) => e.stopPropagation()}
+                  >
+                    <View style={styles.customTagHeader}>
+                      <View style={[styles.tagIconWrap, { backgroundColor: `${colors.primaryFixed}18`, borderColor: `${colors.primaryFixed}33` }]}>
+                        <Feather name="tag" size={16} color={colors.primaryFixed} />
+                      </View>
+                      <Text style={[styles.customTagTitle, { color: colors.onSurface }]}>Add Custom Tech Tag</Text>
+                    </View>
+
+                    <Text style={[styles.customTagSubtitle, { color: colors.onSurfaceVariant }]}>
+                      Enter a framework, language, or tool to include in your project tech stack.
+                    </Text>
+
                     <TextInput
-                      style={[styles.input, { color: colors.onSurface, backgroundColor: colors.surfaceContainerHigh, borderRadius: 8, padding: 10, marginBottom: 12 }]}
-                      placeholder="e.g. Docker, GraphQL"
-                      placeholderTextColor={`${colors.onSurfaceVariant}60`}
+                      style={[
+                        styles.customTagInput,
+                        {
+                          backgroundColor: colors.surfaceContainerHigh,
+                          borderColor: colors.glassBorder,
+                          color: colors.onSurface,
+                        },
+                      ]}
+                      placeholder="e.g. Docker, GraphQL, Tailwind"
+                      placeholderTextColor={`${colors.onSurfaceVariant}70`}
                       value={otherTagInput}
                       onChangeText={setOtherTagInput}
                       autoFocus
                       onSubmitEditing={addCustomTag}
+                      returnKeyType="done"
                     />
-                    <View style={{ flexDirection: 'row', gap: 10 }}>
-                      <Pressable onPress={() => setShowOtherTagModal(false)} style={[styles.priorityChip, { flex: 1 }]}>
-                        <Text style={{ color: colors.onSurfaceVariant }}>Cancel</Text>
+
+                    <View style={styles.customTagActions}>
+                      <Pressable
+                        onPress={() => {
+                          setOtherTagInput('');
+                          setShowOtherTagModal(false);
+                        }}
+                        style={({ pressed }) => [
+                          styles.customTagCancelBtn,
+                          { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder },
+                          pressed && { opacity: 0.7 },
+                        ]}
+                      >
+                        <Text style={[styles.customTagCancelText, { color: colors.onSurfaceVariant }]}>Cancel</Text>
                       </Pressable>
-                      <Pressable onPress={addCustomTag} style={[styles.saveBtn, { flex: 1, paddingVertical: 8 }]}>
-                        <Text style={{ color: colors.onPrimaryFixed, fontFamily: 'Inter_600SemiBold' }}>Add Tag</Text>
+
+                      <Pressable
+                        onPress={addCustomTag}
+                        style={({ pressed }) => [
+                          styles.customTagAddBtn,
+                          { backgroundColor: colors.primaryFixed },
+                          pressed && { opacity: 0.85 },
+                        ]}
+                      >
+                        <Feather name="plus" size={15} color={colors.onPrimaryFixed} />
+                        <Text style={[styles.customTagAddText, { color: colors.onPrimaryFixed }]}>Add Tag</Text>
                       </Pressable>
                     </View>
-                  </View>
+                  </Pressable>
                 </Pressable>
               </KeyboardAvoidingView>
             </Modal>
@@ -569,4 +624,89 @@ const styles = StyleSheet.create({
   },
   saveBtnDisabled: { opacity: 0.4 },
   saveBtnText: { fontFamily: 'Inter_600SemiBold', fontSize: 15, color: '#002203' },
+  modalOverlay: {
+    flex: 1,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  customTagCard: {
+    width: '100%',
+    maxWidth: 380,
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 20,
+    gap: 14,
+    // iOS shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 24,
+    elevation: 12,
+  },
+  customTagHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  tagIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  customTagTitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 16,
+  },
+  customTagSubtitle: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  customTagInput: {
+    width: '100%',
+    fontFamily: 'Inter_500Medium',
+    fontSize: 15,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  customTagActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 4,
+  },
+  customTagCancelBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  customTagCancelText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 14,
+  },
+  customTagAddBtn: {
+    flex: 1.3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  customTagAddText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 14,
+  },
 });
