@@ -24,6 +24,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import FuturisticLoadingScreen from '@/components/FuturisticLoadingScreen';
 
 import { setActiveUserId, emailToUUID } from '@/utils/deviceUser';
+import { getPendingInviteToken } from '@/services/inviteService';
 
 // Ensure in-app WebBrowser sessions complete properly on Android/iOS
 WebBrowser.maybeCompleteAuthSession();
@@ -97,6 +98,25 @@ export default function AuthScreen() {
     return fallback;
   };
 
+  const navigateAfterAuth = async () => {
+    const pendingInvite = await getPendingInviteToken();
+    if (pendingInvite) {
+      router.replace(`/invite/${pendingInvite}` as any);
+      return;
+    }
+    const currentProfile = useProfileStore.getState().profile;
+    const hasUsername =
+      currentProfile.username &&
+      currentProfile.username.trim() !== '' &&
+      currentProfile.username !== 'developer';
+
+    if (hasUsername) {
+      router.replace('/(tabs)');
+    } else {
+      router.replace('/setup-profile');
+    }
+  };
+
   const handleAuthSubmit = async () => {
     setErrorMessage('');
 
@@ -167,17 +187,7 @@ export default function AuthScreen() {
 
               setLoginCompleted(true);
 
-              const currentProfile = useProfileStore.getState().profile;
-              const hasUsername =
-                currentProfile.username &&
-                currentProfile.username.trim() !== '' &&
-                currentProfile.username !== 'developer';
-
-              if (hasUsername) {
-                router.replace('/(tabs)');
-              } else {
-                router.replace('/setup-profile');
-              }
+              await navigateAfterAuth();
               return;
             }
 
@@ -222,7 +232,7 @@ export default function AuthScreen() {
 
         // Event-driven finish: mark completed & navigate instantly
         setLoginCompleted(true);
-        router.replace('/setup-profile');
+        await navigateAfterAuth();
 
         // Background data hydration for new user
         void useProfileStore.getState().fetchProfile(true);
@@ -268,18 +278,7 @@ export default function AuthScreen() {
 
         // Event-driven finish: trigger completion animation & navigate
         setLoginCompleted(true);
-
-        const currentProfile = useProfileStore.getState().profile;
-        const hasUsername =
-          currentProfile.username &&
-          currentProfile.username.trim() !== '' &&
-          currentProfile.username !== 'developer';
-
-        if (hasUsername) {
-          router.replace('/(tabs)');
-        } else {
-          router.replace('/setup-profile');
-        }
+        await navigateAfterAuth();
       }
     } catch (err: any) {
       setLoading(false);
@@ -453,17 +452,7 @@ export default function AuthScreen() {
       await useProfileStore.getState().fetchProfile(true);
       void useProjectStore.getState().fetchProjects({ forceRefresh: true });
 
-      const currentProfile = useProfileStore.getState().profile;
-      const hasUsername =
-        currentProfile.username &&
-        currentProfile.username.trim() !== '' &&
-        currentProfile.username !== 'developer';
-
-      if (hasUsername) {
-        router.replace('/(tabs)');
-      } else {
-        router.replace('/setup-profile');
-      }
+      await navigateAfterAuth();
     } catch (err: any) {
       if (err?.message === 'CANCELLED') {
         // User cancelled — no error shown

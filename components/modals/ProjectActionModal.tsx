@@ -13,6 +13,7 @@ import { Colors, useThemeColors } from '@/constants/colors';
 import { useProjectStore, Project } from '@/store/useProjectStore';
 import { ConfirmDialog, useConfirmDialog } from '@/components/common/ConfirmDialog';
 import { IncompleteTasksWarningModal } from '@/components/modals/IncompleteTasksWarningModal';
+import { InviteCodeModal } from '@/components/modals/InviteCodeModal';
 
 // ─── Project Action Modal ─────────────────────────────────────────────────────
 interface ProjectActionModalProps {
@@ -32,8 +33,9 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
     useProjectStore();
   const { dialogProps, ask, notify } = useConfirmDialog();
   const [warningModalVisible, setWarningModalVisible] = React.useState(false);
+  const [shareModalVisible, setShareModalVisible] = React.useState(false);
 
-  if (!project && !warningModalVisible) return null;
+  if (!project && !warningModalVisible && !shareModalVisible) return null;
 
   const isDeleted = !!project?.isDeleted;
   const isCompleted = !!project?.isCompleted;
@@ -43,6 +45,11 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
   const handleViewDetails = () => {
     onClose();
     if (project) router.push(`/project/${project.id}`);
+  };
+
+  const handleShareProject = () => {
+    onClose();
+    setShareModalVisible(true);
   };
 
   const handleTogglePin = () => {
@@ -189,6 +196,16 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
       )}
 
       {project && (
+        <InviteCodeModal
+          visible={shareModalVisible}
+          projectId={project.id}
+          projectName={project.name}
+          inviteCode={project.inviteCode || null}
+          onClose={() => setShareModalVisible(false)}
+        />
+      )}
+
+      {project && (
         <Modal transparent animationType="fade" visible={visible && !!project} onRequestClose={onClose}>
           <Pressable style={styles.overlay} onPress={onClose}>
             <Pressable
@@ -236,6 +253,27 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
                   </View>
                   <Feather name="chevron-right" size={16} color={`${colors.onSurfaceVariant}60`} />
                 </Pressable>
+
+                {/* Share Project (Leader only) */}
+                {!isDeleted && !isShared && (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.option,
+                      { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder },
+                      pressed && { backgroundColor: `${colors.onSurfaceVariant}1A` },
+                    ]}
+                    onPress={handleShareProject}
+                  >
+                    <View style={[styles.iconWrap, { backgroundColor: `${colors.primaryFixed}1A` }]}>
+                      <Feather name="share-2" size={18} color={colors.primaryFixed} />
+                    </View>
+                    <View style={styles.optionContent}>
+                      <Text style={[styles.optionTitle, { color: colors.onSurface }]}>Share Project</Text>
+                      <Text style={[styles.optionSub, { color: colors.onSurfaceVariant }]}>Create invite link & collaborate</Text>
+                    </View>
+                    <Feather name="chevron-right" size={16} color={`${colors.onSurfaceVariant}60`} />
+                  </Pressable>
+                )}
 
                 {/* Pin / Unpin Project */}
                 {!isDeleted && (

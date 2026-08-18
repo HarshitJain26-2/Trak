@@ -20,7 +20,10 @@ import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import { getThemeColors } from '@/constants/colors';
+import { TRAK_ANDROID_APK_URL } from '@/constants/config';
 import { useSettingsStore, ThemeMode } from '@/store/useSettingsStore';
 import { useProfileStore } from '@/store/useProfileStore';
 import { useProjectStore } from '@/store/useProjectStore';
@@ -259,10 +262,148 @@ export default function SettingsScreen() {
   const { projects } = useProjectStore();
   const { profile } = useProfileStore();
 
+  const [identities, setIdentities] = useState<any[]>([]);
+  const [loadingIdentities, setLoadingIdentities] = useState(false);
+  const [linkingGoogle, setLinkingGoogle] = useState(false);
+  const [unlinkingGoogle, setUnlinkingGoogle] = useState(false);
+
+  const fetchIdentities = async () => {
+    try {
+      setLoadingIdentities(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.identities) {
+        setIdentities(user.identities);
+      }
+    } catch (_) {
+    } finally {
+      setLoadingIdentities(false);
+    }
+  };
+
   useEffect(() => {
     loadSettings();
     checkPermissionStatus();
+    fetchIdentities();
   }, []);
+
+  const handleConnectGoogle = async () => {
+    if (linkingGoogle) return;
+    setLinkingGoogle(true);
+    triggerHaptic(15);
+    try {
+      const redirectUrl = Linking.createURL('auth/callback');
+
+      if (Platform.OS === 'web') {
+        const { error } = await supabase.auth.linkIdentity({
+          provider: 'google',
+          options: {
+            redirectTo: redirectUrl,
+            skipBrowserRedirect: false,
+          },
+        });
+        if (error) {
+          throw error;
+        }
+        return;
+      }
+
+      // Mobile (Android / iOS) via in-app browser session
+      const { data, error } = await supabase.auth.linkIdentity({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+          skipBrowserRedirect: true,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data?.url) {
+        throw new Error('Unable to start Google connection. Please try again.');
+      }
+
+      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+
+      if (result.type === 'success' && result.url) {
+        const callbackUrl = result.url;
+        let params = new URLSearchParams();
+        const hashIndex = callbackUrl.indexOf('#');
+        if (hashIndex !== -1) {
+          params = new URLSearchParams(callbackUrl.substring(hashIndex + 1));
+        }
+        const queryIndex = callbackUrl.indexOf('?');
+        if (queryIndex !== -1) {
+          const qParams = new URLSearchParams(callbackUrl.substring(queryIndex + 1, hashIndex !== -1 ? hashIndex : undefined));
+          qParams.forEach((v, k) => {
+            if (!params.has(k)) params.set(k, v);
+          });
+        }
+
+        const errParam = params.get('error_description') || params.get('error');
+        if (errParam) {
+          throw new Error(decodeURIComponent(errParam.replace(/\+/g, ' ')));
+        }
+
+        const code = params.get('code');
+        if (code) {
+          await supabase.auth.exchangeCodeForSession(code);
+        }
+
+        await fetchIdentities();
+        Alert.alert('Success', 'Google account connected successfully.');
+      }
+    } catch (err: any) {
+      const msg = err?.message || '';
+      if (msg.includes('identity_already_exists') || msg.includes('already linked') || msg.includes('already exists')) {
+        Alert.alert('Connection Failed', 'This Google account is already linked to another user.');
+      } else if (msg !== 'CANCELLED') {
+        Alert.alert('Connection Failed', msg || 'Unable to connect Google account.');
+      }
+    } finally {
+      setLinkingGoogle(false);
+    }
+  };
+
+  const handleDisconnectGoogle = async () => {
+    const googleIdentity = identities.find((i) => i.provider === 'google');
+    if (!googleIdentity) return;
+
+    // Safety check: ensure user has another sign-in identity
+    if (identities.length <= 1) {
+      Alert.alert(
+        'Cannot Disconnect',
+        'Google is your only sign-in method. You must set an email password before disconnecting Google to prevent losing access to your account.'
+      );
+      return;
+    }
+
+    const confirmed = await ask({
+      title: 'Disconnect Google Account?',
+      message: 'Are you sure you want to disconnect your Google account? You will need to sign in using your email and password.',
+      confirmLabel: 'Disconnect',
+      destructive: true,
+      icon: 'alert-triangle',
+    });
+
+    if (!confirmed) return;
+
+    setUnlinkingGoogle(true);
+    triggerHaptic(20);
+    try {
+      const { error } = await supabase.auth.unlinkIdentity(googleIdentity);
+      if (error) {
+        throw error;
+      }
+      await fetchIdentities();
+      Alert.alert('Disconnected', 'Google account has been disconnected.');
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Failed to disconnect Google account.');
+    } finally {
+      setUnlinkingGoogle(false);
+    }
+  };
 
   const checkPermissionStatus = async () => {
     const status = await notificationService.getPermissionStatus();
@@ -728,29 +869,106 @@ export default function SettingsScreen() {
             </View>
             <Feather name="lock" size={14} color={`${colors.primaryFixed}90`} />
           </View>
-        </View>
 
-        {/* ── ACCOUNT ── */}
-        <SectionHeader title={t('account', language)} color={`${colors.onSurfaceVariant}90`} />
-        <View style={[styles.glassCard, { backgroundColor: colors.glassBg, borderColor: colors.glassBorder }]}>
-          {/* Email Address */}
+          <View style={[styles.divider, { backgroundColor: `${colors.outlineVariant}20` }]} />
+
           <Pressable
             style={styles.row}
-            onPress={() => Alert.alert('Read-Only Field', 'Email address is managed by Supabase Authentication and cannot be edited.')}
+            onPress={() => Linking.openURL(TRAK_ANDROID_APK_URL)}
           >
             <View style={styles.rowLeft}>
-              <View style={[styles.iconWrap, { backgroundColor: colors.surfaceContainerHigh }]}>
-                <Feather name="mail" size={16} color={colors.onSurfaceVariant} />
+              <View style={[styles.iconWrap, { backgroundColor: `${colors.primaryFixed}15` }]}>
+                <Feather name="download" size={16} color={colors.primaryFixed} />
               </View>
               <View style={styles.rowLabelWrap}>
-                <Text style={[styles.rowTitle, { color: colors.onSurface }]}>Email Address</Text>
+                <Text style={[styles.rowTitle, { color: colors.onSurface }]}>Download Android App</Text>
+                <Text style={[styles.rowSubtitle, { color: `${colors.onSurfaceVariant}90` }]}>Latest standalone production APK</Text>
+              </View>
+            </View>
+            <Feather name="external-link" size={14} color={colors.primaryFixed} />
+          </Pressable>
+        </View>
+
+        {/* ── 🔐 ACCOUNT & IDENTITIES ── */}
+        <SectionHeader title="ACCOUNT & IDENTITIES" color={`${colors.onSurfaceVariant}90`} />
+        <View style={[styles.glassCard, { backgroundColor: colors.glassBg, borderColor: colors.glassBorder }]}>
+          {/* Email & Password Identity */}
+          <View style={styles.row}>
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconWrap, { backgroundColor: `${colors.primaryFixed}15` }]}>
+                <Feather name="mail" size={16} color={colors.primaryFixed} />
+              </View>
+              <View style={styles.rowLabelWrap}>
+                <Text style={[styles.rowTitle, { color: colors.onSurface }]}>Email & Password</Text>
                 <Text style={[styles.rowSubtitle, { color: `${colors.onSurfaceVariant}90` }]}>
                   {profile.email || 'No email set'}
                 </Text>
               </View>
             </View>
-            <Feather name="lock" size={14} color={`${colors.onSurfaceVariant}60`} />
-          </Pressable>
+            <View style={[styles.statusBadge, { backgroundColor: `${colors.primaryFixed}15`, borderColor: `${colors.primaryFixed}35` }]}>
+              <Text style={[styles.statusBadgeText, { color: colors.primaryFixed }]}>CONNECTED</Text>
+            </View>
+          </View>
+
+          <View style={[styles.divider, { backgroundColor: `${colors.outlineVariant}20` }]} />
+
+          {/* Google Identity */}
+          {(() => {
+            const googleIdentity = identities.find((i) => i.provider === 'google');
+            const isGoogleLinked = !!googleIdentity;
+            const googleEmail = googleIdentity?.identity_data?.email || profile.email;
+
+            return (
+              <View style={styles.row}>
+                <View style={styles.rowLeft}>
+                  <View style={[styles.iconWrap, { backgroundColor: isGoogleLinked ? `${colors.primaryFixed}15` : colors.surfaceContainerHigh }]}>
+                    <Feather name="globe" size={16} color={isGoogleLinked ? colors.primaryFixed : colors.onSurfaceVariant} />
+                  </View>
+                  <View style={styles.rowLabelWrap}>
+                    <Text style={[styles.rowTitle, { color: colors.onSurface }]}>Google</Text>
+                    <Text style={[styles.rowSubtitle, { color: `${colors.onSurfaceVariant}90` }]}>
+                      {isGoogleLinked ? `Linked (${googleEmail})` : 'Not connected'}
+                    </Text>
+                  </View>
+                </View>
+
+                {isGoogleLinked ? (
+                  <Pressable
+                    onPress={handleDisconnectGoogle}
+                    disabled={unlinkingGoogle}
+                    style={[
+                      styles.actionPillBtn,
+                      { backgroundColor: `${colors.error}15`, borderColor: `${colors.error}35` },
+                    ]}
+                  >
+                    {unlinkingGoogle ? (
+                      <ActivityIndicator size="small" color={colors.error} />
+                    ) : (
+                      <Text style={[styles.actionPillText, { color: colors.error }]}>Disconnect</Text>
+                    )}
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    onPress={handleConnectGoogle}
+                    disabled={linkingGoogle}
+                    style={[
+                      styles.actionPillBtn,
+                      { backgroundColor: `${colors.primaryFixed}15`, borderColor: `${colors.primaryFixed}40` },
+                    ]}
+                  >
+                    {linkingGoogle ? (
+                      <ActivityIndicator size="small" color={colors.primaryFixed} />
+                    ) : (
+                      <>
+                        <Feather name="link" size={13} color={colors.primaryFixed} style={{ marginRight: 5 }} />
+                        <Text style={[styles.actionPillText, { color: colors.primaryFixed }]}>Connect Google</Text>
+                      </>
+                    )}
+                  </Pressable>
+                )}
+              </View>
+            );
+          })()}
 
           <View style={[styles.divider, { backgroundColor: `${colors.outlineVariant}20` }]} />
 
@@ -761,7 +979,7 @@ export default function SettingsScreen() {
                 <Feather name="key" size={16} color={colors.onSurfaceVariant} />
               </View>
               <View style={styles.rowLabelWrap}>
-                <Text style={[styles.rowTitle, { color: colors.onSurface }]}>Password</Text>
+                <Text style={[styles.rowTitle, { color: colors.onSurface }]}>Change Password</Text>
                 <Text style={[styles.rowSubtitle, { color: `${colors.onSurfaceVariant}90` }]}>
                   ••••••••••••
                 </Text>
@@ -907,6 +1125,19 @@ const styles = StyleSheet.create({
   statusBadgeText: {
     fontFamily: 'JetBrainsMono_500Medium',
     fontSize: 11,
+  },
+  actionPillBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  actionPillText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 12,
   },
   testBtn: {
     flexDirection: 'row',

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Animated, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { Colors, useThemeColors } from '@/constants/colors';
 

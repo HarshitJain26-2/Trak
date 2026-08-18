@@ -5,6 +5,12 @@ import { getActiveUserId, emailToUUID, getDeviceId } from '@/utils/deviceUser';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { notificationService } from '@/services/notifications';
 import { Alert } from 'react-native';
+import {
+  inviteService,
+  ProjectInvite,
+  InviteValidationResult,
+  JoinInviteResult,
+} from '@/services/inviteService';
 
 export type ProjectStatus = 'active' | 'blocked' | 'idle' | 'warning';
 export type Priority = 'low' | 'medium' | 'high';
@@ -79,105 +85,17 @@ interface ProjectStore {
   leaveProject: (projectId: string) => Promise<void>;
   fetchProjectMembers: (projectId: string) => Promise<ProjectMember[]>;
   removeMember: (projectId: string, targetUserId: string) => Promise<void>;
+  // Secure Invite Link actions
+  createProjectInvite: (projectId: string, options?: { expiresInHours?: number | null; maxUses?: number | null }) => Promise<{ invite: ProjectInvite | null; rawToken: string | null; error?: string }>;
+  revokeProjectInvite: (projectId: string, inviteId?: string) => Promise<{ success: boolean; error?: string }>;
+  getActiveProjectInvite: (projectId: string) => Promise<ProjectInvite | null>;
+  validateInviteToken: (token: string) => Promise<InviteValidationResult>;
+  joinProjectByInviteToken: (token: string) => Promise<JoinInviteResult>;
   subscribeToRealtime: () => void;
   unsubscribeFromRealtime: () => void;
 }
 
-export const MOCK_PROJECTS: Project[] = [
-  {
-    id: 'trak-main',
-    name: 'Trak',
-    version: 'v1.0.0',
-    description: 'Developer status tracker & feature roadmap engine',
-    status: 'active',
-    techStack: ['React Native', 'Expo', 'Supabase', 'Zustand', 'TS'],
-    deadline: '2026-12-31 18:00',
-    progress: 19,
-    repoUrl: 'github.com/HarshitJain26-2/Trak',
-    priority: 'high',
-    lastUpdated: 'Just now',
-    milestones: [
-      { id: 'trak_m1', title: 'Logo change', completed: false, addedBy: 'Harshit Jain' },
-      { id: 'trak_m2', title: 'Other than leader no one can delete slide delete', completed: false, addedBy: 'Harshit Jain' },
-      { id: 'trak_m3', title: 'Remove member from project', completed: false, addedBy: 'Harshit Jain' },
-      { id: 'trak_m4', title: 'Dead line work for real time', completed: false, addedBy: 'Harshit Jain' },
-      { id: 'trak_m5', title: 'User should not able to undo done tasks in completed section only owner can', completed: false, addedBy: 'Harshit Jain' },
-      { id: 'trak_m6', title: 'Add discription for feature adding deadline also', completed: false, addedBy: 'Harshit Jain' },
-      { id: 'trak_m7', title: 'Save changes button', completed: false, addedBy: 'Harshit Jain' },
-      { id: 'trak_m8', title: 'Google Authentication', completed: false, addedBy: 'Harshit Jain' },
-      { id: 'trak_m9', title: 'Remove link', completed: false, addedBy: 'Harshit Jain' },
-      { id: 'trak_m10', title: 'Add other button at tech stack', completed: false, addedBy: 'Harshit Jain' },
-      { id: 'trak_m11', title: 'Developer notes', completed: false, addedBy: 'Harshit Jain' },
-      { id: 'trak_m12', title: 'Add time in deadline', completed: false, addedBy: 'Harshit Jain' },
-      { id: 'trak_m13', title: 'Time remaining not showing clearly', completed: false, addedBy: 'Harshit Jain' },
-      { id: 'trak_m14', title: 'Core Navigation Setup', completed: true, addedBy: 'Harshit Jain' },
-      { id: 'trak_m15', title: 'Zustand Store Integration', completed: true, addedBy: 'Harshit Jain' },
-      { id: 'trak_m16', title: 'Supabase RLS Schema', completed: true, addedBy: 'Harshit Jain' },
-    ],
-    notes: '### Trak Platform Development Scope\nTracks active roadmap for Trak application features.',
-  },
-  {
-    id: '1',
-    name: 'Kernel v2.0',
-    version: 'v1.4.2',
-    description: 'System-wide performance tracking module',
-    status: 'active',
-    techStack: ['Rust', 'WASM', 'PostgreSQL'],
-    deadline: 'OCT 24',
-    progress: 75,
-    repoUrl: 'github.com/trak-io/kernel-v2',
-    priority: 'high',
-    lastUpdated: '2m ago',
-    milestones: [
-      { id: 'm1', title: 'Setup CI/CD', completed: true },
-      { id: 'm2', title: 'API Integration', completed: true },
-      { id: 'm3', title: 'Unit Tests', completed: false },
-    ],
-    notes:
-      '### Changelog\n- Fixed auth bug causing 401 on valid tokens\n- Optimized database queries for large datasets\n- Updated telemetry hooks for better observability\n\n### Context\nProject transitioned to Rust for performance bottlenecks in the event loop.',
-  },
-  {
-    id: '2',
-    name: 'Cloud Interface',
-    version: 'v0.9.8',
-    description: 'Cloud deployment management dashboard',
-    status: 'warning',
-    techStack: ['Next.js', 'Tailwind'],
-    deadline: 'NOV 02',
-    progress: 50,
-    repoUrl: 'github.com/trak-io/cloud-interface',
-    priority: 'medium',
-    lastUpdated: '14h ago',
-    isShared: true,
-    ownerName: 'Alex Rivers',
-    milestones: [
-      { id: 'm1', title: 'Design System', completed: true },
-      { id: 'm2', title: 'API Routes', completed: false },
-    ],
-    notes: '### Context\nCloud interface nearing beta. AWS integration pending approval.',
-  },
-  {
-    id: '3',
-    name: 'Auth Service',
-    version: 'v2.1.0',
-    description: 'Unified authentication and authorization service',
-    status: 'blocked',
-    techStack: ['Go', 'Redis'],
-    deadline: 'CRITICAL',
-    progress: 100,
-    repoUrl: 'github.com/trak-io/auth-svc',
-    priority: 'high',
-    lastUpdated: '1m ago',
-    isShared: true,
-    ownerName: 'Sarah Connor',
-    milestones: [
-      { id: 'm1', title: 'OAuth2 flow', completed: true },
-      { id: 'm2', title: 'Rate limiting', completed: true },
-      { id: 'm3', title: 'Security audit', completed: false },
-    ],
-    notes: '### Context\nBlocked on security audit from infra team. Priority ticket raised.',
-  },
-];
+export const MOCK_PROJECTS: Project[] = [];
 
 const getProjectStorageKey = (userId: string) => `trak_local_projects_${userId}`;
 const getPinnedStorageKey = (userId: string) => `trak_pinned_projects_${userId}`;
@@ -663,6 +581,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       }
 
       const userId = await getActiveUserId();
+      if (!userId) {
+        set({ projects: [], isLoading: false, currentUserId: null });
+        return;
+      }
       set({ currentUserId: userId });
 
       const storageKey = getProjectStorageKey(userId);
@@ -1469,6 +1391,76 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }
   },
 
+  // Secure Invite Link actions
+  createProjectInvite: async (projectId, options) => {
+    return await inviteService.createInvite(projectId, options);
+  },
+
+  revokeProjectInvite: async (projectId, inviteId) => {
+    return await inviteService.revokeInvite(projectId, inviteId);
+  },
+
+  getActiveProjectInvite: async (projectId) => {
+    return await inviteService.getActiveInvite(projectId);
+  },
+
+  validateInviteToken: async (token) => {
+    return await inviteService.validateInvite(token);
+  },
+
+  joinProjectByInviteToken: async (token) => {
+    try {
+      const userId = await getActiveUserId();
+
+      // Ensure active user's name is saved in Supabase profiles
+      try {
+        const myName = await getCurrentUserName();
+        if (userId && myName && myName !== 'Developer' && myName !== 'User') {
+          await supabase.from('profiles').update({ name: myName }).eq('id', userId);
+        }
+      } catch (_) {}
+
+      const result = await inviteService.joinProjectWithInvite(token, userId);
+
+      if (!result.success) {
+        return result;
+      }
+
+      if (result.projectId) {
+        const currentSharedIds = await getSharedIdsFromLocalStorage(userId);
+        if (!currentSharedIds.includes(result.projectId)) {
+          await saveSharedIdsToLocalStorage(userId, [...currentSharedIds, result.projectId]);
+        }
+      }
+
+      _forceNextRefresh = true;
+      await get().fetchProjects({ forceRefresh: true });
+
+      const joinedProject = result.projectId ? get().projects.find((p) => p.id === result.projectId) : undefined;
+      const joinedName = result.projectName || joinedProject?.name || 'Project';
+
+      if (result.status === 'JOINED') {
+        void notificationService.sendImmediateNotification(
+          '🎉 Project Joined',
+          `Successfully joined "${joinedName}" via invite link.`
+        );
+      }
+
+      return {
+        ...result,
+        projectName: joinedName,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        status: 'ERROR',
+        projectId: null,
+        projectName: null,
+        error: err?.message || 'Unable to join project. Please try again.',
+      };
+    }
+  },
+
   subscribeToRealtime: () => {
     if (realtimeChannel) {
       try {
@@ -1593,7 +1585,15 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           void get().fetchProjects({ forceRefresh: true });
         }
       )
-      // 5. Profiles Changes (Collaborator updated their name/avatar)
+      // 5. Project Invites Changes
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'project_invites' },
+        (payload: any) => {
+          void get().fetchProjects({ forceRefresh: true });
+        }
+      )
+      // 6. Profiles Changes (Collaborator updated their name/avatar)
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'profiles' },

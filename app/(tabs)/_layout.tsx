@@ -69,7 +69,42 @@ function CustomTabBar({ state, navigation }: TabBarProps) {
   );
 }
 
+import React, { useEffect, useState } from 'react';
+import { supabase } from '@/services/supabase';
+
 export default function TabsLayout() {
+  const router = useRouter();
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    // Strict authentication verification
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!isMounted) return;
+      if (!session || !session.user) {
+        router.replace('/auth');
+      } else {
+        setIsCheckingAuth(false);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session || !session.user) {
+        router.replace('/auth');
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  if (isCheckingAuth) {
+    return null;
+  }
+
   return (
     <Tabs
       tabBar={(props) => <CustomTabBar {...props} />}

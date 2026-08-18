@@ -63,12 +63,7 @@ export const getActiveUserId = async (): Promise<string> => {
     return savedUserId;
   }
 
-  let deviceId = await safeStorage.getItem(DEVICE_ID_KEY);
-  if (!deviceId) {
-    deviceId = generateUUID();
-    await safeStorage.setItem(DEVICE_ID_KEY, deviceId);
-  }
-  return deviceId;
+  return '';
 };
 
 export const getDeviceId = async (): Promise<string> => {

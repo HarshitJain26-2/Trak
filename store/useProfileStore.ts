@@ -91,6 +91,10 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     const executeFetch = async () => {
       try {
         const userId = await getActiveUserId();
+        if (!userId) {
+          set({ profile: DEFAULT_PROFILE, isLoading: false });
+          return;
+        }
         const storageKey = getProfileStorageKey(userId);
 
         // Attempt loading from local storage for active user ID

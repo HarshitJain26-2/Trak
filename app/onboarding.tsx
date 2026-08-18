@@ -7,6 +7,7 @@ import {
   Animated,
   Dimensions,
   SafeAreaView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';

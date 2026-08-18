@@ -16,6 +16,7 @@ import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useThemeColors } from '@/constants/colors';
 import { useProfileStore } from '@/store/useProfileStore';
+import { getPendingInviteToken } from '@/services/inviteService';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -86,7 +87,12 @@ export default function SetupProfileScreen() {
         return;
       }
 
-      router.replace('/(tabs)');
+      const pendingInvite = await getPendingInviteToken();
+      if (pendingInvite) {
+        router.replace(`/invite/${pendingInvite}` as any);
+      } else {
+        router.replace('/(tabs)');
+      }
     } finally {
       setSaving(false);
     }
@@ -100,7 +106,12 @@ export default function SetupProfileScreen() {
         username: autoUsername,
       });
     }
-    router.replace('/(tabs)');
+    const pendingInvite = await getPendingInviteToken();
+    if (pendingInvite) {
+      router.replace(`/invite/${pendingInvite}` as any);
+    } else {
+      router.replace('/(tabs)');
+    }
   };
 
   if (isLoading) {

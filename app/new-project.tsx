@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import { ReminderConfigModal, ReminderConfig } from '@/components/modals/Reminde
 import { CalendarPickerModal } from '@/components/modals/CalendarPickerModal';
 import { notificationService } from '@/services/notifications';
 import { triggerHaptic } from '@/utils/haptics';
+import { supabase } from '@/services/supabase';
 
 const AVAILABLE_TAGS = ['TS', 'Rust', 'AWS', 'Go', 'Python', 'React', 'K8s', 'Node', 'Kafka', 'Redis'];
 
@@ -37,6 +38,19 @@ export default function NewProjectScreen() {
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
   const { addProject, projects } = useProjectStore();
+
+  useEffect(() => {
+    let isMounted = true;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!isMounted) return;
+      if (!session || !session.user) {
+        router.replace('/auth');
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');

@@ -564,6 +564,8 @@ export default function ProjectDetailsScreen() {
 
       <InviteCodeModal
         visible={showInviteModal}
+        projectId={project.id}
+        projectName={project.name}
         inviteCode={project.inviteCode || null}
         isGenerating={isGeneratingCode}
         onClose={() => setShowInviteModal(false)}

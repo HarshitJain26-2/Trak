@@ -189,6 +189,7 @@ export default function RootLayout() {
         >
           <Stack.Screen name="auth" options={{ animation: 'fade' }} />
           <Stack.Screen name="auth/callback" options={{ animation: 'fade' }} />
+          <Stack.Screen name="invite/[token]" options={{ animation: 'fade' }} />
           <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
           <Stack.Screen name="setup-profile" options={{ animation: 'fade', gestureEnabled: false }} />
           <Stack.Screen name="new-project" options={{ presentation: 'transparentModal', animation: 'fade' }} />
