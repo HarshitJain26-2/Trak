@@ -42,6 +42,7 @@ export default function AuthScreen() {
   const [loading, setLoading] = useState(false);
   const [loginCompleted, setLoginCompleted] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [existingAccountConflict, setExistingAccountConflict] = useState(false);
 
   // Password validation constraints for Sign Up
   const hasMinChars = password.length >= 8;
@@ -287,14 +288,14 @@ export default function AuthScreen() {
   };
 
   /**
-   * Shared helper: complete the native OAuth flow for any provider.
+   * Shared helper: complete the native OAuth flow for Google provider.
    * 1. Gets the OAuth URL with skipBrowserRedirect.
    * 2. Opens it via expo-web-browser.
    * 3. Extracts tokens from the redirect callback.
    * 4. Calls supabase.auth.setSession() to complete login.
    * The existing onAuthStateChange listener in _layout.tsx handles navigation.
    */
-  const performOAuthFlow = async (provider: 'google' | 'github') => {
+  const performOAuthFlow = async (provider: 'google' = 'google') => {
     const redirectUrl = Linking.createURL('auth/callback');
 
     if (Platform.OS === 'web') {
@@ -312,8 +313,8 @@ export default function AuthScreen() {
       if (error) {
         if (error.message?.includes('provider is not enabled') || error.message?.includes('Unsupported provider')) {
           throw new Error(
-            `${provider === 'google' ? 'Google' : 'GitHub'} login is disabled in your Supabase Dashboard. ` +
-            `Please enable ${provider === 'google' ? 'Google' : 'GitHub'} under Supabase -> Auth -> Providers.`
+            'Google login is disabled in your Supabase Dashboard. ' +
+            'Please enable Google under Supabase -> Auth -> Providers.'
           );
         }
         throw error;
@@ -338,8 +339,8 @@ export default function AuthScreen() {
     if (error) {
       if (error.message?.includes('provider is not enabled') || error.message?.includes('Unsupported provider')) {
         throw new Error(
-          `${provider === 'google' ? 'Google' : 'GitHub'} login is disabled in your Supabase Dashboard. ` +
-          `Please enable ${provider === 'google' ? 'Google' : 'GitHub'} under Supabase -> Auth -> Providers.`
+          'Google login is disabled in your Supabase Dashboard. ' +
+          'Please enable Google under Supabase -> Auth -> Providers.'
         );
       }
       throw error;
@@ -467,43 +468,19 @@ export default function AuthScreen() {
       if (err?.message === 'CANCELLED') {
         // User cancelled — no error shown
       } else {
-        setErrorMessage(err?.message || 'Google sign-in failed. Please try again.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGitHubAuth = async () => {
-    if (loading) return; // prevent duplicate taps
-    setLoading(true);
-    setErrorMessage('');
-    try {
-      useProjectStore.getState().clearProjects();
-      useProfileStore.getState().clearProfile();
-      await performOAuthFlow('github');
-
-      setLoginCompleted(true);
-
-      await useProfileStore.getState().fetchProfile(true);
-      void useProjectStore.getState().fetchProjects({ forceRefresh: true });
-
-      const currentProfile = useProfileStore.getState().profile;
-      const hasUsername =
-        currentProfile.username &&
-        currentProfile.username.trim() !== '' &&
-        currentProfile.username !== 'developer';
-
-      if (hasUsername) {
-        router.replace('/(tabs)');
-      } else {
-        router.replace('/setup-profile');
-      }
-    } catch (err: any) {
-      if (err?.message === 'CANCELLED') {
-        // User cancelled — no error shown
-      } else {
-        setErrorMessage(err?.message || 'GitHub sign-in failed. Please try again.');
+        const msg = (err?.message || '').toLowerCase();
+        if (
+          msg.includes('identity_already_exists') ||
+          msg.includes('already exists') ||
+          msg.includes('already registered') ||
+          msg.includes('already been registered') ||
+          msg.includes('multiple accounts') ||
+          msg.includes('multiple_accounts')
+        ) {
+          setExistingAccountConflict(true);
+        } else {
+          setErrorMessage(err?.message || 'Google sign-in failed. Please try again.');
+        }
       }
     } finally {
       setLoading(false);
@@ -561,7 +538,27 @@ export default function AuthScreen() {
 
           {/* Form Card */}
           <View style={[styles.card, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]}>
-            {errorMessage ? (
+            {existingAccountConflict ? (
+              <View style={[styles.conflictBanner, { backgroundColor: `${colors.primaryFixed}15`, borderColor: `${colors.primaryFixed}40` }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <Feather name="shield" size={16} color={colors.primaryFixed} />
+                  <Text style={[styles.conflictTitle, { color: colors.primaryFixed }]}>Existing Account Found</Text>
+                </View>
+                <Text style={[styles.conflictText, { color: colors.onSurfaceVariant }]}>
+                  An account with this email already exists using email and password. Sign in with your password first, then connect Google from Settings → Account & Identities.
+                </Text>
+                <Pressable
+                  style={[styles.conflictBtn, { backgroundColor: colors.primaryFixed }]}
+                  onPress={() => {
+                    setMode('signin');
+                    setExistingAccountConflict(false);
+                    setErrorMessage('');
+                  }}
+                >
+                  <Text style={[styles.conflictBtnText, { color: colors.onPrimaryFixed }]}>Sign In with Password</Text>
+                </Pressable>
+              </View>
+            ) : errorMessage ? (
               <View style={[styles.errorBanner, { backgroundColor: `${colors.error}1A`, borderColor: `${colors.error}4D` }]}>
                 <Feather name="alert-circle" size={16} color={colors.error} />
                 <Text style={[styles.errorBannerText, { color: colors.error }]}>{errorMessage}</Text>
@@ -736,33 +733,19 @@ export default function AuthScreen() {
             </View>
 
             {/* OAuth Buttons */}
-            <View style={{ flexDirection: 'row', gap: 10, width: '100%' }}>
-              {/* Google OAuth Button */}
-              <Pressable
-                style={({ pressed }) => [
-                  styles.githubBtn,
-                  { flex: 1, backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder },
-                  pressed && styles.githubBtnPressed,
-                ]}
-                onPress={handleGoogleAuth}
-              >
-                <Feather name="chrome" size={18} color={colors.primaryFixed} style={{ marginRight: 8 }} />
-                <Text style={[styles.githubBtnText, { color: colors.onSurface }]}>Google</Text>
-              </Pressable>
-
-              {/* GitHub OAuth Button */}
-              <Pressable
-                style={({ pressed }) => [
-                  styles.githubBtn,
-                  { flex: 1, backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder },
-                  pressed && styles.githubBtnPressed,
-                ]}
-                onPress={handleGitHubAuth}
-              >
-                <Feather name="github" size={18} color={colors.onSurface} style={{ marginRight: 8 }} />
-                <Text style={[styles.githubBtnText, { color: colors.onSurface }]}>GitHub</Text>
-              </Pressable>
-            </View>
+            <Pressable
+              style={({ pressed }) => [
+                styles.githubBtn,
+                { width: '100%', backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder },
+                pressed && styles.githubBtnPressed,
+              ]}
+              onPress={handleGoogleAuth}
+            >
+              <Feather name="chrome" size={18} color={colors.primaryFixed} style={{ marginRight: 10 }} />
+              <Text style={[styles.githubBtnText, { color: colors.onSurface }]}>
+                {mode === 'signin' ? 'Continue with Google' : 'Sign up with Google'}
+              </Text>
+            </Pressable>
           </View>
 
           {/* Toggle Footer Link */}
@@ -847,6 +830,33 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#1F293D',
     marginBottom: 24,
+  },
+  conflictBanner: {
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 16,
+  },
+  conflictTitle: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 14,
+  },
+  conflictText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  conflictBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  conflictBtnText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 13,
   },
   errorBanner: {
     flexDirection: 'row',
