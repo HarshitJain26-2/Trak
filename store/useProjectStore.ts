@@ -1133,10 +1133,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const project = get().projects.find((p) => p.id === projectId);
     if (!project) return { success: false, error: 'Project not found' };
     if (project.isShared) {
-      Alert.alert(
-        'Permission Denied',
-        'Only the project leader can mark this project as complete.'
-      );
       return { success: false, error: 'Only the project leader can mark this project as complete.' };
     }
 
@@ -1165,10 +1161,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const project = get().projects.find((p) => p.id === projectId);
     if (!project) return { success: false, error: 'Project not found' };
     if (project.isShared) {
-      Alert.alert(
-        'Permission Denied',
-        'Only the project leader can reactivate this project.'
-      );
       return { success: false, error: 'Only the project leader can reactivate this project.' };
     }
 

@@ -20,42 +20,51 @@ import { ConfirmDialog, useConfirmDialog } from '@/components/common/ConfirmDial
 import { ProjectActionModal } from '@/components/modals/ProjectActionModal';
 
 // ─── Completed Project Card ────────────────────────────────────────────────────
-function CompletedCard({
-  project,
-  onReactivate,
-}: {
+interface CompletedCardProps {
   project: Project;
+  onPress: () => void;
   onReactivate: () => void;
-}) {
-  const router = useRouter();
+  onLeaderOnlyPress?: () => void;
+}
+
+function CompletedCard({ project, onPress, onReactivate, onLeaderOnlyPress }: CompletedCardProps) {
   const colors = useThemeColors();
-  const [modalVisible, setModalVisible] = React.useState(false);
   const scale = useRef(new Animated.Value(1)).current;
 
-  const onPressIn = () =>
-    Animated.spring(scale, { toValue: 0.97, useNativeDriver: Platform.OS !== 'web', speed: 30 }).start();
-  const onPressOut = () =>
-    Animated.spring(scale, { toValue: 1, useNativeDriver: Platform.OS !== 'web', speed: 30 }).start();
+  const handlePressIn = () => {
+    Animated.spring(scale, {
+      toValue: 0.98,
+      useNativeDriver: Platform.OS !== 'web',
+    }).start();
+  };
 
-  const completedCount = project.milestones.filter((m) => m.completed).length;
-  const totalCount = project.milestones.length;
+  const handlePressOut = () => {
+    Animated.spring(scale, {
+      toValue: 1,
+      useNativeDriver: Platform.OS !== 'web',
+    }).start();
+  };
+
+  const completedCount = project.milestones?.filter((m) => m.completed).length ?? 0;
+  const totalCount = project.milestones?.length ?? 0;
 
   return (
     <>
-      <ProjectActionModal
-        visible={modalVisible}
-        project={project}
-        onClose={() => setModalVisible(false)}
-      />
-      <Pressable
-        onPressIn={onPressIn}
-        onPressOut={onPressOut}
-        onPress={() => router.push(`/project/${project.id}`)}
-        onLongPress={() => setModalVisible(true)}
-        delayLongPress={350}
+    <Pressable
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+    >
+      <Animated.View
+        style={[
+          styles.card,
+          {
+            backgroundColor: colors.surfaceContainer,
+            borderColor: colors.glassBorder,
+            transform: [{ scale }],
+          },
+        ]}
       >
-      <Animated.View style={[styles.card, { backgroundColor: colors.cardBg, borderColor: colors.glassBorder, transform: [{ scale }] }]}>
-        {/* Completed accent bar — always 100% width in green */}
         <View style={[styles.accentBar, { backgroundColor: colors.primaryFixed }]} />
 
         <View style={styles.cardContent}>
@@ -63,23 +72,30 @@ function CompletedCard({
           <View style={styles.cardHeader}>
             <View style={styles.cardTitleRow}>
               <Feather name="check-circle" size={14} color={colors.primaryFixed} />
-              <Text style={[styles.cardName, { color: colors.onSurface }]}>{project.name}</Text>
+              <Text style={[styles.cardName, { color: colors.onSurface }]} numberOfLines={1}>
+                {project.name}
+              </Text>
             </View>
             <View style={[styles.completedBadge, { backgroundColor: `${colors.primaryFixed}1A`, borderColor: `${colors.primaryFixed}33` }]}>
-              <Text style={[styles.completedBadgeText, { color: colors.primaryFixed }]}>DONE</Text>
+              <Text style={[styles.completedBadgeText, { color: colors.primaryFixed }]}>SHIPPED</Text>
             </View>
           </View>
 
-          <Text style={[styles.cardDesc, { color: colors.onSurfaceVariant }]} numberOfLines={2}>
-            {project.description}
-          </Text>
+          {/* Description */}
+          {project.description ? (
+            <Text style={[styles.cardDesc, { color: colors.onSurfaceVariant }]} numberOfLines={2}>
+              {project.description}
+            </Text>
+          ) : null}
 
-          {/* Tech pills */}
-          <View style={styles.pillsRow}>
-            {project.techStack.map((t) => (
-              <TechPill key={t} label={t} />
-            ))}
-          </View>
+          {/* Tech Stack */}
+          {project.techStack && project.techStack.length > 0 ? (
+            <View style={styles.pillsRow}>
+              {project.techStack.map((tech) => (
+                <TechPill key={tech} label={tech} />
+              ))}
+            </View>
+          ) : null}
 
           {/* Footer */}
           <View style={styles.cardFooter}>
@@ -96,12 +112,7 @@ function CompletedCard({
             {project.isShared ? (
               <Pressable
                 style={[styles.reactivateBtn, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder, opacity: 0.7 }]}
-                onPress={() => {
-                  Alert.alert(
-                    'Permission Denied',
-                    'Only the project leader can reactivate this project.'
-                  );
-                }}
+                onPress={onLeaderOnlyPress}
               >
                 <Feather name="lock" size={12} color={colors.onSurfaceVariant} />
                 <Text style={[styles.reactivateBtnText, { color: colors.onSurfaceVariant }]}>Leader Only</Text>
@@ -120,7 +131,6 @@ function CompletedCard({
   );
 }
 
-// ─── Empty State ───────────────────────────────────────────────────────────────
 function CompletedEmptyState() {
   const colors = useThemeColors();
   return (
@@ -136,21 +146,22 @@ function CompletedEmptyState() {
   );
 }
 
-// ─── Main Screen ───────────────────────────────────────────────────────────────
 export default function CompletedScreen() {
   const router = useRouter();
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
   const { projects, unmarkCompleted } = useProjectStore();
   const completedProjects = projects.filter((p) => p.isCompleted && !p.isDeleted);
-  const { dialogProps, ask } = useConfirmDialog();
+  const { dialogProps, ask, notify } = useConfirmDialog();
 
   const handleReactivate = async (project: Project) => {
     if (project.isShared) {
-      Alert.alert(
-        'Permission Denied',
-        'Only the project leader can reactivate this project.'
-      );
+      notify({
+        title: 'Leader Only',
+        message: 'Only the project leader can reactivate this project.',
+        icon: 'lock',
+        confirmLabel: 'Got It',
+      });
       return;
     }
     const ok = await ask({
@@ -198,7 +209,9 @@ export default function CompletedScreen() {
           renderItem={({ item }) => (
             <CompletedCard
               project={item}
+              onPress={() => router.push(`/project/${item.id}`)}
               onReactivate={() => handleReactivate(item)}
+              onLeaderOnlyPress={() => handleReactivate(item)}
             />
           )}
           contentContainerStyle={[

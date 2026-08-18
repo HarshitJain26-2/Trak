@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, Animated, useColorScheme, PanResponder, Dimensions, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Animated, useColorScheme, PanResponder, Dimensions, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { getThemeColors } from '@/constants/colors';
@@ -8,6 +8,7 @@ import { TechPill } from '@/components/common/TechPill';
 import { useProjectStore, Project } from '@/store/useProjectStore';
 import { ProjectActionModal } from '@/components/modals/ProjectActionModal';
 import { IncompleteTasksWarningModal } from '@/components/modals/IncompleteTasksWarningModal';
+import { ConfirmDialog, useConfirmDialog } from '@/components/common/ConfirmDialog';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { triggerHaptic } from '@/utils/haptics';
 
@@ -29,6 +30,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
   const togglePinProject = useProjectStore((s) => s.togglePinProject);
   const [modalVisible, setModalVisible] = useState(false);
   const [warningModalVisible, setWarningModalVisible] = useState(false);
+  const { dialogProps: alertDialogProps, notify } = useConfirmDialog();
   const lastTapRef = useRef<number>(0);
   const swipeHapticPlayedRef = useRef(false);
 
@@ -89,10 +91,12 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
               speed: 30,
               bounciness: 8,
             }).start();
-            Alert.alert(
-              'Leader Only',
-              'Only the project leader can mark this project as complete.'
-            );
+            notify({
+              title: 'Leader Only',
+              message: 'Only the project leader can mark this project as complete.',
+              icon: 'lock',
+              confirmLabel: 'Got It',
+            });
             return;
           }
 
@@ -214,6 +218,8 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
         onClose={() => setModalVisible(false)}
       />
 
+      <ConfirmDialog {...alertDialogProps} />
+
       <IncompleteTasksWarningModal
         visible={warningModalVisible}
         projectName={project.name}
@@ -223,15 +229,22 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
         onIgnoreAndComplete={async () => {
           setWarningModalVisible(false);
           if (project.isShared) {
-            Alert.alert(
-              'Permission Denied',
-              'Only the project leader can mark this project as complete.'
-            );
+            notify({
+              title: 'Leader Only',
+              message: 'Only the project leader can mark this project as complete.',
+              icon: 'lock',
+              confirmLabel: 'Got It',
+            });
             return;
           }
           const res = await markCompleted(project.id);
           if (res?.error) {
-            Alert.alert('Permission Denied', res.error);
+            notify({
+              title: 'Permission Denied',
+              message: res.error,
+              icon: 'alert-triangle',
+              confirmLabel: 'Got It',
+            });
           }
         }}
       />

@@ -271,7 +271,7 @@ export default function ProjectDetailsScreen() {
   const profile = useProfileStore((state) => state.profile);
   const project = getProject(id);
   const insets = useSafeAreaInsets();
-  const { dialogProps, ask } = useConfirmDialog();
+  const { dialogProps, ask, notify } = useConfirmDialog();
 
   const myDisplayName = profile?.name?.trim() || profile?.username?.trim() || 'You';
 
@@ -281,7 +281,12 @@ export default function ProjectDetailsScreen() {
       await toggleMilestone(project.id, milestoneId);
     } catch (err: any) {
       if (err?.message === 'ONLY_OWNER_CAN_UNDO') {
-        Alert.alert('Leader Action Required', 'Only the project leader can undo completed features.');
+        notify({
+          title: 'Leader Action Required',
+          message: 'Only the project leader can undo completed features.',
+          icon: 'lock',
+          confirmLabel: 'Got It',
+        });
       }
     }
   };
@@ -573,17 +578,24 @@ export default function ProjectDetailsScreen() {
         onIgnoreAndComplete={async () => {
           setShowWarningModal(false);
           if (isSharedProject) {
-            Alert.alert(
-              'Permission Denied',
-              'Only the project leader can mark this project as complete.'
-            );
+            notify({
+              title: 'Leader Only',
+              message: 'Only the project leader can mark this project as complete.',
+              icon: 'lock',
+              confirmLabel: 'Got It',
+            });
             return;
           }
           const res = await markCompleted(project.id);
           if (res?.success) {
             router.back();
           } else if (res?.error) {
-            Alert.alert('Permission Denied', res.error);
+            notify({
+              title: 'Permission Denied',
+              message: res.error,
+              icon: 'alert-triangle',
+              confirmLabel: 'Got It',
+            });
           }
         }}
       />
@@ -1080,7 +1092,12 @@ export default function ProjectDetailsScreen() {
                     if (res?.success) {
                       router.back();
                     } else if (res?.error) {
-                      Alert.alert('Permission Denied', res.error);
+                      notify({
+                        title: 'Permission Denied',
+                        message: res.error,
+                        icon: 'alert-triangle',
+                        confirmLabel: 'Got It',
+                      });
                     }
                   }
                 }
@@ -1104,10 +1121,12 @@ export default function ProjectDetailsScreen() {
                 pressed && styles.completeBtnPressed,
               ]}
               onPress={() => {
-                Alert.alert(
-                  'Permission Denied',
-                  'Only the project leader can mark this project as complete.'
-                );
+                notify({
+                  title: 'Leader Only',
+                  message: 'Only the project leader can mark this project as complete.',
+                  icon: 'lock',
+                  confirmLabel: 'Got It',
+                });
               }}
             >
               <Feather name="lock" size={18} color={colors.onSurfaceVariant} />

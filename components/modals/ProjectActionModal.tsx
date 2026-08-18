@@ -30,7 +30,7 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
   const router = useRouter();
   const { deleteProject, restoreProject, permanentlyDeleteProject, markCompleted, unmarkCompleted, togglePinProject, leaveProject } =
     useProjectStore();
-  const { dialogProps, ask } = useConfirmDialog();
+  const { dialogProps, ask, notify } = useConfirmDialog();
   const [warningModalVisible, setWarningModalVisible] = React.useState(false);
 
   if (!project && !warningModalVisible) return null;
@@ -69,12 +69,14 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
   const handleToggleComplete = async () => {
     if (!project) return;
     if (isShared) {
-      Alert.alert(
-        'Leader Only',
-        isCompleted
+      notify({
+        title: 'Leader Only',
+        message: isCompleted
           ? 'Only the project leader can reactivate this project.'
-          : 'Only the project leader can mark this project as complete.'
-      );
+          : 'Only the project leader can mark this project as complete.',
+        icon: 'lock',
+        confirmLabel: 'Got It',
+      });
       return;
     }
 
@@ -165,15 +167,22 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
           onIgnoreAndComplete={async () => {
             setWarningModalVisible(false);
             if (isShared) {
-              Alert.alert(
-                'Permission Denied',
-                'Only the project leader can mark this project as complete.'
-              );
+              notify({
+                title: 'Leader Only',
+                message: 'Only the project leader can mark this project as complete.',
+                icon: 'lock',
+                confirmLabel: 'Got It',
+              });
               return;
             }
             const res = await markCompleted(project.id);
             if (res?.error) {
-              Alert.alert('Permission Denied', res.error);
+              notify({
+                title: 'Permission Denied',
+                message: res.error,
+                icon: 'alert-triangle',
+                confirmLabel: 'Got It',
+              });
             }
           }}
         />
