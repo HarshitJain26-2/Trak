@@ -94,10 +94,18 @@ function CompletedCard({
               <Text style={[styles.footerValue, { color: colors.onSurface }]}>{project.version}</Text>
             </View>
             {project.isShared ? (
-              <View style={[styles.reactivateBtn, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder, opacity: 0.6 }]}>
+              <Pressable
+                style={[styles.reactivateBtn, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder, opacity: 0.7 }]}
+                onPress={() => {
+                  Alert.alert(
+                    'Permission Denied',
+                    'Only the project leader can reactivate this project.'
+                  );
+                }}
+              >
                 <Feather name="lock" size={12} color={colors.onSurfaceVariant} />
                 <Text style={[styles.reactivateBtnText, { color: colors.onSurfaceVariant }]}>Leader Only</Text>
-              </View>
+              </Pressable>
             ) : (
               <Pressable style={[styles.reactivateBtn, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]} onPress={onReactivate}>
                 <Feather name="refresh-cw" size={12} color={colors.onSurfaceVariant} />

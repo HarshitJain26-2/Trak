@@ -220,9 +220,19 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
         progress={computedProgress}
         incompleteMilestones={project.milestones?.filter((m) => !m.completed) || []}
         onClose={() => setWarningModalVisible(false)}
-        onIgnoreAndComplete={() => {
+        onIgnoreAndComplete={async () => {
           setWarningModalVisible(false);
-          markCompleted(project.id);
+          if (project.isShared) {
+            Alert.alert(
+              'Permission Denied',
+              'Only the project leader can mark this project as complete.'
+            );
+            return;
+          }
+          const res = await markCompleted(project.id);
+          if (res?.error) {
+            Alert.alert('Permission Denied', res.error);
+          }
         }}
       />
 

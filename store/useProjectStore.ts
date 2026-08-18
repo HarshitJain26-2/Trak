@@ -4,6 +4,7 @@ import { safeStorage } from '@/services/storage';
 import { getActiveUserId, emailToUUID, getDeviceId } from '@/utils/deviceUser';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { notificationService } from '@/services/notifications';
+import { Alert } from 'react-native';
 
 export type ProjectStatus = 'active' | 'blocked' | 'idle' | 'warning';
 export type Priority = 'low' | 'medium' | 'high';
@@ -147,6 +148,8 @@ export const MOCK_PROJECTS: Project[] = [
     repoUrl: 'github.com/trak-io/cloud-interface',
     priority: 'medium',
     lastUpdated: '14h ago',
+    isShared: true,
+    ownerName: 'Alex Rivers',
     milestones: [
       { id: 'm1', title: 'Design System', completed: true },
       { id: 'm2', title: 'API Routes', completed: false },
@@ -165,6 +168,8 @@ export const MOCK_PROJECTS: Project[] = [
     repoUrl: 'github.com/trak-io/auth-svc',
     priority: 'high',
     lastUpdated: '1m ago',
+    isShared: true,
+    ownerName: 'Sarah Connor',
     milestones: [
       { id: 'm1', title: 'OAuth2 flow', completed: true },
       { id: 'm2', title: 'Rate limiting', completed: true },
@@ -1128,6 +1133,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const project = get().projects.find((p) => p.id === projectId);
     if (!project) return { success: false, error: 'Project not found' };
     if (project.isShared) {
+      Alert.alert(
+        'Permission Denied',
+        'Only the project leader can mark this project as complete.'
+      );
       return { success: false, error: 'Only the project leader can mark this project as complete.' };
     }
 
@@ -1156,6 +1165,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const project = get().projects.find((p) => p.id === projectId);
     if (!project) return { success: false, error: 'Project not found' };
     if (project.isShared) {
+      Alert.alert(
+        'Permission Denied',
+        'Only the project leader can reactivate this project.'
+      );
       return { success: false, error: 'Only the project leader can reactivate this project.' };
     }
 

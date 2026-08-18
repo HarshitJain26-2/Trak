@@ -570,10 +570,21 @@ export default function ProjectDetailsScreen() {
         projectName={project.name}
         incompleteMilestones={pendingMilestones}
         onClose={() => setShowWarningModal(false)}
-        onIgnoreAndComplete={() => {
+        onIgnoreAndComplete={async () => {
           setShowWarningModal(false);
-          markCompleted(project.id);
-          router.back();
+          if (isSharedProject) {
+            Alert.alert(
+              'Permission Denied',
+              'Only the project leader can mark this project as complete.'
+            );
+            return;
+          }
+          const res = await markCompleted(project.id);
+          if (res?.success) {
+            router.back();
+          } else if (res?.error) {
+            Alert.alert('Permission Denied', res.error);
+          }
         }}
       />
 
@@ -1064,7 +1075,14 @@ export default function ProjectDetailsScreen() {
                     destructive: false,
                     icon: 'check-circle',
                   });
-                  if (ok) { markCompleted(project.id); router.back(); }
+                  if (ok) {
+                    const res = await markCompleted(project.id);
+                    if (res?.success) {
+                      router.back();
+                    } else if (res?.error) {
+                      Alert.alert('Permission Denied', res.error);
+                    }
+                  }
                 }
               }}
             >
@@ -1078,13 +1096,32 @@ export default function ProjectDetailsScreen() {
             </View>
           )
         ) : (
-          <Pressable
-            style={({ pressed }) => [styles.leaveProjectBtn, { backgroundColor: `${colors.statusWarning}1A`, borderColor: `${colors.statusWarning}33` }, pressed && styles.leaveProjectBtnPressed]}
-            onPress={handleLeaveProject}
-          >
-            <Feather name="log-out" size={18} color={colors.statusWarning} />
-            <Text style={[styles.leaveProjectBtnText, { color: colors.statusWarning }]}>Leave Project</Text>
-          </Pressable>
+          <View style={{ gap: 10 }}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.completeBtn,
+                { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder, borderWidth: 1, opacity: 0.7 },
+                pressed && styles.completeBtnPressed,
+              ]}
+              onPress={() => {
+                Alert.alert(
+                  'Permission Denied',
+                  'Only the project leader can mark this project as complete.'
+                );
+              }}
+            >
+              <Feather name="lock" size={18} color={colors.onSurfaceVariant} />
+              <Text style={[styles.completeBtnText, { color: colors.onSurfaceVariant }]}>Mark as Completed (Leader Only)</Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [styles.leaveProjectBtn, { backgroundColor: `${colors.statusWarning}1A`, borderColor: `${colors.statusWarning}33` }, pressed && styles.leaveProjectBtnPressed]}
+              onPress={handleLeaveProject}
+            >
+              <Feather name="log-out" size={18} color={colors.statusWarning} />
+              <Text style={[styles.leaveProjectBtnText, { color: colors.statusWarning }]}>Leave Project</Text>
+            </Pressable>
+          </View>
         )}
 
         <View style={{ height: 40 }} />

@@ -162,9 +162,19 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
           projectName={project.name}
           incompleteMilestones={project.milestones?.filter((m) => !m.completed) || []}
           onClose={() => setWarningModalVisible(false)}
-          onIgnoreAndComplete={() => {
+          onIgnoreAndComplete={async () => {
             setWarningModalVisible(false);
-            markCompleted(project.id);
+            if (isShared) {
+              Alert.alert(
+                'Permission Denied',
+                'Only the project leader can mark this project as complete.'
+              );
+              return;
+            }
+            const res = await markCompleted(project.id);
+            if (res?.error) {
+              Alert.alert('Permission Denied', res.error);
+            }
           }}
         />
       )}
