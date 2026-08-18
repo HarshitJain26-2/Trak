@@ -86,7 +86,8 @@ interface ProjectStore {
   fetchProjectMembers: (projectId: string) => Promise<ProjectMember[]>;
   removeMember: (projectId: string, targetUserId: string) => Promise<void>;
   // Secure Invite Link actions
-  createProjectInvite: (projectId: string, options?: { expiresInHours?: number | null; maxUses?: number | null }) => Promise<{ invite: ProjectInvite | null; rawToken: string | null; error?: string }>;
+  createProjectInvite: (projectId: string, options?: { expiresInHours?: number | null; expiresAt?: string | null; maxUses?: number | null }) => Promise<{ invite: ProjectInvite | null; rawToken: string | null; error?: string }>;
+  updateProjectInviteSettings: (projectId: string, inviteId: string, options: { expiresAt?: string | null; maxUses?: number | null }) => Promise<{ invite: ProjectInvite | null; error?: string }>;
   revokeProjectInvite: (projectId: string, inviteId?: string) => Promise<{ success: boolean; error?: string }>;
   getActiveProjectInvite: (projectId: string) => Promise<ProjectInvite | null>;
   validateInviteToken: (token: string) => Promise<InviteValidationResult>;
@@ -1394,6 +1395,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   // Secure Invite Link actions
   createProjectInvite: async (projectId, options) => {
     return await inviteService.createInvite(projectId, options);
+  },
+
+  updateProjectInviteSettings: async (projectId, inviteId, options) => {
+    return await inviteService.updateInviteSettings(projectId, inviteId, options);
   },
 
   revokeProjectInvite: async (projectId, inviteId) => {

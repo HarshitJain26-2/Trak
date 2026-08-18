@@ -135,6 +135,7 @@ export const inviteService = {
     projectId: string,
     options: {
       expiresInHours?: number | null; // e.g. 1, 24, 168 (7d), 720 (30d), or null for never
+      expiresAt?: string | null;      // ISO UTC timestamp string for custom expiration
       maxUses?: number | null;        // e.g. 1, 5, 10, or null for unlimited
     } = {}
   ): Promise<{ invite: ProjectInvite | null; rawToken: string | null; error?: string }> => {
@@ -142,8 +143,8 @@ export const inviteService = {
       const rawToken = await generateSecureToken();
       const tokenHash = await hashToken(rawToken);
 
-      let expiresAt: string | null = null;
-      if (options.expiresInHours && options.expiresInHours > 0) {
+      let expiresAt: string | null = options.expiresAt || null;
+      if (!expiresAt && options.expiresInHours && options.expiresInHours > 0) {
         const d = new Date();
         d.setTime(d.getTime() + options.expiresInHours * 60 * 60 * 1000);
         expiresAt = d.toISOString();
@@ -183,6 +184,51 @@ export const inviteService = {
       return { invite, rawToken };
     } catch (err: any) {
       return { invite: null, rawToken: null, error: err?.message || 'Error creating invite' };
+    }
+  },
+
+  /**
+   * Update existing active invite settings without changing the URL or raw token.
+   */
+  updateInviteSettings: async (
+    projectId: string,
+    inviteId: string,
+    options: {
+      expiresAt?: string | null;
+      maxUses?: number | null;
+    }
+  ): Promise<{ invite: ProjectInvite | null; error?: string }> => {
+    try {
+      const { data, error } = await supabase.rpc('update_project_invite_settings', {
+        p_project_id: projectId,
+        p_invite_id: inviteId,
+        p_expires_at: options.expiresAt ?? null,
+        p_max_uses: options.maxUses ?? null,
+      });
+
+      if (error) {
+        return { invite: null, error: error.message || 'Failed to update invite settings' };
+      }
+
+      const row = Array.isArray(data) ? data[0] : data;
+      if (!row) {
+        return { invite: null, error: 'No updated invite returned' };
+      }
+
+      const invite: ProjectInvite = {
+        id: row.id,
+        projectId: row.project_id,
+        createdBy: row.created_by,
+        expiresAt: row.expires_at,
+        maxUses: row.max_uses,
+        uses: row.uses,
+        isActive: row.is_active,
+        createdAt: row.created_at,
+      };
+
+      return { invite };
+    } catch (err: any) {
+      return { invite: null, error: err?.message || 'Error updating invite settings' };
     }
   },
 
