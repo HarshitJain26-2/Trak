@@ -5,6 +5,7 @@ import {
   Text,
   StyleSheet,
   Pressable,
+  Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { Colors, useThemeColors } from '@/constants/colors';
@@ -169,27 +170,25 @@ export function useConfirmDialog() {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(5, 7, 12, 0.85)',
+    backgroundColor: 'rgba(5, 7, 12, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 28,
   },
   card: {
     width: '100%',
-    backgroundColor: '#111622',
     borderRadius: 20,
     padding: 24,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#1F293D',
     ...Platform.select({
       web: {
-        boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.5)',
+        boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.25)',
       },
       default: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.5,
+        shadowOpacity: 0.25,
         shadowRadius: 24,
         elevation: 16,
       },
@@ -206,14 +205,12 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: 'Inter_700Bold',
     fontSize: 18,
-    color: '#FFFFFF',
     textAlign: 'center',
     marginBottom: 8,
   },
   message: {
     fontFamily: 'Inter_400Regular',
     fontSize: 14,
-    color: '#8B949E',
     textAlign: 'center',
     lineHeight: 21,
     marginBottom: 24,
@@ -233,25 +230,13 @@ const styles = StyleSheet.create({
   btnPressed: {
     opacity: 0.8,
   },
-  btnCancel: {
-    backgroundColor: '#171D2B',
-    borderWidth: 1,
-    borderColor: '#263044',
-  },
   btnCancelText: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 14,
-    color: '#8B949E',
-  },
-  btnConfirm: {
-    backgroundColor: Colors.primaryFixed,
-  },
-  btnDestructive: {
-    backgroundColor: Colors.error,
   },
   btnConfirmText: {
     fontFamily: 'Inter_700Bold',
     fontSize: 14,
-    color: '#0b0e14',
   },
 });
+

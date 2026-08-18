@@ -7,7 +7,7 @@ import {
   Pressable,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { Colors, useThemeColors } from '@/constants/colors';
+import { useThemeColors } from '@/constants/colors';
 
 export interface ActionOption {
   label: string;
@@ -37,7 +37,16 @@ export function ActionSheet({
   return (
     <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={[styles.sheet, { backgroundColor: colors.surfaceContainer, borderColor: colors.glassBorder }]} onPress={() => {}}>
+        <Pressable
+          style={[
+            styles.sheet,
+            {
+              backgroundColor: colors.surfaceContainer,
+              borderColor: colors.glassBorder,
+            },
+          ]}
+          onPress={() => {}}
+        >
           {/* Drag indicator / Handle */}
           <View style={[styles.handle, { backgroundColor: colors.outlineVariant }]} />
 
@@ -56,11 +65,17 @@ export function ActionSheet({
                 key={index}
                 style={({ pressed }) => [
                   styles.option,
-                  pressed && styles.optionPressed,
+                  {
+                    backgroundColor: colors.surfaceContainerHigh,
+                    borderColor: colors.glassBorder,
+                  },
+                  pressed && { backgroundColor: `${colors.primaryFixed}15` },
                 ]}
                 onPress={() => {
                   onClose();
-                  option.onPress();
+                  setTimeout(() => {
+                    option.onPress();
+                  }, 120);
                 }}
               >
                 {option.icon && (
@@ -69,15 +84,15 @@ export function ActionSheet({
                       styles.iconWrap,
                       {
                         backgroundColor: option.destructive
-                          ? 'rgba(255,180,171,0.1)'
-                          : 'rgba(255,255,255,0.05)',
+                          ? `${colors.error}18`
+                          : `${colors.primaryFixed}18`,
                       },
                     ]}
                   >
                     <Feather
                       name={option.icon}
                       size={18}
-                      color={option.destructive ? Colors.error : Colors.onSurface}
+                      color={option.destructive ? colors.error : colors.primaryFixed}
                     />
                   </View>
                 )}
@@ -85,7 +100,7 @@ export function ActionSheet({
                   <Text
                     style={[
                       styles.optionTitle,
-                      option.destructive && { color: Colors.error },
+                      { color: option.destructive ? colors.error : colors.onSurface },
                     ]}
                   >
                     {option.label}
@@ -96,8 +111,18 @@ export function ActionSheet({
           </View>
 
           {/* Cancel Button */}
-          <Pressable style={styles.cancelBtn} onPress={onClose}>
-            <Text style={styles.cancelBtnText}>Cancel</Text>
+          <Pressable
+            style={({ pressed }) => [
+              styles.cancelBtn,
+              {
+                backgroundColor: colors.surfaceContainerHigh,
+                borderColor: colors.glassBorder,
+              },
+              pressed && { opacity: 0.8 },
+            ]}
+            onPress={onClose}
+          >
+            <Text style={[styles.cancelBtnText, { color: colors.onSurfaceVariant }]}>Cancel</Text>
           </Pressable>
         </Pressable>
       </Pressable>
@@ -146,24 +171,21 @@ export function useActionSheet() {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(5, 7, 12, 0.75)',
+    backgroundColor: 'rgba(5, 7, 12, 0.6)',
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: '#111622',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 36,
     borderWidth: 1,
-    borderColor: '#1F293D',
   },
   handle: {
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#2A364F',
     alignSelf: 'center',
     marginBottom: 16,
   },
@@ -174,31 +196,24 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: 'Inter_700Bold',
     fontSize: 18,
-    color: '#FFFFFF',
     marginBottom: 4,
     textAlign: 'center',
   },
   message: {
     fontFamily: 'Inter_400Regular',
     fontSize: 14,
-    color: '#8B949E',
     textAlign: 'center',
   },
   optionsList: {
     gap: 8,
-    marginBottom: 16,
+    marginBottom: 14,
   },
   option: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
     borderRadius: 12,
-    backgroundColor: '#171D2B',
     borderWidth: 1,
-    borderColor: '#263044',
-  },
-  optionPressed: {
-    backgroundColor: '#1F293D',
   },
   iconWrap: {
     width: 38,
@@ -214,20 +229,17 @@ const styles = StyleSheet.create({
   optionTitle: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 15,
-    color: '#FFFFFF',
   },
   cancelBtn: {
-    backgroundColor: '#171D2B',
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#263044',
   },
   cancelBtnText: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 15,
-    color: '#8B949E',
   },
 });
+

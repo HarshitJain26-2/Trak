@@ -544,38 +544,65 @@ export default function ProfileScreen() {
   const getInitials = (name: string) =>
     (name.trim().split(' ')[0]?.[0] ?? '?').toUpperCase();
 
+  const formatJoinedDate = (rawDate?: string) => {
+    if (!rawDate) return 'Recently';
+    try {
+      const d = new Date(rawDate);
+      if (isNaN(d.getTime())) return rawDate;
+      return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    } catch {
+      return rawDate;
+    }
+  };
+
   // Pick from photo library
   const pickFromLibrary = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please allow access to your photo library.');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets[0]) {
-      updateProfile({ avatarUrl: result.assets[0].uri });
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Please allow access to your photo library to choose a profile photo.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.6,
+        base64: true,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const avatarUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
+        await updateProfile({ avatarUrl: avatarUri });
+      }
+    } catch (err: any) {
+      console.error('Error selecting photo:', err);
+      Alert.alert('Error', 'Unable to pick photo: ' + (err?.message || 'Please try again.'));
     }
   };
 
   // Take a photo with the camera
   const takePhoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please allow camera access.');
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets[0]) {
-      updateProfile({ avatarUrl: result.assets[0].uri });
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Please allow camera access to take a profile photo.');
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.6,
+        base64: true,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const avatarUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
+        await updateProfile({ avatarUrl: avatarUri });
+      }
+    } catch (err: any) {
+      console.error('Error taking photo:', err);
+      Alert.alert('Error', 'Unable to capture photo: ' + (err?.message || 'Please try again.'));
     }
   };
 
@@ -723,7 +750,7 @@ export default function ProfileScreen() {
             ) : null}
             <View style={[styles.metaPill, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder }]}>
               <Feather name="calendar" size={11} color={colors.onSurfaceVariant} />
-              <Text style={[styles.metaPillText, { color: colors.onSurfaceVariant }]}>Since {profile.joinedDate}</Text>
+              <Text style={[styles.metaPillText, { color: colors.onSurfaceVariant }]}>Since {formatJoinedDate(profile.joinedDate)}</Text>
             </View>
           </View>
         </View>

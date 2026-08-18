@@ -55,11 +55,17 @@ const DEFAULT_PROFILE: Profile = {
 };
 
 const getProfileStorageKey = (userId: string) => `trak_local_profile_${userId}`;
+const getAvatarStorageKey = (userId: string) => `trak_local_avatar_${userId}`;
 
 const saveProfileToLocalStorage = async (userId: string, profile: Profile) => {
   try {
     if (!userId) return;
     await safeStorage.setItem(getProfileStorageKey(userId), JSON.stringify(profile));
+    if (profile.avatarUrl) {
+      await safeStorage.setItem(getAvatarStorageKey(userId), profile.avatarUrl);
+    } else if (profile.avatarUrl === '') {
+      await safeStorage.removeItem(getAvatarStorageKey(userId));
+    }
   } catch (err) {
     // Silently handle fallback
   }
@@ -88,14 +94,32 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
         const storageKey = getProfileStorageKey(userId);
 
         // Attempt loading from local storage for active user ID
-        const localData = await safeStorage.getItem(storageKey);
+        const [localData, savedLocalAvatar] = await Promise.all([
+          safeStorage.getItem(storageKey),
+          safeStorage.getItem(getAvatarStorageKey(userId)),
+        ]);
+
         let hasLocal = false;
+        let localAvatarUrl = savedLocalAvatar || '';
+
         if (localData) {
           try {
             const parsed = JSON.parse(localData);
-            if (parsed && typeof parsed === 'object' && parsed.email) {
-              set({ profile: { ...DEFAULT_PROFILE, ...parsed }, isLoading: false });
-              hasLocal = true;
+            if (parsed && typeof parsed === 'object') {
+              if (parsed.avatarUrl && !localAvatarUrl) {
+                localAvatarUrl = parsed.avatarUrl;
+              }
+              if (parsed.email) {
+                set({
+                  profile: {
+                    ...DEFAULT_PROFILE,
+                    ...parsed,
+                    avatarUrl: localAvatarUrl || parsed.avatarUrl || '',
+                  },
+                  isLoading: false,
+                });
+                hasLocal = true;
+              }
             }
           } catch {
             // Fallback
@@ -143,7 +167,9 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
               profileData = emailData;
               // If the profile had a legacy or different ID, update it to active user ID
               if (emailData.id !== userId) {
-                await supabase.from('profiles').update({ id: userId }).eq('id', emailData.id).catch(() => {});
+                try {
+                  await supabase.from('profiles').update({ id: userId }).eq('id', emailData.id);
+                } catch (_) {}
               }
             }
           } catch (_) {}
@@ -159,7 +185,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
             bio: data.bio || '',
             role: data.role || '',
             location: data.location || '',
-            avatarUrl: data.avatar_url || '',
+            avatarUrl: localAvatarUrl || data.avatar_url || '',
             githubUrl: data.github_url || '',
             company: data.company || '',
             skills: data.skills || [],
@@ -182,6 +208,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
             name: authName || '',
             username: baseUsername,
             email: authEmail,
+            avatarUrl: localAvatarUrl || '',
           };
 
           set({ profile: initialProf, isLoading: false });
@@ -291,6 +318,10 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
 
       try {
         // 1. Always sync core profile columns first (guaranteed to exist in table)
+        const isRemoteAvatar = Boolean(
+          newProfile.avatarUrl &&
+          (newProfile.avatarUrl.startsWith('http://') || newProfile.avatarUrl.startsWith('https://'))
+        );
         const coreProfileData = {
           id: userId,
           name: newProfile.name,
@@ -298,7 +329,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
           email: newProfile.email || null,
           bio: newProfile.bio || '',
           role: newProfile.role || '',
-          avatar_url: newProfile.avatarUrl || '',
+          avatar_url: isRemoteAvatar ? newProfile.avatarUrl : '',
         };
 
         const { error: coreErr } = await supabase
