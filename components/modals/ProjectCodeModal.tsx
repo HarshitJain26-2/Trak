@@ -6,17 +6,16 @@ import {
   Modal,
   Pressable,
   Platform,
-  ActivityIndicator,
   TouchableWithoutFeedback,
   ScrollView,
+  Share,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
 import { useThemeColors } from '@/constants/colors';
-import { Project, useProjectStore } from '@/store/useProjectStore';
+import { Project } from '@/store/useProjectStore';
 import { triggerHaptic } from '@/utils/haptics';
-import { useConfirmDialog, ConfirmDialog } from '@/components/common/ConfirmDialog';
 
 interface ProjectCodeModalProps {
   visible: boolean;
@@ -30,11 +29,7 @@ export const ProjectCodeModal: React.FC<ProjectCodeModalProps> = ({
   onClose,
 }) => {
   const colors = useThemeColors();
-  const { regenerateJoinCode } = useProjectStore();
-  const { dialogProps, ask, notify } = useConfirmDialog();
-
   const [copied, setCopied] = useState(false);
-  const [regenerating, setRegenerating] = useState(false);
 
   if (!project) return null;
 
@@ -49,40 +44,14 @@ export const ProjectCodeModal: React.FC<ProjectCodeModalProps> = ({
     } catch (_) {}
   };
 
-  const handleRegenerate = async () => {
-    const confirmed = await ask({
-      title: 'Regenerate project code?',
-      message: 'Anyone using the old code will no longer be able to join this project.',
-      confirmLabel: 'Regenerate',
-      destructive: true,
-      icon: 'rotate-ccw',
-    });
-
-    if (!confirmed) return;
-
-    setRegenerating(true);
+  const handleShare = async () => {
     try {
-      const res = await regenerateJoinCode(project.id);
-      if (res.success) {
-        triggerHaptic(25);
-        notify({
-          title: 'Code Regenerated',
-          message: 'A new project code has been generated. The old code is now invalid.',
-          icon: 'check-circle',
-          confirmLabel: 'Done',
-        });
-      } else {
-        notify({
-          title: 'Regeneration Failed',
-          message: res.error || 'Unable to regenerate code.',
-          icon: 'alert-triangle',
-          destructive: true,
-          confirmLabel: 'OK',
-        });
-      }
-    } finally {
-      setRegenerating(false);
-    }
+      triggerHaptic(20);
+      await Share.share({
+        title: `Join ${project.name} on Trak`,
+        message: `Join my project "${project.name}" on Trak using project code: ${joinCode}`,
+      });
+    } catch (_) {}
   };
 
   return (
@@ -92,7 +61,6 @@ export const ProjectCodeModal: React.FC<ProjectCodeModalProps> = ({
       visible={visible}
       onRequestClose={onClose}
     >
-      <ConfirmDialog {...dialogProps} />
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={styles.overlay}>
           <TouchableWithoutFeedback>
@@ -147,28 +115,54 @@ export const ProjectCodeModal: React.FC<ProjectCodeModalProps> = ({
                     {joinCode}
                   </Text>
 
-                  <Pressable
-                    onPress={handleCopy}
-                    style={({ pressed }) => [
-                      styles.copyBtn,
-                      { backgroundColor: copied ? `${colors.primaryFixed}25` : colors.surfaceContainerHighest },
-                      pressed && { opacity: 0.7 },
-                    ]}
-                  >
-                    <Feather
-                      name={copied ? 'check' : 'copy'}
-                      size={16}
-                      color={copied ? colors.primaryFixed : colors.onSurface}
-                    />
-                    <Text
-                      style={[
-                        styles.copyBtnText,
-                        { color: copied ? colors.primaryFixed : colors.onSurface },
+                  {/* Actions: Copy & Share */}
+                  <View style={styles.actionRow}>
+                    <Pressable
+                      onPress={handleCopy}
+                      style={({ pressed }) => [
+                        styles.actionBtn,
+                        {
+                          backgroundColor: copied
+                            ? `${colors.primaryFixed}25`
+                            : colors.surfaceContainerHighest,
+                        },
+                        pressed && { opacity: 0.7 },
                       ]}
                     >
-                      {copied ? 'Project code copied!' : 'Copy Code'}
-                    </Text>
-                  </Pressable>
+                      <Feather
+                        name={copied ? 'check' : 'copy'}
+                        size={16}
+                        color={copied ? colors.primaryFixed : colors.onSurface}
+                      />
+                      <Text
+                        style={[
+                          styles.actionBtnText,
+                          { color: copied ? colors.primaryFixed : colors.onSurface },
+                        ]}
+                      >
+                        {copied ? 'Copied!' : 'Copy Code'}
+                      </Text>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={handleShare}
+                      style={({ pressed }) => [
+                        styles.actionBtn,
+                        { backgroundColor: colors.surfaceContainerHighest },
+                        pressed && { opacity: 0.7 },
+                      ]}
+                    >
+                      <Feather name="share-2" size={16} color={colors.primaryFixed} />
+                      <Text
+                        style={[
+                          styles.actionBtnText,
+                          { color: colors.primaryFixed },
+                        ]}
+                      >
+                        Share
+                      </Text>
+                    </Pressable>
+                  </View>
                 </View>
 
                 {/* QR Code Card */}
@@ -197,30 +191,6 @@ export const ProjectCodeModal: React.FC<ProjectCodeModalProps> = ({
                     Scan this QR code to join.
                   </Text>
                 </View>
-
-                {/* Owner Action: Regenerate Code */}
-                {!project.isShared && (
-                  <Pressable
-                    onPress={handleRegenerate}
-                    disabled={regenerating}
-                    style={({ pressed }) => [
-                      styles.regenerateBtn,
-                      { borderColor: `${colors.error}40` },
-                      pressed && { opacity: 0.7 },
-                    ]}
-                  >
-                    {regenerating ? (
-                      <ActivityIndicator size="small" color={colors.error} />
-                    ) : (
-                      <>
-                        <Feather name="refresh-cw" size={14} color={colors.error} />
-                        <Text style={[styles.regenerateText, { color: colors.error }]}>
-                          Regenerate Code
-                        </Text>
-                      </>
-                    )}
-                  </Pressable>
-                )}
               </ScrollView>
             </View>
           </TouchableWithoutFeedback>
@@ -294,15 +264,22 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     marginBottom: 12,
   },
-  copyBtn: {
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    width: '100%',
+    justifyContent: 'center',
+  },
+  actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 10,
   },
-  copyBtnText: {
+  actionBtnText: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 13,
   },
@@ -333,19 +310,5 @@ const styles = StyleSheet.create({
   qrHint: {
     fontFamily: 'Inter_400Regular',
     fontSize: 12,
-  },
-  regenerateBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    borderWidth: 1,
-    marginTop: 4,
-  },
-  regenerateText: {
-    fontFamily: 'Inter_500Medium',
-    fontSize: 13,
   },
 });
