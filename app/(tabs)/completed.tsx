@@ -18,6 +18,7 @@ import { useProjectStore, Project } from '@/store/useProjectStore';
 import { TechPill } from '@/components/common/TechPill';
 import { ConfirmDialog, useConfirmDialog } from '@/components/common/ConfirmDialog';
 import { ProjectActionModal } from '@/components/modals/ProjectActionModal';
+import { ListSkeleton } from '@/components/skeletons';
 
 // ─── Completed Project Card ────────────────────────────────────────────────────
 interface CompletedCardProps {
@@ -150,7 +151,7 @@ export default function CompletedScreen() {
   const router = useRouter();
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
-  const { projects, unmarkCompleted } = useProjectStore();
+  const { projects, isLoaded, isInitialLoading, unmarkCompleted } = useProjectStore();
   const completedProjects = projects.filter((p) => p.isCompleted && !p.isDeleted);
   const { dialogProps, ask, notify } = useConfirmDialog();
 
@@ -200,7 +201,9 @@ export default function CompletedScreen() {
       </BlurView>
 
       {/* List */}
-      {completedProjects.length === 0 ? (
+      {isInitialLoading && !isLoaded && projects.length === 0 ? (
+        <ListSkeleton title="Shipped Deployments" />
+      ) : completedProjects.length === 0 ? (
         <CompletedEmptyState />
       ) : (
         <FlatList

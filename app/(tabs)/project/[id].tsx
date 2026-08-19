@@ -26,6 +26,7 @@ import { TechPill } from '@/components/common/TechPill';
 import { StatusDot } from '@/components/common/StatusDot';
 import { ConfirmDialog, useConfirmDialog } from '@/components/common/ConfirmDialog';
 import { MemberAvatar } from '@/components/common/MemberAvatar';
+import { ProjectDetailsSkeleton } from '@/components/skeletons';
 
 import { CalendarPickerModal } from '@/components/modals/CalendarPickerModal';
 import { AestheticCheckbox } from '@/components/common/AestheticCheckbox';
@@ -267,6 +268,8 @@ export default function ProjectDetailsScreen() {
     leaveProject,
     fetchProjectMembers,
     removeMember,
+    isLoaded,
+    isInitialLoading,
   } = useProjectStore();
   const profile = useProfileStore((state) => state.profile);
   const project = getProject(id);
@@ -471,10 +474,15 @@ export default function ProjectDetailsScreen() {
   };
 
   useEffect(() => {
-    if (!project) {
+    if (isLoaded && !isInitialLoading && !project) {
       router.replace('/(tabs)');
     }
-  }, [project]);
+  }, [project, isLoaded, isInitialLoading]);
+
+  // Initial loading state -> show ProjectDetailsSkeleton
+  if (isInitialLoading && !project) {
+    return <ProjectDetailsSkeleton />;
+  }
 
   if (!project) {
     return (

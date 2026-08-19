@@ -29,6 +29,7 @@ import { safeStorage } from '@/services/storage';
 import { setActiveUserId } from '@/utils/deviceUser';
 import { ConfirmDialog, useConfirmDialog } from '@/components/common/ConfirmDialog';
 import { ActionSheet, useActionSheet, ActionOption } from '@/components/common/ActionSheet';
+import { ProfileSkeleton } from '@/components/skeletons';
 
 // ─── Platform icons ────────────────────────────────────────────────────────────
 const PLATFORM_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
@@ -487,7 +488,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
-  const { profile, updateProfile, addSkill, removeSkill, addLink, updateLink, removeLink } = useProfileStore();
+  const { profile, isLoaded, isInitialLoading, updateProfile, addSkill, removeSkill, addLink, updateLink, removeLink } = useProfileStore();
   const { projects } = useProjectStore();
   const { dialogProps, ask } = useConfirmDialog();
   const { actionSheetProps, showActionSheet } = useActionSheet();
@@ -644,6 +645,10 @@ export default function ProfileScreen() {
       addLink(data);
     }
   };
+
+  if (isInitialLoading && !isLoaded) {
+    return <ProfileSkeleton />;
+  }
 
   return (
     <View style={[styles.root, { backgroundColor: colors.surface }]}>

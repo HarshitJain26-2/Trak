@@ -17,6 +17,7 @@ import { useProjectStore, Project } from '@/store/useProjectStore';
 import { TechPill } from '@/components/common/TechPill';
 import { ConfirmDialog, useConfirmDialog } from '@/components/common/ConfirmDialog';
 import { ProjectActionModal } from '@/components/modals/ProjectActionModal';
+import { ListSkeleton } from '@/components/skeletons';
 
 // ─── Deleted Project Card ──────────────────────────────────────────────────────
 function DeletedCard({
@@ -111,9 +112,10 @@ function DeletedEmptyState() {
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 export default function DeletedScreen() {
+  const router = useRouter();
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
-  const { projects, restoreProject, permanentlyDeleteProject } = useProjectStore();
+  const { projects, isLoaded, isInitialLoading, restoreProject, permanentlyDeleteProject } = useProjectStore();
   const deletedProjects = projects.filter((p) => p.isDeleted);
   const { dialogProps, ask } = useConfirmDialog();
 
@@ -165,7 +167,9 @@ export default function DeletedScreen() {
       </BlurView>
 
       {/* List */}
-      {deletedProjects.length === 0 ? (
+      {isInitialLoading && !isLoaded && projects.length === 0 ? (
+        <ListSkeleton title="Recently Deleted" />
+      ) : deletedProjects.length === 0 ? (
         <DeletedEmptyState />
       ) : (
         <FlatList

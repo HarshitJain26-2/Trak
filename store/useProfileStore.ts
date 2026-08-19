@@ -28,6 +28,8 @@ export interface Profile {
 interface ProfileStore {
   profile: Profile;
   isLoading: boolean;
+  isLoaded: boolean;
+  isInitialLoading: boolean;
   fetchProfile: (forceRefresh?: boolean) => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ success: boolean; error?: string }>;
   checkUsernameAvailable: (username: string) => Promise<boolean>;
@@ -77,9 +79,11 @@ let inFlightFetchProfile: Promise<void> | null = null;
 export const useProfileStore = create<ProfileStore>((set, get) => ({
   profile: DEFAULT_PROFILE,
   isLoading: false,
+  isLoaded: false,
+  isInitialLoading: false,
 
   clearProfile: () => {
-    set({ profile: DEFAULT_PROFILE, isLoading: false });
+    set({ profile: DEFAULT_PROFILE, isLoading: false, isLoaded: false, isInitialLoading: false });
   },
 
   fetchProfile: async (forceRefresh?: boolean) => {
@@ -121,6 +125,8 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
                     avatarUrl: localAvatarUrl || parsed.avatarUrl || '',
                   },
                   isLoading: false,
+                  isLoaded: true,
+                  isInitialLoading: false,
                 });
                 hasLocal = true;
               }
@@ -131,7 +137,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
         }
 
         if (!hasLocal) {
-          set({ isLoading: true });
+          set({ isLoading: true, isInitialLoading: true });
         }
 
         // 1. Fetch profile from Supabase by user ID
@@ -196,7 +202,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
             socialLinks: (data.social_links as SocialLink[]) || [],
             joinedDate: data.joined_date || (data.updated_at ? new Date(data.updated_at).toISOString() : new Date().toISOString()),
           };
-          set({ profile: updatedProfile, isLoading: false });
+          set({ profile: updatedProfile, isLoading: false, isLoaded: true, isInitialLoading: false });
           await saveProfileToLocalStorage(userId, updatedProfile);
         } else {
           // Brand new user — no profile found by ID or email
@@ -215,7 +221,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
             avatarUrl: localAvatarUrl || '',
           };
 
-          set({ profile: initialProf, isLoading: false });
+          set({ profile: initialProf, isLoading: false, isLoaded: true, isInitialLoading: false });
           await saveProfileToLocalStorage(userId, initialProf);
 
           if (userId) {
@@ -256,7 +262,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
         }
       } catch (err) {
         console.error('Error fetching profile:', err);
-        set({ isLoading: false });
+        set({ isLoading: false, isInitialLoading: false });
       }
     };
 

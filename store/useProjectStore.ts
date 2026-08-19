@@ -55,6 +55,8 @@ export interface Project {
 interface ProjectStore {
   projects: Project[];
   isLoading: boolean;
+  isLoaded: boolean;
+  isInitialLoading: boolean;
   currentUserId: string | null;
   setCurrentUserId: (userId: string | null) => void;
   fetchProjects: (opts?: { forceRefresh?: boolean }) => Promise<void>;
@@ -523,12 +525,14 @@ const fetchProjectsBackground = async (
   const finalPinnedIds = finalProjects.filter((p) => p.isPinned).map((p) => p.id);
   await savePinnedIdsToLocalStorage(userId, finalPinnedIds);
   await saveToLocalStorage(userId, finalProjects);
-  set({ projects: finalProjects, isLoading: false });
+  set({ projects: finalProjects, isLoading: false, isLoaded: true, isInitialLoading: false });
 };
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
   projects: [],
   isLoading: false,
+  isLoaded: false,
+  isInitialLoading: false,
   currentUserId: null,
 
   setCurrentUserId: (userId: string | null) => {
@@ -536,7 +540,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
 
   clearProjects: () => {
-    set({ projects: [], currentUserId: null });
+    set({ projects: [], isLoaded: false, isInitialLoading: false, currentUserId: null });
   },
 
   fetchProjects: async (opts?: { forceRefresh?: boolean }) => {
@@ -580,10 +584,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           ...p,
           isPinned: pinnedSet.has(p.id) || p.isPinned || false,
         }));
-        set({ projects: projectsWithPins, isLoading: false });
+        set({ projects: projectsWithPins, isLoading: false, isLoaded: true, isInitialLoading: false });
         hasLocal = true;
       } else {
-        set({ projects: [], isLoading: true });
+        set({ projects: [], isLoading: true, isInitialLoading: true });
       }
 
       const executeFetch = async () => {
@@ -611,7 +615,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       }
     } catch (err) {
       console.error('Error fetching projects:', err);
-      set({ isLoading: false });
+      set({ isLoading: false, isInitialLoading: false });
     }
   },
 

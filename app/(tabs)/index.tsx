@@ -21,13 +21,13 @@ import { Colors, useThemeColors } from '@/constants/colors';
 import { useProjectStore } from '@/store/useProjectStore';
 import { ProjectCard } from '@/components/project/ProjectCard';
 import EmptyState from '@/components/common/EmptyState';
-
 import { MemberAvatar } from '@/components/common/MemberAvatar';
+import { DashboardSkeleton, NotificationSkeleton } from '@/components/skeletons';
 
 export default function DashboardScreen() {
   const router = useRouter();
   const colors = useThemeColors();
-  const { projects, fetchProjects, subscribeToRealtime, unsubscribeFromRealtime } = useProjectStore();
+  const { projects, isLoaded, isInitialLoading, fetchProjects, subscribeToRealtime, unsubscribeFromRealtime } = useProjectStore();
   const [searchQuery, setSearchQuery] = useState('');
 
 
@@ -83,7 +83,13 @@ export default function DashboardScreen() {
 
   // Build data for rendering
   const renderContent = () => {
-    if (!hasAnyProjects) {
+    // 1. Initial Cold Start Loading State -> Show Skeletons
+    if (isInitialLoading && !isLoaded && projects.length === 0) {
+      return <DashboardSkeleton />;
+    }
+
+    // 2. Empty State -> Show Empty State only after loading finishes with 0 projects and no search query
+    if (!hasAnyProjects && isLoaded) {
       return <EmptyState onCreatePress={() => router.push('/new-project')} />;
     }
 
@@ -317,7 +323,7 @@ function SwipeableNotificationItem({
 // ─── Notifications Modal ────────────────────────────────────────────────────────
 function NotificationsModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const colors = useThemeColors();
-  const { projects } = useProjectStore();
+  const { projects, isLoaded, isInitialLoading } = useProjectStore();
   const [clearedIds, setClearedIds] = useState<string[]>([]);
 
   const handleClear = (id: string) => {
@@ -402,7 +408,9 @@ function NotificationsModal({ visible, onClose }: { visible: boolean; onClose: (
               )}
 
               <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
-                {activeNotifications.length > 0 ? (
+                {isInitialLoading && !isLoaded && projects.length === 0 ? (
+                  <NotificationSkeleton />
+                ) : activeNotifications.length > 0 ? (
                   activeNotifications.map((item) => (
                     <SwipeableNotificationItem key={item.id} item={item} colors={colors} onClear={handleClear} />
                   ))
