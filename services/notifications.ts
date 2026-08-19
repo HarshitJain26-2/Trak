@@ -3,6 +3,7 @@ import Constants, { ExecutionEnvironment, AppOwnership } from 'expo-constants';
 import * as Device from 'expo-device';
 import { safeStorage } from './storage';
 import { triggerHaptic } from '@/utils/haptics';
+import { supabase } from './supabase';
 
 export type PermissionStatus = 'granted' | 'denied' | 'pending';
 
@@ -85,7 +86,7 @@ class NotificationService {
         name: 'Default Notifications',
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#7C4DFF',
+        lightColor: '#39FF88',
         sound: 'default',
       });
 
@@ -94,7 +95,7 @@ class NotificationService {
         description: 'Deadline reminder notifications for your projects',
         importance: Notifications.AndroidImportance.HIGH,
         vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#7C4DFF',
+        lightColor: '#39FF88',
         sound: 'default',
       });
 
@@ -146,6 +147,49 @@ class NotificationService {
       return tokenData.data ?? null;
     } catch (_) {
       return null;
+    }
+  }
+
+  /**
+   * Sync push token to Supabase user_push_tokens table securely
+   */
+  async syncPushTokenWithSupabase(userId: string): Promise<boolean> {
+    if (!userId) return false;
+
+    // Safe diagnostic logging (No secret or token exposure)
+    if (__DEV__) {
+      console.log(`[Push Diagnostic] Environment: ${isExpoGo ? 'Expo Go (Android Push Unsupported)' : 'Dev Build / Standalone'}`);
+      console.log(`[Push Diagnostic] Platform: ${Platform.OS}, Physical Device: ${Device.isDevice}`);
+    }
+
+    if (Platform.OS === 'web' || (isExpoGo && Platform.OS === 'android') || !Device.isDevice) {
+      return false;
+    }
+
+    try {
+      const token = await this.registerForPushNotificationsAsync();
+      if (!token) {
+        if (__DEV__) console.log('[Push Diagnostic] Token generated: NO');
+        return false;
+      }
+
+      if (__DEV__) console.log('[Push Diagnostic] Token generated: YES');
+
+      const { error } = await supabase.rpc('register_user_push_token', {
+        p_token: token,
+        p_platform: Platform.OS,
+        p_device_name: Device.modelName || Device.deviceName || 'Android Device',
+      });
+
+      if (error) {
+        if (__DEV__) console.log('[Push Diagnostic] Token saved: NO (RPC error)');
+        return false;
+      }
+
+      if (__DEV__) console.log('[Push Diagnostic] Token saved: YES');
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -258,7 +302,7 @@ class NotificationService {
   /**
    * Deliver an immediate notification (local)
    */
-  async sendImmediateNotification(title: string, body: string): Promise<boolean> {
+  async sendImmediateNotification(title: string, body: string, data?: Record<string, any>): Promise<boolean> {
     triggerHaptic([0, 40, 60, 40]);
 
     if (Platform.OS === 'web') {
@@ -291,6 +335,7 @@ class NotificationService {
           body,
           sound: 'default',
           vibrate: [0, 250, 250, 250],
+          data: data || {},
         },
         trigger: null, // Immediate delivery
       });
@@ -301,227 +346,157 @@ class NotificationService {
   }
 
   /**
-   * Send a test notification from Settings screen
+   * Send test notification
    */
   async sendTestNotification(): Promise<{ success: boolean; message: string }> {
-    const status = await this.getPermissionStatus();
+    triggerHaptic(20);
 
-    if (status === 'denied') {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        const status = await this.getPermissionStatus();
+        if (status === 'granted') {
+          new window.Notification('Trak Test', {
+            body: 'Push notifications are working.',
+            icon: '/favicon.ico',
+          });
+          return { success: true, message: 'Web notification sent.' };
+        } else {
+          const req = await this.requestPermission();
+          if (req === 'granted') {
+            new window.Notification('Trak Test', {
+              body: 'Push notifications are working.',
+              icon: '/favicon.ico',
+            });
+            return { success: true, message: 'Web notification sent.' };
+          }
+          return { success: false, message: 'Web notifications blocked.' };
+        }
+      }
+      return { success: false, message: 'Web notifications not supported.' };
+    }
+
+    if (isExpoGo && Platform.OS === 'android') {
       return {
-        success: false,
-        message: 'Notification permission is blocked. Please allow notifications in device/browser settings.',
+        success: true,
+        message: 'In-app notification banner & haptics active (Android Remote Push requires an EAS Development Build per Expo SDK 53+).',
       };
     }
 
-    if (status === 'pending') {
-      const newStatus = await this.requestPermission();
-      if (newStatus !== 'granted') {
-        return {
-          success: false,
-          message: 'Notification permission was not granted.',
-        };
-      }
-    }
-
-    const sent = await this.sendImmediateNotification(
-      'Test Notification',
-      'Your Trak local notification settings are working correctly!'
-    );
-
-    return {
-      success: sent,
-      message: sent
-        ? 'Test notification sent successfully!'
-        : 'Failed to send notification. Check system permission settings.',
-    };
-  }
-
-  /**
-   * Schedule a local reminder notification
-   */
-  async scheduleReminder(
-    reminder: ScheduledReminder,
-    options?: { isTest?: boolean; silent?: boolean }
-  ): Promise<void> {
-    const now = Date.now();
-    let effectiveTriggerTime = reminder.triggerTime;
-
-    if (effectiveTriggerTime <= now + 1000) {
-      if (options?.isTest) {
-        effectiveTriggerTime = now + 10000;
-      } else {
-        await this.persistReminder({ ...reminder, fired: true });
-        return;
-      }
+    const Notifications = await getExpoNotifications();
+    if (!Notifications) {
+      return { success: true, message: 'In-app notification active.' };
     }
 
     try {
-      if (Platform.OS === 'web') {
-        const delay = effectiveTriggerTime - now;
-        if (delay > 0) {
-          setTimeout(() => {
-            this.sendImmediateNotification(
-              `Reminder: ${reminder.projectName}`,
-              `Upcoming Deadline (${reminder.offsetLabel}): Prepare to ship!`
-            );
-          }, delay);
-        }
-      } else {
-        const Notifications = await getExpoNotifications();
-        if (Notifications) {
-          await this.ensureAndroidChannels();
-          await Notifications.cancelScheduledNotificationAsync(reminder.id).catch(() => {});
-
-          const triggerDate = new Date(effectiveTriggerTime);
-          await Notifications.scheduleNotificationAsync({
-            identifier: reminder.id,
-            content: {
-              title: `Reminder: ${reminder.projectName}`,
-              body: `Upcoming Deadline (${reminder.offsetLabel}): Prepare to ship!`,
-              sound: 'default',
-              vibrate: [0, 250, 250, 250],
-              data: {
-                projectId: reminder.projectId,
-                reminderId: reminder.id,
-              },
-            },
-            trigger: {
-              type: Notifications.SchedulableTriggerInputTypes.DATE,
-              date: triggerDate,
-              channelId: 'reminders',
-            } as any,
-          });
-        }
+      await this.ensureAndroidChannels();
+      const perm = await this.requestPermission();
+      if (perm !== 'granted') {
+        return { success: false, message: 'System notification permission not granted.' };
       }
 
-      await this.persistReminder({ ...reminder, triggerTime: effectiveTriggerTime, fired: false });
-    } catch (_) {}
-  }
-
-  /**
-   * Print all queued scheduled notifications on device for debugging
-   */
-  async logScheduledNotifications(): Promise<void> {
-    try {
-      if (Platform.OS === 'web') return;
-      const Notifications = await getExpoNotifications();
-      if (!Notifications) return;
-
-      const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-      console.log(`[NotificationService] === Active Queued OS Notifications: ${scheduled.length} ===`);
-      scheduled.forEach((n, idx) => {
-        console.log(`  [${idx + 1}] ID: "${n.identifier}" | Title: "${n.content.title}" | Trigger:`, JSON.stringify(n.trigger));
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Trak Test',
+          body: 'Push notifications are working.',
+          sound: 'default',
+          vibrate: [0, 250, 250, 250],
+        },
+        trigger: null,
       });
-    } catch (_) {}
+
+      return { success: true, message: 'Test notification delivered to system tray.' };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Failed to deliver notification.' };
+    }
   }
 
   /**
-   * Cancel a scheduled notification by identifier
+   * Schedule deadline reminder notification
    */
-  async cancelReminder(reminderId: string): Promise<void> {
+  async scheduleReminder(reminder: ScheduledReminder): Promise<string | null> {
+    const Notifications = await getExpoNotifications();
+    if (!Notifications) return null;
+
+    if (reminder.triggerTime <= Date.now()) {
+      return null;
+    }
+
     try {
-      if (Platform.OS !== 'web') {
-        const Notifications = await getExpoNotifications();
-        if (Notifications) {
-          await Notifications.cancelScheduledNotificationAsync(reminderId).catch(() => {});
-        }
-      }
-      await this.removePersistedReminder(reminderId);
+      await this.ensureAndroidChannels();
+      const id = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `Project Deadline: ${reminder.projectName}`,
+          body: `Deadline is approaching (${reminder.offsetLabel} remaining).`,
+          sound: 'default',
+          data: { projectId: reminder.projectId },
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: new Date(reminder.triggerTime),
+          channelId: 'reminders',
+        },
+      });
+
+      return id;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /**
+   * Schedule deadline reminder notification by date
+   */
+  async scheduleReminderNotification(
+    projectId: string,
+    projectName: string,
+    deadlineDate: Date,
+    offsetLabel: '1h' | '24h' | '48h'
+  ): Promise<string | null> {
+    const offsetMs =
+      offsetLabel === '1h'
+        ? 60 * 60 * 1000
+        : offsetLabel === '24h'
+        ? 24 * 60 * 60 * 1000
+        : 48 * 60 * 60 * 1000;
+
+    return this.scheduleReminder({
+      id: `rem_${projectId}_${offsetLabel}`,
+      projectId,
+      projectName,
+      triggerTime: deadlineDate.getTime() - offsetMs,
+      offsetLabel,
+    });
+  }
+
+  /**
+   * Cancel reminder
+   */
+  async cancelNotification(notificationId: string): Promise<void> {
+    const Notifications = await getExpoNotifications();
+    if (!Notifications) return;
+    try {
+      await Notifications.cancelScheduledNotificationAsync(notificationId);
     } catch (_) {}
   }
 
   /**
-   * Synchronize / toggle all notifications on or off
+   * Cancel all notifications
+   */
+  async cancelAllNotifications(): Promise<void> {
+    const Notifications = await getExpoNotifications();
+    if (!Notifications) return;
+    try {
+      await Notifications.cancelAllScheduledNotificationsAsync();
+    } catch (_) {}
+  }
+
+  /**
+   * Sync notifications setting
    */
   async syncNotifications(enabled: boolean): Promise<void> {
-    try {
-      if (!enabled) {
-        if (Platform.OS !== 'web') {
-          const Notifications = await getExpoNotifications();
-          if (Notifications) {
-            await Notifications.cancelAllScheduledNotificationsAsync().catch(() => {});
-          }
-        }
-      } else {
-        await this.restoreScheduledReminders();
-      }
-    } catch (_) {}
-  }
-
-  /**
-   * Restore and re-schedule saved reminders (e.g. after app update or restart)
-   */
-  private async restoreScheduledReminders(): Promise<void> {
-    try {
-      const raw = await safeStorage.getItem('trak_scheduled_reminders');
-      if (!raw) return;
-
-      const list: ScheduledReminder[] = JSON.parse(raw);
-      const now = Date.now();
-
-      let scheduledInOS = new Set<string>();
-      if (Platform.OS !== 'web') {
-        const Notifications = await getExpoNotifications();
-        if (Notifications) {
-          try {
-            const osNotifications = await Notifications.getAllScheduledNotificationsAsync();
-            scheduledInOS = new Set(osNotifications.map((n) => n.identifier));
-          } catch (_) {}
-        }
-      }
-
-      let storageUpdated = false;
-      const updatedList: ScheduledReminder[] = [];
-
-      for (const rem of list) {
-        if (rem.triggerTime <= now + 1000) {
-          if (!rem.fired) {
-            rem.fired = true;
-            storageUpdated = true;
-          }
-          updatedList.push(rem);
-        } else {
-          if (!scheduledInOS.has(rem.id)) {
-            await this.scheduleReminder(rem, { silent: true });
-          }
-          updatedList.push(rem);
-        }
-      }
-
-      if (storageUpdated) {
-        await safeStorage.setItem('trak_scheduled_reminders', JSON.stringify(updatedList));
-      }
-    } catch (_) {}
-  }
-
-  /**
-   * Save reminder to local storage
-   */
-  private async persistReminder(reminder: ScheduledReminder): Promise<void> {
-    try {
-      const raw = await safeStorage.getItem('trak_scheduled_reminders');
-      const list: ScheduledReminder[] = raw ? JSON.parse(raw) : [];
-      const existingIdx = list.findIndex((r) => r.id === reminder.id);
-      if (existingIdx >= 0) {
-        list[existingIdx] = reminder;
-      } else {
-        list.push(reminder);
-      }
-      await safeStorage.setItem('trak_scheduled_reminders', JSON.stringify(list));
-    } catch (_) {}
-  }
-
-  /**
-   * Remove reminder from local storage
-   */
-  private async removePersistedReminder(reminderId: string): Promise<void> {
-    try {
-      const raw = await safeStorage.getItem('trak_scheduled_reminders');
-      if (!raw) return;
-      const list: ScheduledReminder[] = JSON.parse(raw);
-      const updated = list.filter((r) => r.id !== reminderId);
-      await safeStorage.setItem('trak_scheduled_reminders', JSON.stringify(updated));
-    } catch (_) {}
+    if (!enabled) {
+      await this.cancelAllNotifications();
+    }
   }
 }
 

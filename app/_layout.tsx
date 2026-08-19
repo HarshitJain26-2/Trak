@@ -59,6 +59,7 @@ import { useSettingsStore } from '@/store/useSettingsStore';
 import { setActiveUserId } from '@/utils/deviceUser';
 import { notificationService } from '@/services/notifications';
 import FuturisticLoadingScreen from '@/components/FuturisticLoadingScreen';
+import { InAppNotificationBanner } from '@/components/common/InAppNotificationBanner';
 
 export default function RootLayout() {
   const router = useRouter();
@@ -145,6 +146,7 @@ export default function RootLayout() {
       }
       void fetchProfile();
       void fetchProjects({ forceRefresh: isSignInEvent });
+      void notificationService.syncPushTokenWithSupabase(userId);
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -174,6 +176,25 @@ export default function RootLayout() {
     };
   }, []);
 
+  // Handle native notification response taps (e.g. Tapping system tray push notification)
+  useEffect(() => {
+    let cleanupListeners: (() => void) | null = null;
+    void notificationService
+      .initializeListeners(undefined, (response) => {
+        const projectId = response?.notification?.request?.content?.data?.projectId;
+        if (projectId) {
+          router.push(`/project/${projectId}`);
+        }
+      })
+      .then((cleanup) => {
+        cleanupListeners = cleanup;
+      });
+
+    return () => {
+      if (cleanupListeners) cleanupListeners();
+    };
+  }, []);
+
   if (!fontsLoaded) {
     return <FuturisticLoadingScreen durationMs={1500} themeMode={colors.isDark ? 'dark' : 'light'} />;
   }
@@ -197,6 +218,7 @@ export default function RootLayout() {
           <Stack.Screen name="new-project" options={{ presentation: 'transparentModal', animation: 'fade' }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         </Stack>
+        <InAppNotificationBanner />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

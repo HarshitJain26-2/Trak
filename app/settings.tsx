@@ -19,8 +19,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import * as Clipboard from 'expo-clipboard';
-import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { getThemeColors } from '@/constants/colors';
 import { TRAK_ANDROID_APK_URL } from '@/constants/config';
@@ -35,7 +33,6 @@ import { ActionSheet, useActionSheet, ActionOption } from '@/components/common/A
 import { triggerHaptic } from '@/utils/haptics';
 import { t, SUPPORTED_LANGUAGES, SupportedLanguage } from '@/utils/i18n';
 import { notificationService, PermissionStatus } from '@/services/notifications';
-import FuturisticLoadingScreen from '@/components/FuturisticLoadingScreen';
 
 function SectionHeader({ title, color }: { title: string; color: string }) {
   return (
@@ -238,8 +235,6 @@ export default function SettingsScreen() {
   const { actionSheetProps, showActionSheet } = useActionSheet();
 
   const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>('pending');
-  const [testingNotification, setTestingNotification] = useState(false);
-  const [showTestAnimation, setShowTestAnimation] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
 
   const {
@@ -259,151 +254,12 @@ export default function SettingsScreen() {
   } = useSettingsStore();
 
   const colors = getThemeColors(themeMode, systemColorScheme);
-  const { projects } = useProjectStore();
   const { profile } = useProfileStore();
-
-  const [identities, setIdentities] = useState<any[]>([]);
-  const [loadingIdentities, setLoadingIdentities] = useState(false);
-  const [linkingGoogle, setLinkingGoogle] = useState(false);
-  const [unlinkingGoogle, setUnlinkingGoogle] = useState(false);
-
-  const fetchIdentities = async () => {
-    try {
-      setLoadingIdentities(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user?.identities) {
-        setIdentities(user.identities);
-      }
-    } catch (_) {
-    } finally {
-      setLoadingIdentities(false);
-    }
-  };
 
   useEffect(() => {
     loadSettings();
     checkPermissionStatus();
-    fetchIdentities();
   }, []);
-
-  const handleConnectGoogle = async () => {
-    if (linkingGoogle) return;
-    setLinkingGoogle(true);
-    triggerHaptic(15);
-    try {
-      const redirectUrl = Linking.createURL('auth/callback');
-
-      if (Platform.OS === 'web') {
-        const { error } = await supabase.auth.linkIdentity({
-          provider: 'google',
-          options: {
-            redirectTo: redirectUrl,
-            skipBrowserRedirect: false,
-          },
-        });
-        if (error) {
-          throw error;
-        }
-        return;
-      }
-
-      // Mobile (Android / iOS) via in-app browser session
-      const { data, error } = await supabase.auth.linkIdentity({
-        provider: 'google',
-        options: {
-          redirectTo: redirectUrl,
-          skipBrowserRedirect: true,
-        },
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      if (!data?.url) {
-        throw new Error('Unable to start Google connection. Please try again.');
-      }
-
-      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
-
-      if (result.type === 'success' && result.url) {
-        const callbackUrl = result.url;
-        let params = new URLSearchParams();
-        const hashIndex = callbackUrl.indexOf('#');
-        if (hashIndex !== -1) {
-          params = new URLSearchParams(callbackUrl.substring(hashIndex + 1));
-        }
-        const queryIndex = callbackUrl.indexOf('?');
-        if (queryIndex !== -1) {
-          const qParams = new URLSearchParams(callbackUrl.substring(queryIndex + 1, hashIndex !== -1 ? hashIndex : undefined));
-          qParams.forEach((v, k) => {
-            if (!params.has(k)) params.set(k, v);
-          });
-        }
-
-        const errParam = params.get('error_description') || params.get('error');
-        if (errParam) {
-          throw new Error(decodeURIComponent(errParam.replace(/\+/g, ' ')));
-        }
-
-        const code = params.get('code');
-        if (code) {
-          await supabase.auth.exchangeCodeForSession(code);
-        }
-
-        await fetchIdentities();
-        Alert.alert('Success', 'Google account connected successfully.');
-      }
-    } catch (err: any) {
-      const msg = err?.message || '';
-      if (msg.includes('identity_already_exists') || msg.includes('already linked') || msg.includes('already exists')) {
-        Alert.alert('Connection Failed', 'This Google account is already linked to another user.');
-      } else if (msg !== 'CANCELLED') {
-        Alert.alert('Connection Failed', msg || 'Unable to connect Google account.');
-      }
-    } finally {
-      setLinkingGoogle(false);
-    }
-  };
-
-  const handleDisconnectGoogle = async () => {
-    const googleIdentity = identities.find((i) => i.provider === 'google');
-    if (!googleIdentity) return;
-
-    // Safety check: ensure user has another sign-in identity
-    if (identities.length <= 1) {
-      Alert.alert(
-        'Cannot Disconnect',
-        'Google is your only sign-in method. You must set an email password before disconnecting Google to prevent losing access to your account.'
-      );
-      return;
-    }
-
-    const confirmed = await ask({
-      title: 'Disconnect Google Account?',
-      message: 'Are you sure you want to disconnect your Google account? You will need to sign in using your email and password.',
-      confirmLabel: 'Disconnect',
-      destructive: true,
-      icon: 'alert-triangle',
-    });
-
-    if (!confirmed) return;
-
-    setUnlinkingGoogle(true);
-    triggerHaptic(20);
-    try {
-      const { error } = await supabase.auth.unlinkIdentity(googleIdentity);
-      if (error) {
-        throw error;
-      }
-      await fetchIdentities();
-      Alert.alert('Disconnected', 'Google account has been disconnected.');
-    } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Failed to disconnect Google account.');
-    } finally {
-      setUnlinkingGoogle(false);
-    }
-  };
 
   const checkPermissionStatus = async () => {
     const status = await notificationService.getPermissionStatus();
@@ -421,18 +277,6 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleSendTestNotification = async () => {
-    triggerHaptic(20);
-    setTestingNotification(true);
-    try {
-      const res = await notificationService.sendTestNotification();
-      await checkPermissionStatus();
-      Alert.alert(res.success ? 'Success' : 'Notification Alert', res.message);
-    } finally {
-      setTestingNotification(false);
-    }
-  };
-
   const currentLangObj = SUPPORTED_LANGUAGES.find((l) => l.code === language) || SUPPORTED_LANGUAGES[0];
 
   const handleOpenLanguagePicker = () => {
@@ -447,46 +291,6 @@ export default function SettingsScreen() {
       message: t('languageSubtitle', language),
       options,
     });
-  };
-
-  const handleExportData = async () => {
-    triggerHaptic(15);
-    const exportData = {
-      profile: useProfileStore.getState().profile,
-      projects: projects,
-      exportedAt: new Date().toISOString(),
-    };
-    const jsonString = JSON.stringify(exportData, null, 2);
-
-    try {
-      await Clipboard.setStringAsync(jsonString);
-      Alert.alert(
-        t('exportData', language),
-        `Data for ${projects.length} project(s) copied to clipboard as JSON!`,
-        [{ text: 'OK' }]
-      );
-    } catch (err) {
-      Alert.alert(
-        t('exportData', language),
-        `Data summary:\n• ${projects.length} project(s)`,
-        [{ text: 'OK' }]
-      );
-    }
-  };
-
-  const handleClearCache = async () => {
-    triggerHaptic(25);
-    const confirmed = await ask({
-      title: t('clearCache', language),
-      message: t('clearCacheSub', language),
-      confirmLabel: t('clear', language),
-      destructive: true,
-      icon: 'trash-2',
-    });
-    if (!confirmed) return;
-    await safeStorage.removeItem('trak_user_settings');
-    await loadSettings();
-    Alert.alert(t('clearCache', language), 'Settings cache reset.');
   };
 
   const handleLogOut = async () => {
@@ -523,20 +327,6 @@ export default function SettingsScreen() {
         colors={colors}
         onClose={() => setShowChangePassword(false)}
       />
-
-      {/* Full-Screen Test Animation Modal */}
-      <Modal
-        visible={showTestAnimation}
-        animationType="fade"
-        transparent={false}
-        onRequestClose={() => setShowTestAnimation(false)}
-      >
-        <FuturisticLoadingScreen
-          durationMs={3000}
-          themeMode={colors.isDark ? 'dark' : 'light'}
-          onFinish={() => setShowTestAnimation(false)}
-        />
-      </Modal>
 
       {/* App Bar Header */}
       <BlurView
@@ -644,7 +434,7 @@ export default function SettingsScreen() {
           </Pressable>
         </View>
 
-        {/* ── 🔔 NOTIFICATIONS & TEST NOTIFICATION ── */}
+        {/* ── 🔔 NOTIFICATIONS & REMINDERS ── */}
         <SectionHeader title="NOTIFICATIONS & REMINDERS" color={`${colors.onSurfaceVariant}90`} />
         <View style={[styles.glassCard, { backgroundColor: colors.glassBg, borderColor: colors.glassBorder }]}>
           <View style={styles.row}>
@@ -703,36 +493,6 @@ export default function SettingsScreen() {
               </Text>
             </Pressable>
           </View>
-
-          <View style={[styles.divider, { backgroundColor: `${colors.outlineVariant}20` }]} />
-
-          {/* 🧪 MANDATORY TEST NOTIFICATION BUTTON */}
-          <Pressable
-            style={[styles.testBtn, { backgroundColor: `${colors.primaryFixed}15`, borderColor: `${colors.primaryFixed}35` }]}
-            onPress={handleSendTestNotification}
-            disabled={testingNotification}
-          >
-            <Feather name="send" size={16} color={colors.primaryFixed} />
-            <Text style={[styles.testBtnText, { color: colors.primaryFixed }]}>
-              {testingNotification ? 'Sending...' : '🧪 Send Test Notification'}
-            </Text>
-          </Pressable>
-
-          <View style={[styles.divider, { backgroundColor: `${colors.outlineVariant}20` }]} />
-
-          {/* 🚀 TEST FUTURISTIC LOADING ANIMATION BUTTON */}
-          <Pressable
-            style={[styles.testBtn, { backgroundColor: `${colors.secondary}15`, borderColor: `${colors.secondary}35` }]}
-            onPress={() => {
-              triggerHaptic(20);
-              setShowTestAnimation(true);
-            }}
-          >
-            <Feather name="play-circle" size={16} color={colors.secondary} />
-            <Text style={[styles.testBtnText, { color: colors.secondary }]}>
-              🚀 Test Loading Screen Animation
-            </Text>
-          </Pressable>
         </View>
 
         {/* ── PREFERENCES ── */}
@@ -803,42 +563,6 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* ── DATA & STORAGE ── */}
-        <SectionHeader title={t('dataStorage', language)} color={`${colors.onSurfaceVariant}90`} />
-        <View style={[styles.glassCard, { backgroundColor: colors.glassBg, borderColor: colors.glassBorder }]}>
-          <Pressable style={styles.row} onPress={handleExportData}>
-            <View style={styles.rowLeft}>
-              <View style={[styles.iconWrap, { backgroundColor: colors.surfaceContainerHigh }]}>
-                <Feather name="download" size={16} color={colors.onSurface} />
-              </View>
-              <View style={styles.rowLabelWrap}>
-                <Text style={[styles.rowTitle, { color: colors.onSurface }]}>{t('exportData', language)}</Text>
-                <Text style={[styles.rowSubtitle, { color: `${colors.onSurfaceVariant}90` }]}>
-                  {t('exportDataSub', language)}
-                </Text>
-              </View>
-            </View>
-            <Feather name="chevron-right" size={18} color={`${colors.onSurfaceVariant}60`} />
-          </Pressable>
-
-          <View style={[styles.divider, { backgroundColor: `${colors.outlineVariant}20` }]} />
-
-          <Pressable style={styles.row} onPress={handleClearCache}>
-            <View style={styles.rowLeft}>
-              <View style={[styles.iconWrap, { backgroundColor: colors.surfaceContainerHigh }]}>
-                <Feather name="hard-drive" size={16} color={colors.onSurfaceVariant} />
-              </View>
-              <View style={styles.rowLabelWrap}>
-                <Text style={[styles.rowTitle, { color: colors.onSurface }]}>{t('clearCache', language)}</Text>
-                <Text style={[styles.rowSubtitle, { color: `${colors.onSurfaceVariant}90` }]}>
-                  {t('clearCacheSub', language)}
-                </Text>
-              </View>
-            </View>
-            <Feather name="chevron-right" size={18} color={`${colors.onSurfaceVariant}60`} />
-          </Pressable>
-        </View>
-
         {/* ── ABOUT ── */}
         <SectionHeader title={t('about', language)} color={`${colors.onSurfaceVariant}90`} />
         <View style={[styles.glassCard, { backgroundColor: colors.glassBg, borderColor: colors.glassBorder }]}>
@@ -889,8 +613,8 @@ export default function SettingsScreen() {
           </Pressable>
         </View>
 
-        {/* ── 🔐 ACCOUNT & IDENTITIES ── */}
-        <SectionHeader title="ACCOUNT & IDENTITIES" color={`${colors.onSurfaceVariant}90`} />
+        {/* ── 🔐 ACCOUNT & SECURITY ── */}
+        <SectionHeader title="ACCOUNT & SECURITY" color={`${colors.onSurfaceVariant}90`} />
         <View style={[styles.glassCard, { backgroundColor: colors.glassBg, borderColor: colors.glassBorder }]}>
           {/* Email & Password Identity */}
           <View style={styles.row}>
@@ -909,66 +633,6 @@ export default function SettingsScreen() {
               <Text style={[styles.statusBadgeText, { color: colors.primaryFixed }]}>CONNECTED</Text>
             </View>
           </View>
-
-          <View style={[styles.divider, { backgroundColor: `${colors.outlineVariant}20` }]} />
-
-          {/* Google Identity */}
-          {(() => {
-            const googleIdentity = identities.find((i) => i.provider === 'google');
-            const isGoogleLinked = !!googleIdentity;
-            const googleEmail = googleIdentity?.identity_data?.email || profile.email;
-
-            return (
-              <View style={styles.row}>
-                <View style={styles.rowLeft}>
-                  <View style={[styles.iconWrap, { backgroundColor: isGoogleLinked ? `${colors.primaryFixed}15` : colors.surfaceContainerHigh }]}>
-                    <Feather name="globe" size={16} color={isGoogleLinked ? colors.primaryFixed : colors.onSurfaceVariant} />
-                  </View>
-                  <View style={styles.rowLabelWrap}>
-                    <Text style={[styles.rowTitle, { color: colors.onSurface }]}>Google</Text>
-                    <Text style={[styles.rowSubtitle, { color: `${colors.onSurfaceVariant}90` }]}>
-                      {isGoogleLinked ? `Linked (${googleEmail})` : 'Not connected'}
-                    </Text>
-                  </View>
-                </View>
-
-                {isGoogleLinked ? (
-                  <Pressable
-                    onPress={handleDisconnectGoogle}
-                    disabled={unlinkingGoogle}
-                    style={[
-                      styles.actionPillBtn,
-                      { backgroundColor: `${colors.error}15`, borderColor: `${colors.error}35` },
-                    ]}
-                  >
-                    {unlinkingGoogle ? (
-                      <ActivityIndicator size="small" color={colors.error} />
-                    ) : (
-                      <Text style={[styles.actionPillText, { color: colors.error }]}>Disconnect</Text>
-                    )}
-                  </Pressable>
-                ) : (
-                  <Pressable
-                    onPress={handleConnectGoogle}
-                    disabled={linkingGoogle}
-                    style={[
-                      styles.actionPillBtn,
-                      { backgroundColor: `${colors.primaryFixed}15`, borderColor: `${colors.primaryFixed}40` },
-                    ]}
-                  >
-                    {linkingGoogle ? (
-                      <ActivityIndicator size="small" color={colors.primaryFixed} />
-                    ) : (
-                      <>
-                        <Feather name="link" size={13} color={colors.primaryFixed} style={{ marginRight: 5 }} />
-                        <Text style={[styles.actionPillText, { color: colors.primaryFixed }]}>Connect Google</Text>
-                      </>
-                    )}
-                  </Pressable>
-                )}
-              </View>
-            );
-          })()}
 
           <View style={[styles.divider, { backgroundColor: `${colors.outlineVariant}20` }]} />
 
@@ -1003,6 +667,7 @@ export default function SettingsScreen() {
   );
 }
 
+// ─── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   root: { flex: 1 },
   appBar: {
@@ -1010,79 +675,91 @@ const styles = StyleSheet.create({
     top: 0, left: 0, right: 0,
     zIndex: 50,
     borderBottomWidth: 1,
-    overflow: 'hidden',
   },
   appBarInner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-  },
-  appBarTitle: {
-    fontFamily: 'Inter_700Bold',
-    fontSize: 20,
-    letterSpacing: -0.3,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
   backBtn: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  appBarTitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 18,
+  },
   scroll: { flex: 1 },
   scrollContent: {
-    paddingHorizontal: 20,
-    gap: 12,
-    paddingBottom: 60,
+    paddingHorizontal: 16,
+    paddingBottom: 40,
   },
   sectionHeader: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_700Bold',
     fontSize: 11,
-    letterSpacing: 2,
+    letterSpacing: 1.5,
+    marginTop: 24,
+    marginBottom: 8,
+    marginLeft: 4,
     textTransform: 'uppercase',
-    marginTop: 12,
-    marginBottom: 2,
   },
   glassCard: {
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 4,
+    borderRadius: 16,
     borderWidth: 1,
+    padding: 16,
+    marginBottom: 8,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 16,
     gap: 12,
-    paddingTop: 12,
-    paddingBottom: 10,
+  },
+  iconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowTitle: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 15,
+  },
+  rowSubtitle: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    marginTop: 2,
   },
   segmentedContainer: {
     flexDirection: 'row',
-    borderRadius: 10,
-    padding: 3,
+    borderRadius: 12,
+    padding: 4,
     gap: 4,
-    marginBottom: 12,
   },
   segmentedSegment: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: 8,
   },
   segmentedActive: {
-    elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   segmentedText: {
     fontFamily: 'Inter_500Medium',
-    fontSize: 12,
+    fontSize: 13,
   },
   segmentedTextActive: {
     fontFamily: 'Inter_600SemiBold',
@@ -1091,7 +768,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    paddingVertical: 4,
   },
   rowLeft: {
     flexDirection: 'row',
@@ -1099,59 +776,12 @@ const styles = StyleSheet.create({
     gap: 12,
     flex: 1,
   },
-  iconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
+  rowLabelWrap: {
+    flex: 1,
   },
-  rowLabelWrap: { flex: 1 },
-  rowTitle: {
-    fontFamily: 'Inter_500Medium',
-    fontSize: 14,
-  },
-  rowSubtitle: {
-    fontFamily: 'Inter_400Regular',
-    fontSize: 11,
-    marginTop: 2,
-  },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-  },
-  statusBadgeText: {
-    fontFamily: 'JetBrainsMono_500Medium',
-    fontSize: 11,
-  },
-  actionPillBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  actionPillText: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 12,
-  },
-  testBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 11,
-    borderRadius: 8,
-    borderWidth: 1,
-    marginVertical: 10,
-  },
-  testBtnText: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 14,
+  divider: {
+    height: 1,
+    marginVertical: 12,
   },
   langPill: {
     flexDirection: 'row',
@@ -1163,29 +793,39 @@ const styles = StyleSheet.create({
   },
   langText: {
     fontFamily: 'Inter_500Medium',
-    fontSize: 13,
+    fontSize: 14,
   },
   versionBadge: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'JetBrainsMono_700Bold',
     fontSize: 12,
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 4,
     borderRadius: 6,
     borderWidth: 1,
   },
-  divider: {
-    height: 1,
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  statusBadgeText: {
+    fontFamily: 'JetBrainsMono_700Bold',
+    fontSize: 11,
+    letterSpacing: 0.5,
   },
   logoutCard: {
-    borderColor: 'rgba(255, 82, 82, 0.25)',
-    backgroundColor: 'rgba(255, 82, 82, 0.05)',
-    marginTop: 4,
+    backgroundColor: '#FF525215',
+    borderColor: '#FF525230',
+    marginTop: 24,
+    padding: 0,
+    overflow: 'hidden',
   },
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    paddingVertical: 16,
   },
   logoutBtnText: {
     fontFamily: 'Inter_600SemiBold',
@@ -1199,47 +839,67 @@ const modalStyles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.65)',
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    alignItems: 'center',
+    padding: 20,
   },
   card: {
+    width: '100%',
+    maxWidth: 400,
     borderRadius: 16,
-    padding: 20,
     borderWidth: 1,
+    padding: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 24,
-    elevation: 16,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
   },
   title: {
-    fontFamily: 'Inter_600SemiBold',
+    fontFamily: 'Inter_700Bold',
     fontSize: 17,
   },
   label: {
-    fontFamily: 'JetBrainsMono_400Regular',
-    fontSize: 10,
-    letterSpacing: 1,
-    opacity: 0.7,
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 11,
+    letterSpacing: 1.2,
     marginBottom: 6,
-    textTransform: 'uppercase',
+    marginTop: 6,
   },
   inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
     paddingHorizontal: 12,
-    marginBottom: 12,
+    paddingVertical: 10,
+    marginBottom: 10,
   },
   input: {
     flex: 1,
-    paddingVertical: 11,
-    fontFamily: 'Inter_400Regular',
-    fontSize: 15,
+    fontFamily: 'Inter_500Medium',
+    fontSize: 14,
   },
-  btnRow: { flexDirection: 'row', gap: 10 },
-  btn: { flex: 1, paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
-  btnDisabled: { opacity: 0.4 },
-  btnCancelText: { fontFamily: 'Inter_400Regular', fontSize: 15 },
-  btnSaveText: { fontFamily: 'Inter_600SemiBold', fontSize: 15 },
+  btnRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 10,
+  },
+  btn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  btnDisabled: {
+    opacity: 0.5,
+  },
+  btnCancelText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 14,
+  },
+  btnSaveText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 14,
+  },
 });

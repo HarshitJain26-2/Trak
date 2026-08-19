@@ -82,7 +82,7 @@ BEFORE INSERT ON public.projects
 FOR EACH ROW
 EXECUTE FUNCTION public.trg_set_project_join_code();
 
--- ─── 5. SECURE JOIN PROJECT RPC (auth.uid() strictly derived) ────────────────
+-- ─── 5. SECURE JOIN PROJECT RPC (TEXT user_id compatibility) ─────────────────
 CREATE OR REPLACE FUNCTION public.join_project_by_code(code TEXT)
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -90,16 +90,16 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  _user_id UUID;
+  _user_id TEXT;
   _project_id TEXT;
   _project_name TEXT;
-  _owner_id UUID;
+  _owner_id TEXT;
   _clean_code TEXT;
   _is_member BOOLEAN;
   _member_id TEXT;
 BEGIN
-  _user_id := auth.uid();
-  IF _user_id IS NULL THEN
+  _user_id := auth.uid()::text;
+  IF _user_id IS NULL OR _user_id = '' THEN
     RETURN jsonb_build_object('success', false, 'error', 'Authentication required to join project.');
   END IF;
 
@@ -111,7 +111,7 @@ BEGIN
   END IF;
 
   -- Lookup project by join_code
-  SELECT id, name, user_id INTO _project_id, _project_name, _owner_id
+  SELECT id, name, user_id::text INTO _project_id, _project_name, _owner_id
   FROM public.projects
   WHERE join_code = _clean_code
     AND is_deleted = false
@@ -135,7 +135,7 @@ BEGIN
   -- Check if user is already a member
   SELECT EXISTS (
     SELECT 1 FROM public.project_members
-    WHERE project_id = _project_id AND user_id = _user_id
+    WHERE project_id = _project_id AND user_id::text = _user_id
   ) INTO _is_member;
 
   IF _is_member THEN
@@ -148,7 +148,7 @@ BEGIN
     );
   END IF;
 
-  -- Insert member row with default 'member' role (client cannot escalate role)
+  -- Insert member row with default 'member' role
   _member_id := 'pm_' || substr(md5(random()::text || clock_timestamp()::text), 1, 16);
   INSERT INTO public.project_members (id, project_id, user_id, role, joined_at)
   VALUES (_member_id, _project_id, _user_id, 'member', now())
@@ -164,9 +164,9 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.join_project_by_code(TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.join_project_by_code(TEXT) TO authenticated, anon;
 
--- ─── 6. SECURE REGENERATE JOIN CODE RPC (Owner only, auth.uid() strictly derived)
+-- ─── 6. SECURE REGENERATE JOIN CODE RPC (Owner only) ─────────────────────────
 CREATE OR REPLACE FUNCTION public.regenerate_project_join_code(p_project_id TEXT)
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -174,17 +174,17 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  _user_id UUID;
-  _owner_id UUID;
+  _user_id TEXT;
+  _owner_id TEXT;
   _new_code TEXT;
 BEGIN
-  _user_id := auth.uid();
-  IF _user_id IS NULL THEN
+  _user_id := auth.uid()::text;
+  IF _user_id IS NULL OR _user_id = '' THEN
     RETURN jsonb_build_object('success', false, 'error', 'Authentication required.');
   END IF;
 
   -- Verify project exists and caller is owner
-  SELECT user_id INTO _owner_id
+  SELECT user_id::text INTO _owner_id
   FROM public.projects
   WHERE id = p_project_id AND is_deleted = false
   LIMIT 1;
@@ -212,4 +212,4 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.regenerate_project_join_code(TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.regenerate_project_join_code(TEXT) TO authenticated, anon;

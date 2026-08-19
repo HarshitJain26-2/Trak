@@ -24,21 +24,27 @@ import EmptyState from '@/components/common/EmptyState';
 import { MemberAvatar } from '@/components/common/MemberAvatar';
 import { DashboardSkeleton, NotificationSkeleton } from '@/components/skeletons';
 import { JoinProjectModal } from '@/components/modals/JoinProjectModal';
+import { useNotificationStore } from '@/store/useNotificationStore';
 
 export default function DashboardScreen() {
   const router = useRouter();
   const colors = useThemeColors();
-  const { projects, isLoaded, isInitialLoading, fetchProjects, subscribeToRealtime, unsubscribeFromRealtime } = useProjectStore();
+  const { projects, isLoading, isLoaded, isInitialLoading, fetchProjects, subscribeToRealtime, unsubscribeFromRealtime } = useProjectStore();
+  const { unreadCount, loadNotifications } = useNotificationStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
 
+  useEffect(() => {
+    void loadNotifications();
+  }, []);
 
   // Fetch projects on screen mount and focus
   useFocusEffect(
     React.useCallback(() => {
       fetchProjects();
-    }, [fetchProjects])
+      void loadNotifications();
+    }, [fetchProjects, loadNotifications])
   );
 
   const activeProjects = projects
@@ -83,13 +89,13 @@ export default function DashboardScreen() {
 
   // Build data for rendering
   const renderContent = () => {
-    // 1. Initial Cold Start Loading State -> Show Skeletons
-    if (isInitialLoading && !isLoaded && projects.length === 0) {
+    // 1. Loading State -> Show Skeletons whenever data is loading or not yet loaded
+    if (!isLoaded || (isLoading && projects.length === 0)) {
       return <DashboardSkeleton />;
     }
 
-    // 2. Empty State -> Show Empty State only after loading finishes with 0 projects and no search query
-    if (!hasAnyProjects && isLoaded) {
+    // 2. Empty State -> Show Empty State when loaded with 0 projects and no search query
+    if (activeProjects.length === 0 && sharedProjects.length === 0 && !searchQuery.trim()) {
       return <EmptyState onCreatePress={() => router.push('/new-project')} />;
     }
 
@@ -132,7 +138,7 @@ export default function DashboardScreen() {
             {activeProjects.length > 0 ? (
               <>
                 {activeProjects.map((project, index) => (
-                  <View key={project.id} style={index < activeProjects.length - 1 ? { marginBottom: 16 } : undefined}>
+                  <View key={`active-${project.id}-${index}`} style={index < activeProjects.length - 1 ? { marginBottom: 16 } : undefined}>
                     <ProjectCard project={project} />
                   </View>
                 ))}
@@ -159,7 +165,7 @@ export default function DashboardScreen() {
                   <Text style={[styles.sharedCount, { color: colors.onSurfaceVariant }]}>{sharedProjects.length} project{sharedProjects.length !== 1 ? 's' : ''}</Text>
                 </View>
                 {sharedProjects.map((project, index) => (
-                  <View key={project.id} style={index < sharedProjects.length - 1 ? { marginBottom: 16 } : undefined}>
+                  <View key={`shared-${project.id}-${index}`} style={index < sharedProjects.length - 1 ? { marginBottom: 16 } : undefined}>
                     <View style={styles.sharedCardWrapper}>
                       {project.ownerName && (
                         <View style={styles.ownerTag}>
@@ -226,7 +232,9 @@ export default function DashboardScreen() {
               hitSlop={8}
             >
               <Feather name="bell" size={20} color={colors.onSurface} />
-              <View style={[styles.notifBadge, { backgroundColor: colors.primaryFixed }]} />
+              {unreadCount > 0 && (
+                <View style={[styles.notifBadge, { backgroundColor: colors.primaryFixed }]} />
+              )}
             </Pressable>
           </View>
         </View>
@@ -275,23 +283,23 @@ function SwipeableNotificationItem({
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        return Math.abs(gestureState.dx) > 10 && Math.abs(gestureState.dy) < 15;
+        return Math.abs(gestureState.dx) > 6 && Math.abs(gestureState.dy) < 20;
       },
       onPanResponderMove: (_, gestureState) => {
         pan.setValue(gestureState.dx);
       },
       onPanResponderRelease: (_, gestureState) => {
-        if (Math.abs(gestureState.dx) > 90 || Math.abs(gestureState.vx) > 0.4) {
+        if (Math.abs(gestureState.dx) > 60 || Math.abs(gestureState.vx) > 0.3) {
           const toValue = gestureState.dx > 0 ? 500 : -500;
           Animated.parallel([
             Animated.timing(pan, {
               toValue,
-              duration: 200,
+              duration: 180,
               useNativeDriver: false,
             }),
             Animated.timing(opacityAnim, {
               toValue: 0,
-              duration: 200,
+              duration: 180,
               useNativeDriver: false,
             }),
           ]).start(() => {
@@ -324,9 +332,11 @@ function SwipeableNotificationItem({
           <Text style={[notifStyles.itemTitle, { color: colors.onSurface }]}>{item.title}</Text>
           <Text style={[notifStyles.itemDesc, { color: colors.onSurfaceVariant }]}>{item.desc}</Text>
         </View>
-        <View style={{ alignItems: 'flex-end', gap: 2 }}>
+        <View style={{ alignItems: 'flex-end', gap: 6 }}>
           <Text style={[notifStyles.itemTime, { color: `${colors.onSurfaceVariant}80` }]}>{item.time}</Text>
-          <Feather name="chevron-right" size={12} color={`${colors.onSurfaceVariant}40`} />
+          <Pressable onPress={() => onClear(item.id)} hitSlop={10} style={{ padding: 2 }}>
+            <Feather name="x" size={14} color={`${colors.onSurfaceVariant}60`} />
+          </Pressable>
         </View>
       </View>
     </Animated.View>
@@ -336,58 +346,48 @@ function SwipeableNotificationItem({
 // ─── Notifications Modal ────────────────────────────────────────────────────────
 function NotificationsModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const colors = useThemeColors();
-  const { projects, isLoaded, isInitialLoading } = useProjectStore();
-  const [clearedIds, setClearedIds] = useState<string[]>([]);
+  const { isLoaded, isInitialLoading } = useProjectStore();
+  const { notifications: storeNotifications, clearNotification, clearAll, markAllAsRead } = useNotificationStore();
+
+  useEffect(() => {
+    if (visible) {
+      void markAllAsRead();
+    }
+  }, [visible, markAllAsRead]);
+
+  const activeNotifications: NotificationItemData[] = React.useMemo(() => {
+    return storeNotifications.map((n) => {
+      let icon: keyof typeof Feather.glyphMap = 'bell';
+      let color = colors.primaryFixed;
+
+      if (n.type === 'project_member_joined') {
+        icon = 'user-plus';
+        color = colors.primaryFixed;
+      } else if (n.type === 'project_member_left' || n.type === 'project_member_removed') {
+        icon = 'user-minus';
+        color = colors.error;
+      } else if (n.type === 'milestone_completed') {
+        icon = 'check-circle';
+        color = colors.secondaryFixed;
+      }
+
+      return {
+        id: n.id,
+        title: n.title,
+        desc: n.desc,
+        time: n.time || 'Just now',
+        icon,
+        color,
+      };
+    });
+  }, [storeNotifications, colors]);
 
   const handleClear = (id: string) => {
-    setClearedIds((prev) => [...prev, id]);
+    void clearNotification(id);
   };
 
-  const notifications = React.useMemo(() => {
-    const list: NotificationItemData[] = [];
-
-    projects.forEach((p) => {
-      list.push({
-        id: `proj-${p.id}`,
-        title: `Deployment "${p.name}"`,
-        desc: `Status: ${p.status || 'Active'} • ${p.techStack.join(', ') || 'General'}`,
-        time: p.lastUpdated ? new Date(p.lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Active',
-        icon: 'cpu',
-        color: colors.primaryFixed,
-      });
-
-      p.milestones.forEach((m) => {
-        if (m.completed) {
-          list.push({
-            id: `ms-${m.id}`,
-            title: `Feature Shipped: ${m.title}`,
-            desc: `Project: ${p.name}`,
-            time: 'Completed',
-            icon: 'check-circle',
-            color: colors.secondaryFixed,
-          });
-        }
-      });
-    });
-
-    if (list.length === 0) {
-      list.push({
-        id: 'welcome',
-        title: 'Welcome to Trak',
-        desc: 'All systems operational. Start by creating a project.',
-        time: 'Now',
-        icon: 'bell',
-        color: colors.primaryFixed,
-      });
-    }
-
-    return list.slice(0, 10);
-  }, [projects, colors]);
-
-  const activeNotifications = notifications.filter((n) => !clearedIds.includes(n.id));
-
   const handleClearAll = () => {
-    setClearedIds(notifications.map((n) => n.id));
+    void clearAll();
   };
 
   return (
@@ -421,7 +421,7 @@ function NotificationsModal({ visible, onClose }: { visible: boolean; onClose: (
               )}
 
               <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
-                {isInitialLoading && !isLoaded && projects.length === 0 ? (
+                {isInitialLoading && !isLoaded ? (
                   <NotificationSkeleton />
                 ) : activeNotifications.length > 0 ? (
                   activeNotifications.map((item) => (

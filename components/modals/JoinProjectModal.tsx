@@ -70,11 +70,11 @@ export const JoinProjectModal: React.FC<JoinProjectModalProps> = ({
       const res = await joinProjectByCode(finalCode);
       if (res.success && res.projectId) {
         triggerHaptic(30);
-        let msg = 'You have successfully joined the project!';
+        let msg = 'You are now a member of this project and can collaborate with your team.';
         if (res.status === 'already_owner') {
           msg = 'You are already the owner of this project.';
         } else if (res.status === 'already_member') {
-          msg = 'You are already a member of this project.';
+          msg = 'You are already a collaborating member of this project.';
         }
 
         setJoinResult({
@@ -140,11 +140,13 @@ export const JoinProjectModal: React.FC<JoinProjectModalProps> = ({
                   <View style={styles.header}>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.title, { color: colors.onSurface }]}>
-                        Join Project
+                        {joinResult ? 'Project Status' : 'Join Project'}
                       </Text>
-                      <Text style={[styles.subtitle, { color: colors.onSurfaceVariant }]}>
-                        Enter the unique project code or scan the QR code shared by your project leader.
-                      </Text>
+                      {!joinResult && (
+                        <Text style={[styles.subtitle, { color: colors.onSurfaceVariant }]}>
+                          Enter the unique project code or scan the QR code shared by your project leader.
+                        </Text>
+                      )}
                     </View>
                     <Pressable onPress={handleClose} hitSlop={10} style={styles.closeBtn}>
                       <Feather name="x" size={20} color={colors.onSurfaceVariant} />
@@ -156,31 +158,71 @@ export const JoinProjectModal: React.FC<JoinProjectModalProps> = ({
                     <View style={styles.successBox}>
                       <View
                         style={[
-                          styles.successIconWrap,
-                          { backgroundColor: `${colors.primaryFixed}20` },
+                          styles.outerIconGlow,
+                          { backgroundColor: `${colors.primaryFixed}15` },
                         ]}
                       >
-                        <Feather name="check-circle" size={40} color={colors.primaryFixed} />
+                        <View
+                          style={[
+                            styles.successIconWrap,
+                            { backgroundColor: `${colors.primaryFixed}30` },
+                          ]}
+                        >
+                          <Feather name="check" size={32} color={colors.primaryFixed} />
+                        </View>
                       </View>
+
                       <Text style={[styles.successTitle, { color: colors.onSurface }]}>
                         {joinResult.status === 'already_owner'
                           ? 'Project Owner'
                           : joinResult.status === 'already_member'
                           ? 'Already a Member'
-                          : 'Joined Successfully'}
+                          : 'Joined Successfully!'}
                       </Text>
-                      <Text style={[styles.successMsg, { color: colors.onSurfaceVariant }]}>
-                        {joinResult.message}
-                      </Text>
-                      <Pressable
-                        onPress={handleOpenProject}
-                        style={[styles.primaryBtn, { backgroundColor: colors.primaryFixed }]}
+
+                      <View
+                        style={[
+                          styles.msgCard,
+                          {
+                            backgroundColor: colors.surfaceContainerHigh,
+                            borderColor: colors.glassBorder,
+                          },
+                        ]}
                       >
-                        <Text style={[styles.primaryBtnText, { color: colors.onPrimaryFixed }]}>
-                          Open Project
+                        <Text style={[styles.successMsg, { color: colors.onSurfaceVariant }]}>
+                          {joinResult.message}
                         </Text>
-                        <Feather name="arrow-right" size={16} color={colors.onPrimaryFixed} />
-                      </Pressable>
+                      </View>
+
+                      {/* Action Buttons */}
+                      <View style={styles.resultActions}>
+                        <Pressable
+                          onPress={handleOpenProject}
+                          style={({ pressed }) => [
+                            styles.primaryBtn,
+                            { backgroundColor: colors.primaryFixed },
+                            pressed && { opacity: 0.8 },
+                          ]}
+                        >
+                          <Text style={[styles.primaryBtnText, { color: colors.onPrimaryFixed }]}>
+                            Open Project
+                          </Text>
+                          <Feather name="arrow-right" size={16} color={colors.onPrimaryFixed} />
+                        </Pressable>
+
+                        <Pressable
+                          onPress={handleClose}
+                          style={({ pressed }) => [
+                            styles.secondaryBtn,
+                            { borderColor: colors.glassBorder },
+                            pressed && { opacity: 0.7 },
+                          ]}
+                        >
+                          <Text style={[styles.secondaryBtnText, { color: colors.onSurfaceVariant }]}>
+                            Done
+                          </Text>
+                        </Pressable>
+                      </View>
                     </View>
                   ) : (
                     /* Code entry form */
@@ -316,7 +358,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 20,
+    marginBottom: 18,
   },
   title: {
     fontFamily: 'Inter_700Bold',
@@ -363,6 +405,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   primaryBtn: {
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -373,6 +416,18 @@ const styles = StyleSheet.create({
   primaryBtnText: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 14,
+  },
+  secondaryBtn: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  secondaryBtnText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
   },
   dividerRow: {
     flexDirection: 'row',
@@ -402,27 +457,46 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   successBox: {
+    width: '100%',
     alignItems: 'center',
-    paddingVertical: 12,
-    gap: 12,
+    paddingVertical: 8,
+    gap: 14,
   },
-  successIconWrap: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
+  outerIconGlow: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
+    marginBottom: 2,
+  },
+  successIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   successTitle: {
     fontFamily: 'Inter_700Bold',
-    fontSize: 18,
+    fontSize: 20,
+    textAlign: 'center',
+  },
+  msgCard: {
+    width: '100%',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
   },
   successMsg: {
     fontFamily: 'Inter_400Regular',
-    fontSize: 14,
+    fontSize: 13,
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 8,
+    lineHeight: 19,
+  },
+  resultActions: {
+    width: '100%',
+    gap: 10,
+    marginTop: 6,
   },
 });

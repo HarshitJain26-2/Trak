@@ -525,7 +525,7 @@ export default function ProjectDetailsScreen() {
 
   // Determine if this is a shared project (user is member, not owner)
   const isSharedProject = project.isShared === true;
-  const allMembers = fetchedMembers.length > 0 ? fetchedMembers : (project.members || []);
+  const allMembers = project.members && project.members.length > 0 ? project.members : fetchedMembers;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.surface }]}>

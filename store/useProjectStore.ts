@@ -4,6 +4,7 @@ import { safeStorage } from '@/services/storage';
 import { getActiveUserId, emailToUUID, getDeviceId } from '@/utils/deviceUser';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { notificationService } from '@/services/notifications';
+import { useNotificationStore } from './useNotificationStore';
 import { Alert } from 'react-native';
 
 
@@ -46,6 +47,7 @@ export interface Project {
   isCompleted?: boolean;
   isDeleted?: boolean;
   isPinned?: boolean;
+  deletedAt?: string;     // ISO timestamp when project was moved to trash
   // Collaboration fields
   members?: ProjectMember[];
   isShared?: boolean;     // true if user is a member (not owner)
@@ -66,6 +68,8 @@ interface ProjectStore {
   deleteProject: (projectId: string) => Promise<void>;
   restoreProject: (projectId: string) => Promise<void>;
   permanentlyDeleteProject: (projectId: string) => Promise<void>;
+  bulkPermanentlyDeleteProjects: (projectIds: string[]) => Promise<void>;
+  bulkRestoreProjects: (projectIds: string[]) => Promise<void>;
   toggleMilestone: (projectId: string, milestoneId: string) => Promise<void>;
   addMilestone: (projectId: string, title: string, description?: string, deadline?: string) => Promise<void>;
   editMilestone: (projectId: string, milestoneId: string, updates: { title?: string; description?: string; deadline?: string }) => Promise<void>;
@@ -302,7 +306,14 @@ const fetchProjectsBackground = async (
     }
   }
 
-  const allDbProjects = [...ownedProjects, ...sharedProjects];
+  // Strictly deduplicate by ID between owned and shared projects
+  const uniqueDbProjectsMap = new Map<string, any>();
+  [...ownedProjects, ...sharedProjects].forEach((p: any) => {
+    if (p?.id && !uniqueDbProjectsMap.has(p.id.toString())) {
+      uniqueDbProjectsMap.set(p.id.toString(), p);
+    }
+  });
+  const allDbProjects = Array.from(uniqueDbProjectsMap.values());
 
   // Auto-sync any local projects that are not yet in Supabase (OWNED projects only)
   let localProjectsToSync: Project[] = [];
@@ -515,6 +526,7 @@ const fetchProjectsBackground = async (
       notes: row.notes || '',
       isCompleted: row.is_completed ?? false,
       isDeleted: row.is_deleted ?? false,
+      deletedAt: row.deleted_at || (row.is_deleted ? (row.last_updated || new Date().toISOString()) : undefined),
       isPinned,
       milestones: projectMilestones,
       members: projectMembers,
@@ -524,7 +536,35 @@ const fetchProjectsBackground = async (
     };
   });
 
-  const finalProjects = [...formattedProjects, ...localProjectsToSync];
+  // Strictly deduplicate final projects by unique ID
+  const uniqueFinalMap = new Map<string, Project>();
+  [...formattedProjects, ...localProjectsToSync].forEach((p) => {
+    if (p?.id && !uniqueFinalMap.has(p.id.toString())) {
+      uniqueFinalMap.set(p.id.toString(), p);
+    }
+  });
+
+  // 15-day auto-purge for deleted projects
+  const fifteenDaysAgoMs = Date.now() - 15 * 24 * 60 * 60 * 1000;
+  const expiredProjectIds: string[] = [];
+  const activeAndFreshProjects: Project[] = [];
+
+  Array.from(uniqueFinalMap.values()).forEach((p) => {
+    if (p.isDeleted && p.deletedAt) {
+      const deletedTimestamp = new Date(p.deletedAt).getTime();
+      if (!isNaN(deletedTimestamp) && deletedTimestamp < fifteenDaysAgoMs) {
+        expiredProjectIds.push(p.id);
+        return; // Filter out
+      }
+    }
+    activeAndFreshProjects.push(p);
+  });
+
+  if (expiredProjectIds.length > 0) {
+    void supabase.from('projects').delete().in('id', expiredProjectIds);
+  }
+
+  const finalProjects = activeAndFreshProjects;
 
   const finalPinnedIds = finalProjects.filter((p) => p.isPinned).map((p) => p.id);
   await savePinnedIdsToLocalStorage(userId, finalPinnedIds);
@@ -534,9 +574,9 @@ const fetchProjectsBackground = async (
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
   projects: [],
-  isLoading: false,
+  isLoading: true,
   isLoaded: false,
-  isInitialLoading: false,
+  isInitialLoading: true,
   currentUserId: null,
 
   setCurrentUserId: (userId: string | null) => {
@@ -732,9 +772,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
 
   deleteProject: async (projectId) => {
+    const nowIso = new Date().toISOString();
     set((state) => ({
       projects: state.projects.map((p) =>
-        p.id === projectId ? { ...p, isDeleted: true } : p
+        p.id === projectId ? { ...p, isDeleted: true, deletedAt: nowIso } : p
       ),
     }));
     const userId = await getActiveUserId();
@@ -743,7 +784,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     try {
       await supabase
         .from('projects')
-        .update({ is_deleted: true })
+        .update({ is_deleted: true, deleted_at: nowIso })
         .eq('id', projectId);
     } catch (err) {
       console.error('Failed to sync deleteProject to Supabase:', err);
@@ -753,7 +794,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   restoreProject: async (projectId) => {
     set((state) => ({
       projects: state.projects.map((p) =>
-        p.id === projectId ? { ...p, isDeleted: false } : p
+        p.id === projectId ? { ...p, isDeleted: false, deletedAt: undefined } : p
       ),
     }));
     const userId = await getActiveUserId();
@@ -762,7 +803,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     try {
       await supabase
         .from('projects')
-        .update({ is_deleted: false })
+        .update({ is_deleted: false, deleted_at: null })
         .eq('id', projectId);
     } catch (err) {
       console.error('Failed to sync restoreProject to Supabase:', err);
@@ -780,6 +821,43 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       await supabase.from('projects').delete().eq('id', projectId);
     } catch (err) {
       console.error('Failed to sync permanentlyDeleteProject to Supabase:', err);
+    }
+  },
+
+  bulkPermanentlyDeleteProjects: async (projectIds: string[]) => {
+    if (!projectIds || projectIds.length === 0) return;
+    const idSet = new Set(projectIds);
+    set((state) => ({
+      projects: state.projects.filter((p) => !idSet.has(p.id)),
+    }));
+    const userId = await getActiveUserId();
+    await saveToLocalStorage(userId, get().projects);
+
+    try {
+      await supabase.from('projects').delete().in('id', projectIds);
+    } catch (err) {
+      console.error('Failed to sync bulkPermanentlyDeleteProjects to Supabase:', err);
+    }
+  },
+
+  bulkRestoreProjects: async (projectIds: string[]) => {
+    if (!projectIds || projectIds.length === 0) return;
+    const idSet = new Set(projectIds);
+    set((state) => ({
+      projects: state.projects.map((p) =>
+        idSet.has(p.id) ? { ...p, isDeleted: false, deletedAt: undefined } : p
+      ),
+    }));
+    const userId = await getActiveUserId();
+    await saveToLocalStorage(userId, get().projects);
+
+    try {
+      await supabase
+        .from('projects')
+        .update({ is_deleted: false, deleted_at: null })
+        .in('id', projectIds);
+    } catch (err) {
+      console.error('Failed to sync bulkRestoreProjects to Supabase:', err);
     }
   },
 
@@ -1422,16 +1500,70 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'project_members' },
         async (payload: any) => {
-          void get().fetchProjects({ forceRefresh: true });
+          const newMemberRow = payload.new;
+          if (!newMemberRow) return;
+
+          const activeUserId = await getActiveUserId();
+
+          // 1. Fetch profile name of new member
+          let memberName = 'Member';
           try {
-            const activeUserId = await getActiveUserId();
-            if (payload.new && payload.new.user_id !== activeUserId) {
-              void notificationService.sendImmediateNotification(
-                '👥 New Member Joined',
-                'A new team member has joined your project.'
-              );
+            const { data: prof } = await supabase
+              .from('profiles')
+              .select('name, username, email')
+              .eq('id', newMemberRow.user_id)
+              .maybeSingle();
+            if (prof) {
+              memberName = prof.name?.trim() || prof.username?.trim() || (prof.email ? prof.email.split('@')[0] : 'Member');
             }
           } catch (_) {}
+
+          const newMemberObj: ProjectMember = {
+            id: newMemberRow.id,
+            userId: newMemberRow.user_id,
+            role: newMemberRow.role || 'member',
+            name: memberName,
+            joinedAt: newMemberRow.joined_at || new Date().toISOString(),
+          };
+
+          // 2. Targeted update in Zustand state: inject new member directly into project.members
+          set((state) => ({
+            projects: state.projects.map((p) => {
+              if (p.id !== newMemberRow.project_id) return p;
+              const existingMembers = p.members || [];
+              if (existingMembers.some((m) => m.userId === newMemberRow.user_id || m.id === newMemberRow.id)) {
+                return p;
+              }
+              return {
+                ...p,
+                members: [...existingMembers, newMemberObj],
+              };
+            }),
+          }));
+
+          // 3. If joining user is the current active user, fetch all accessible projects
+          if (newMemberRow.user_id === activeUserId) {
+            void get().fetchProjects({ forceRefresh: true });
+          } else {
+            // 4. Notify owner/collaborators
+            const targetProject = get().projects.find((p) => p.id === newMemberRow.project_id);
+            const projName = targetProject?.name || 'your project';
+
+            void notificationService.sendImmediateNotification(
+              '👥 New Member Joined',
+              `${memberName} joined "${projName}".`
+            );
+
+            void useNotificationStore.getState().addNotification({
+              type: 'project_member_joined',
+              projectId: newMemberRow.project_id,
+              projectName: projName,
+              title: 'New Member Joined',
+              desc: `${memberName} joined "${projName}".`,
+              actorName: memberName,
+              actorUserId: newMemberRow.user_id,
+            });
+          }
         }
       )
       // 4. Project Members Changes (Collaborator Left / Removed)
@@ -1439,30 +1571,128 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         'postgres_changes',
         { event: 'DELETE', schema: 'public', table: 'project_members' },
         async (payload: any) => {
-          try {
-            const activeUserId = await getActiveUserId();
-            if (payload.old && payload.old.user_id === activeUserId) {
-              // Current user was removed from a project — immediately purge it from UI
-              const removedProjectId = payload.old.project_id;
-              set((state) => ({
-                projects: state.projects.filter((p) => p.id !== removedProjectId),
-              }));
+          const oldRow = payload.old;
+          if (!oldRow) return;
 
-              // Clean shared IDs cache
+          const activeUserId = await getActiveUserId();
+          let removedUserId = oldRow.user_id;
+          let removedProjectId = oldRow.project_id;
+
+          // If oldRow only contains id, find corresponding project and member in current Zustand state
+          if (!removedProjectId || !removedUserId) {
+            for (const p of get().projects) {
+              const matchingMem = p.members?.find((m) => m.id === oldRow.id);
+              if (matchingMem) {
+                removedProjectId = p.id;
+                removedUserId = matchingMem.userId;
+                break;
+              }
+            }
+          }
+
+          // If active user was removed from a project (or this is a shared project and user lost access)
+          if ((removedUserId && removedUserId === activeUserId) || (removedProjectId && get().projects.some(p => p.id === removedProjectId && p.isShared && (!removedUserId || removedUserId === activeUserId)))) {
+            set((state) => ({
+              projects: state.projects.filter((p) => p.id !== removedProjectId),
+            }));
+
+            if (activeUserId && removedProjectId) {
               const currentSharedIds = await getSharedIdsFromLocalStorage(activeUserId);
               const updatedSharedIds = currentSharedIds.filter((id) => id !== removedProjectId);
               await saveSharedIdsToLocalStorage(activeUserId, updatedSharedIds);
               await saveToLocalStorage(activeUserId, get().projects);
-
-              void notificationService.sendImmediateNotification(
-                '⚠️ Removed from Project',
-                'The project leader has removed you from the project.'
-              );
             }
-          } catch (_) {}
 
-          // Refetch to reconcile state with the server for all users
-          void get().fetchProjects({ forceRefresh: true });
+            void notificationService.sendImmediateNotification(
+              '⚠️ Removed from Project',
+              'You have been removed from the project.'
+            );
+
+            void useNotificationStore.getState().addNotification({
+              type: 'project_member_removed',
+              projectId: removedProjectId,
+              title: 'Removed from Project',
+              desc: 'You have been removed from the project.',
+              actorUserId: activeUserId,
+            });
+            return;
+          }
+
+          // Otherwise remove member from project.members in Zustand
+          let removedMemberName = 'A member';
+          const targetProject = get().projects.find((p) => p.id === removedProjectId);
+          if (targetProject) {
+            const mem = (targetProject.members || []).find((m) => (removedUserId ? m.userId === removedUserId : false) || (oldRow.id ? m.id === oldRow.id : false));
+            if (mem) removedMemberName = mem.name;
+          }
+
+          set((state) => ({
+            projects: state.projects.map((p) => {
+              if (p.id !== removedProjectId && (!oldRow.id || !p.members?.some((m) => m.id === oldRow.id))) return p;
+              return {
+                ...p,
+                members: (p.members || []).filter(
+                  (m) => (removedUserId ? m.userId !== removedUserId : true) && (oldRow.id ? m.id !== oldRow.id : true)
+                ),
+              };
+            }),
+          }));
+
+          if (targetProject) {
+            const projName = targetProject.name || 'your project';
+            void notificationService.sendImmediateNotification(
+              '👤 Member Left',
+              `${removedMemberName} left "${projName}".`
+            );
+
+            void useNotificationStore.getState().addNotification({
+              type: 'project_member_left',
+              projectId: removedProjectId,
+              projectName: projName,
+              title: 'Member Left',
+              desc: `${removedMemberName} left "${projName}".`,
+              actorName: removedMemberName,
+              actorUserId: removedUserId || '',
+            });
+          }
+        }
+      )
+      // 5. Notifications Table Changes (Realtime in-app notification sync)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications' },
+        async (payload: any) => {
+          const row = payload.new;
+          if (!row) return;
+
+          const activeUserId = await getActiveUserId();
+          if (row.user_id === activeUserId) {
+            // If user was removed from project, immediately purge project card from dashboard
+            if (row.type === 'project_member_removed' && row.project_id) {
+              set((state) => ({
+                projects: state.projects.filter((p) => p.id !== row.project_id),
+              }));
+
+              if (activeUserId) {
+                void getSharedIdsFromLocalStorage(activeUserId).then(async (currentSharedIds) => {
+                  const updatedSharedIds = currentSharedIds.filter((id) => id !== row.project_id);
+                  await saveSharedIdsToLocalStorage(activeUserId, updatedSharedIds);
+                  await saveToLocalStorage(activeUserId, get().projects);
+                });
+              }
+            }
+
+            void useNotificationStore.getState().addNotification({
+              id: row.id,
+              type: row.type,
+              projectId: row.project_id || undefined,
+              title: row.title,
+              desc: row.message,
+              actorUserId: row.actor_id || undefined,
+            });
+
+            void notificationService.sendImmediateNotification(row.title, row.message);
+          }
         }
       )
       // 5. Profiles Changes (Collaborator updated their name/avatar)

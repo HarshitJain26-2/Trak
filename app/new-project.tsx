@@ -11,6 +11,7 @@ import {
   Platform,
   KeyboardAvoidingView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -81,8 +82,9 @@ export default function NewProjectScreen() {
     setShowOtherTagModal(false);
   };
 
-  // Validation state
+  // Validation and Submission state
   const [deadlineError, setDeadlineError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
 
   const saveScale = useRef(new Animated.Value(1)).current;
 
@@ -129,54 +131,67 @@ export default function NewProjectScreen() {
       Alert.alert('Duplicate Project', 'A project with this name already exists.');
       return;
     }
+    if (!name.trim()) return;
+    if (isCreating) return;
 
+    // Validate deadline format if provided
     if (deadline.trim() && deadline.trim() !== 'No Deadline') {
-      const validation = validateDeadlineDate(deadline);
+      const validation = validateDeadlineDate(deadline.trim());
       if (!validation.isValid) {
         Alert.alert('Invalid Deadline', validation.error || 'Please enter a valid deadline date (e.g. 2026-12-31).');
         return;
       }
     }
 
+    setIsCreating(true);
     triggerHaptic(20);
-    const newProjectId = Date.now().toString();
 
-    const createdProject = await addProject({
-      id: newProjectId,
-      name: name.trim(),
-      description: description.trim(),
-      version: 'v0.1.0',
-      status: 'active' as ProjectStatus,
-      techStack: selectedTags,
-      deadline: deadline.trim() || 'No Deadline',
-      repoUrl: repoUrl.trim(),
-      priority,
-      milestones: features.map((title, i) => ({
-        id: `m_${Date.now()}_${i}`,
-        title,
-        completed: false,
-      })),
-    });
+    try {
+      const newProjectId = Date.now().toString();
 
-    // Schedule reminder if deadline is valid date (not No Deadline) and specified
-    if (deadline.trim() && deadline.trim() !== 'No Deadline' && reminderConfig) {
-      const deadlineTimestamp = parseDeadlineTimestamp(deadline.trim());
-      if (deadlineTimestamp) {
-        const triggerTimestamp = deadlineTimestamp - reminderConfig.offsetMinutes * 60 * 1000;
-        await notificationService.scheduleReminder({
-          id: `rem_${createdProject.id}`,
-          projectId: createdProject.id,
-          projectName: name.trim(),
-          triggerTime: triggerTimestamp,
-          offsetLabel: reminderConfig.label,
-        });
+      const createdProject = await addProject({
+        id: newProjectId,
+        name: name.trim(),
+        description: description.trim(),
+        version: 'v0.1.0',
+        status: 'active' as ProjectStatus,
+        techStack: selectedTags,
+        deadline: deadline.trim() || 'No Deadline',
+        repoUrl: repoUrl.trim(),
+        priority,
+        milestones: features.map((title, i) => ({
+          id: `m_${Date.now()}_${i}`,
+          title,
+          completed: false,
+        })),
+      });
+
+      // Schedule reminder if deadline is valid date (not No Deadline) and specified
+      if (deadline.trim() && deadline.trim() !== 'No Deadline' && reminderConfig) {
+        const deadlineTimestamp = parseDeadlineTimestamp(deadline.trim());
+        if (deadlineTimestamp) {
+          const triggerTimestamp = deadlineTimestamp - reminderConfig.offsetMinutes * 60 * 1000;
+          await notificationService.scheduleReminder({
+            id: `rem_${createdProject.id}`,
+            projectId: createdProject.id,
+            projectName: name.trim(),
+            triggerTime: triggerTimestamp,
+            offsetLabel: reminderConfig.label,
+          });
+        }
       }
-    }
 
-    router.back();
+      router.back();
+    } catch (err) {
+      console.error('Error creating project:', err);
+      setIsCreating(false);
+    }
   };
 
-  const handleClose = () => router.back();
+  const handleClose = () => {
+    if (isCreating) return;
+    router.back();
+  };
 
   const handleSavePressIn = () =>
     Animated.spring(saveScale, { toValue: 0.95, useNativeDriver: Platform.OS !== 'web', speed: 30 }).start();
@@ -479,11 +494,24 @@ export default function NewProjectScreen() {
                 onPressIn={handleSavePressIn}
                 onPressOut={handleSavePressOut}
                 onPress={handleSave}
-                disabled={!name.trim()}
-                style={[styles.saveBtn, { backgroundColor: colors.primaryFixed }, !name.trim() && styles.saveBtnDisabled]}
+                disabled={!name.trim() || isCreating}
+                style={[
+                  styles.saveBtn,
+                  { backgroundColor: colors.primaryFixed },
+                  (!name.trim() || isCreating) && styles.saveBtnDisabled,
+                ]}
               >
-                <Feather name="plus" size={18} color={colors.onPrimaryFixed} />
-                <Text style={[styles.saveBtnText, { color: colors.onPrimaryFixed }]}>Create Project</Text>
+                {isCreating ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <ActivityIndicator size="small" color={colors.onPrimaryFixed} />
+                    <Text style={[styles.saveBtnText, { color: colors.onPrimaryFixed }]}>Creating Project...</Text>
+                  </View>
+                ) : (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Feather name="plus" size={18} color={colors.onPrimaryFixed} />
+                    <Text style={[styles.saveBtnText, { color: colors.onPrimaryFixed }]}>Create Project</Text>
+                  </View>
+                )}
               </Pressable>
             </Animated.View>
           </View>
