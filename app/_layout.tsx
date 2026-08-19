@@ -16,7 +16,6 @@ import {
 import { View, ActivityIndicator, Platform, LogBox, AppState, AppStateStatus } from 'react-native';
 import { useThemeColors } from '@/constants/colors';
 import { useEffect } from 'react';
-import * as Notifications from 'expo-notifications';
 
 // Ignore known web deprecation notices and push warnings
 LogBox.ignoreLogs([
@@ -107,32 +106,27 @@ export default function RootLayout() {
 
   // Listen for local notifications received and tapped
   useEffect(() => {
-    if (Platform.OS === 'web') return;
-
-    try {
-      const notificationSubscription = Notifications.addNotificationReceivedListener((notification) => {
-        if (__DEV__) {
-          console.log('[RootLayout] Local Notification Received:', notification.request.content.title);
+    let cleanup: (() => void) | null = null;
+    void notificationService
+      .initializeListeners(
+        (notification) => {
+          if (__DEV__) {
+            console.log('[RootLayout] Local Notification Received:', notification?.request?.content?.title);
+          }
+        },
+        (response) => {
+          if (__DEV__) {
+            console.log('[RootLayout] Local Notification Response Tapped:', response?.notification?.request?.content);
+          }
         }
+      )
+      .then((unsub) => {
+        cleanup = unsub;
       });
 
-      const responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
-        if (__DEV__) {
-          console.log('[RootLayout] Local Notification Response Tapped:', response.notification.request.content);
-        }
-        const data = response.notification.request.content.data;
-        if (data?.projectId) {
-          // Optionally handle deep link or navigation when user taps a notification
-        }
-      });
-
-      return () => {
-        notificationSubscription.remove();
-        responseSubscription.remove();
-      };
-    } catch (_) {
-      // Safe fallback for unsupported runtime environments
-    }
+    return () => {
+      cleanup?.();
+    };
   }, []);
 
   // Listen to auth state changes to keep data in sync with the logged-in user
