@@ -23,15 +23,15 @@ import { ProjectCard } from '@/components/project/ProjectCard';
 import EmptyState from '@/components/common/EmptyState';
 import { MemberAvatar } from '@/components/common/MemberAvatar';
 import { DashboardSkeleton, NotificationSkeleton } from '@/components/skeletons';
+import { JoinProjectModal } from '@/components/modals/JoinProjectModal';
 
 export default function DashboardScreen() {
   const router = useRouter();
   const colors = useThemeColors();
   const { projects, isLoaded, isInitialLoading, fetchProjects, subscribeToRealtime, unsubscribeFromRealtime } = useProjectStore();
   const [searchQuery, setSearchQuery] = useState('');
-
-
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+  const [showJoinModal, setShowJoinModal] = useState(false);
 
 
   // Fetch projects on screen mount and focus
@@ -185,6 +185,12 @@ export default function DashboardScreen() {
     <View style={[styles.root, { backgroundColor: colors.surface }]}>
 
 
+      {/* Join Project Modal */}
+      <JoinProjectModal
+        visible={showJoinModal}
+        onClose={() => setShowJoinModal(false)}
+      />
+
       {/* Notifications Modal */}
       <NotificationsModal
         visible={showNotificationsModal}
@@ -206,7 +212,14 @@ export default function DashboardScreen() {
             <Feather name="terminal" size={20} color={colors.primaryFixed} />
             <Text style={[styles.appBarTitle, { color: colors.primaryFixed }]}>Trak</Text>
           </View>
-          <View style={styles.appBarRight}>
+          <View style={[styles.appBarRight, { flexDirection: 'row', alignItems: 'center', gap: 10 }]}>
+            <Pressable
+              onPress={() => setShowJoinModal(true)}
+              style={styles.iconBtn}
+              hitSlop={8}
+            >
+              <Feather name="user-plus" size={19} color={colors.primaryFixed} />
+            </Pressable>
             <Pressable
               onPress={() => setShowNotificationsModal(true)}
               style={styles.iconBtn}

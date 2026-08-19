@@ -50,6 +50,7 @@ export interface Project {
   members?: ProjectMember[];
   isShared?: boolean;     // true if user is a member (not owner)
   ownerName?: string;     // owner's display name (for shared projects)
+  joinCode?: string;      // Unique shareable join code (e.g. TRK-7K4P9Q)
 }
 
 interface ProjectStore {
@@ -79,6 +80,8 @@ interface ProjectStore {
   leaveProject: (projectId: string) => Promise<void>;
   fetchProjectMembers: (projectId: string) => Promise<ProjectMember[]>;
   removeMember: (projectId: string, targetUserId: string) => Promise<void>;
+  joinProjectByCode: (code: string) => Promise<{ success: boolean; projectId?: string; error?: string; status?: 'joined' | 'already_member' | 'already_owner' }>;
+  regenerateJoinCode: (projectId: string) => Promise<{ success: boolean; newCode?: string; error?: string }>;
   subscribeToRealtime: () => void;
   unsubscribeFromRealtime: () => void;
 }
@@ -254,7 +257,7 @@ const fetchProjectsBackground = async (
   const [ownedRes, membershipsRes] = await Promise.all([
     supabase
       .from('projects')
-      .select('id, name, version, description, status, tech_stack, deadline, progress, repo_url, priority, last_updated, notes, is_completed, is_deleted, user_id')
+      .select('id, name, version, description, status, tech_stack, deadline, progress, repo_url, priority, last_updated, notes, is_completed, is_deleted, user_id, join_code')
       .in('user_id', userIdsToQuery),
     supabase
       .from('project_members')
@@ -517,6 +520,7 @@ const fetchProjectsBackground = async (
       members: projectMembers,
       isShared,
       ownerName: resolvedOwnerName,
+      joinCode: row.join_code || undefined,
     };
   });
 
@@ -1229,6 +1233,113 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }
   },
 
+  joinProjectByCode: async (code: string) => {
+    const cleanCode = code.trim().toUpperCase();
+    if (!cleanCode || !/^TRK-[A-Z0-9]{6}$/.test(cleanCode)) {
+      return {
+        success: false,
+        error: 'Enter a valid Trak project code (e.g. TRK-XXXXXX).',
+      };
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('join_project_by_code', {
+        code: cleanCode,
+      });
+
+      if (error) {
+        return {
+          success: false,
+          error: error.message || 'Failed to join project.',
+        };
+      }
+
+      const result = data as {
+        success: boolean;
+        status?: 'joined' | 'already_member' | 'already_owner';
+        project_id?: string;
+        project_name?: string;
+        error?: string;
+        message?: string;
+      };
+
+      if (!result.success && result.error) {
+        return {
+          success: false,
+          error: result.error,
+        };
+      }
+
+      // Refresh projects in background without flashing skeletons
+      void get().fetchProjects({ forceRefresh: true });
+
+      return {
+        success: true,
+        projectId: result.project_id,
+        status: result.status,
+      };
+    } catch (err: any) {
+      console.error('Failed to join project by code:', err);
+      return {
+        success: false,
+        error: err?.message || 'Unable to join project. Check your connection.',
+      };
+    }
+  },
+
+  regenerateJoinCode: async (projectId: string) => {
+    try {
+      const { data, error } = await supabase.rpc('regenerate_project_join_code', {
+        p_project_id: projectId,
+      });
+
+      if (error) {
+        return {
+          success: false,
+          error: error.message || 'Failed to regenerate join code.',
+        };
+      }
+
+      const result = data as {
+        success: boolean;
+        join_code?: string;
+        error?: string;
+      };
+
+      if (!result.success || !result.join_code) {
+        return {
+          success: false,
+          error: result.error || 'Failed to regenerate join code.',
+        };
+      }
+
+      const newCode = result.join_code;
+
+      // Update in local Zustand store immediately
+      set((state) => ({
+        projects: state.projects.map((p) =>
+          p.id === projectId ? { ...p, joinCode: newCode } : p
+        ),
+      }));
+
+      const activeUserId = await getActiveUserId();
+      if (activeUserId) {
+        await saveToLocalStorage(activeUserId, get().projects);
+      }
+
+      return {
+        success: true,
+        newCode,
+      };
+    } catch (err: any) {
+      console.error('Failed to regenerate join code:', err);
+      return {
+        success: false,
+        error: err?.message || 'Unable to regenerate code.',
+      };
+    }
+  },
+
 
   subscribeToRealtime: () => {
     if (realtimeChannel) {
@@ -1273,7 +1384,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
                   notes: updatedRow.notes ?? p.notes,
                   isCompleted: updatedRow.is_completed ?? p.isCompleted,
                   isDeleted: updatedRow.is_deleted ?? p.isDeleted,
-
+                  joinCode: updatedRow.join_code ?? p.joinCode,
                 };
               }),
             }));

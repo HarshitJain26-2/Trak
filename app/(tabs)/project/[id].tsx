@@ -27,6 +27,7 @@ import { StatusDot } from '@/components/common/StatusDot';
 import { ConfirmDialog, useConfirmDialog } from '@/components/common/ConfirmDialog';
 import { MemberAvatar } from '@/components/common/MemberAvatar';
 import { ProjectDetailsSkeleton } from '@/components/skeletons';
+import { ProjectCodeModal } from '@/components/modals/ProjectCodeModal';
 
 import { CalendarPickerModal } from '@/components/modals/CalendarPickerModal';
 import { AestheticCheckbox } from '@/components/common/AestheticCheckbox';
@@ -275,6 +276,7 @@ export default function ProjectDetailsScreen() {
   const project = getProject(id);
   const insets = useSafeAreaInsets();
   const { dialogProps, ask, notify } = useConfirmDialog();
+  const [showCodeModal, setShowCodeModal] = useState(false);
 
   const myDisplayName = profile?.name?.trim() || profile?.username?.trim() || 'You';
 
@@ -529,6 +531,13 @@ export default function ProjectDetailsScreen() {
     <View style={[styles.root, { backgroundColor: colors.surface }]}>
       <ConfirmDialog {...dialogProps} />
 
+      {/* Project Code & QR Modal */}
+      <ProjectCodeModal
+        visible={showCodeModal}
+        project={project}
+        onClose={() => setShowCodeModal(false)}
+      />
+
       {/* Modals */}
       <MilestoneActionModal
         visible={showActionSheet}
@@ -758,6 +767,26 @@ export default function ProjectDetailsScreen() {
               </View>
             ))}
 
+            {/* Add Members Button (Owner only) */}
+            {!isSharedProject && (
+              <Pressable
+                onPress={() => setShowCodeModal(true)}
+                style={({ pressed }) => [
+                  styles.memberChip,
+                  {
+                    backgroundColor: `${colors.primaryFixed}12`,
+                    borderColor: `${colors.primaryFixed}50`,
+                    borderStyle: 'dashed',
+                  },
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <Feather name="user-plus" size={14} color={colors.primaryFixed} />
+                <Text style={[styles.memberName, { color: colors.primaryFixed, fontFamily: 'Inter_600SemiBold' }]}>
+                  Add Members
+                </Text>
+              </Pressable>
+            )}
 
           </View>
         </View>
