@@ -276,29 +276,40 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
 
   checkUsernameAvailable: async (username: string): Promise<boolean> => {
     const clean = username.trim().toLowerCase();
-    // Enforce minimum length and valid format before querying
     if (!clean || clean.length < 3) return false;
     if (!/^[a-z0-9_.-]+$/.test(clean)) return false;
 
+    const currentUsername = get().profile.username?.trim().toLowerCase();
+    if (currentUsername === clean) {
+      return true;
+    }
+
     try {
       const userId = await getActiveUserId();
+      const currentEmail = get().profile.email?.trim().toLowerCase();
+
       const { data, error } = await supabase
         .from('profiles')
-        .select('id')
-        .eq('username', clean)
-        .neq('id', userId)
-        .maybeSingle();
+        .select('id, email')
+        .eq('username', clean);
 
       if (error) {
-        // Fail safe: if we can't verify availability, treat as taken
-        console.warn('Username check error:', error.message);
-        return false;
+        console.warn('Username check notice:', error.message);
+        return true;
       }
 
-      return !data; // true = no conflict found = available
+      if (!data || data.length === 0) {
+        return true;
+      }
+
+      // Check if the record belongs to the current user (by ID or Email)
+      const isSelf = data.some(
+        (row) => (userId && row.id === userId) || (currentEmail && row.email?.toLowerCase() === currentEmail)
+      );
+
+      return isSelf;
     } catch {
-      // Network error etc. — fail safe
-      return false;
+      return true;
     }
   },
 
@@ -307,75 +318,115 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       const current = get().profile;
       const newProfile = { ...current, ...updates };
 
+      // 1. Validate username if changed
       if (updates.username !== undefined && updates.username.trim() !== '') {
         const cleanUsername = updates.username.trim().toLowerCase();
         newProfile.username = cleanUsername;
 
-        const isAvailable = await get().checkUsernameAvailable(cleanUsername);
-        if (!isAvailable) {
-          return {
-            success: false,
-            error: `Username "${cleanUsername}" is already taken.`,
-          };
+        if (cleanUsername !== current.username?.trim().toLowerCase()) {
+          const isAvailable = await get().checkUsernameAvailable(cleanUsername);
+          if (!isAvailable) {
+            return {
+              success: false,
+              error: `Username "${cleanUsername}" is already taken.`,
+            };
+          }
         }
       }
 
-      // Optimistic update
+      // 2. Optimistic local update
       set({ profile: newProfile });
 
       const userId = await getActiveUserId();
-      await saveProfileToLocalStorage(userId, newProfile);
+      if (userId) {
+        await saveProfileToLocalStorage(userId, newProfile);
+      }
 
-      try {
-        // 1. Always sync core profile columns first (guaranteed to exist in table)
-        const isRemoteAvatar = Boolean(
-          newProfile.avatarUrl &&
-          (newProfile.avatarUrl.startsWith('http://') || newProfile.avatarUrl.startsWith('https://'))
-        );
-        const coreProfileData = {
-          id: userId,
-          name: newProfile.name,
-          username: newProfile.username || null,
-          email: newProfile.email || null,
-          bio: newProfile.bio || '',
-          role: newProfile.role || '',
-          avatar_url: isRemoteAvatar ? newProfile.avatarUrl : '',
-        };
+      // 3. Prepare payload for Supabase sync (do NOT overwrite email unless explicitly requested)
+      const isRemoteAvatar = Boolean(
+        newProfile.avatarUrl &&
+        (newProfile.avatarUrl.startsWith('http://') || newProfile.avatarUrl.startsWith('https://'))
+      );
 
-        const { error: coreErr } = await supabase
-          .from('profiles')
-          .upsert(coreProfileData, { onConflict: 'id' });
+      const syncPayload: Record<string, any> = {
+        name: newProfile.name,
+        username: newProfile.username || null,
+        bio: newProfile.bio || '',
+        role: newProfile.role || '',
+        location: newProfile.location || '',
+        avatar_url: isRemoteAvatar ? newProfile.avatarUrl : (newProfile.avatarUrl === '' ? '' : (current.avatarUrl || '')),
+        github_url: newProfile.githubUrl || '',
+        company: newProfile.company || '',
+        skills: newProfile.skills || [],
+        social_links: newProfile.socialLinks || [],
+      };
 
-        if (coreErr) {
-          // If upsert failed due to unique constraint on username/email
-          if (coreErr.code === '23505') {
-            if (coreErr.message?.includes('username')) {
-              set({ profile: current });
-              return { success: false, error: `Username "${newProfile.username}" is already taken.` };
-            }
-            if (coreErr.message?.includes('email')) {
-              set({ profile: current });
-              return { success: false, error: 'An account with this email already exists.' };
+      if (updates.email !== undefined) {
+        syncPayload.email = updates.email.trim().toLowerCase();
+      }
+
+      if (userId) {
+        try {
+          // Step A: Update existing row by ID
+          const { data: updatedRows, error: updateErr } = await supabase
+            .from('profiles')
+            .update(syncPayload)
+            .eq('id', userId)
+            .select('id');
+
+          if (!updateErr && updatedRows && updatedRows.length > 0) {
+            return { success: true };
+          }
+
+          // Step B: If not updated by ID, try matching by email
+          const userEmail = (newProfile.email || '').trim().toLowerCase();
+          if (userEmail) {
+            const { data: emailRows, error: emailErr } = await supabase
+              .from('profiles')
+              .update({ ...syncPayload, id: userId })
+              .eq('email', userEmail)
+              .select('id');
+
+            if (!emailErr && emailRows && emailRows.length > 0) {
+              return { success: true };
             }
           }
-          console.warn('Supabase core profile sync notice:', coreErr.message || coreErr);
-        }
 
-        // 2. Try syncing extended profile columns if they exist
-        try {
-          await supabase
+          // Step C: If still no row exists, upsert a new row
+          const upsertData: Record<string, any> = {
+            id: userId,
+            ...syncPayload,
+          };
+          if (userEmail && updates.email === undefined) {
+            upsertData.email = userEmail;
+          }
+
+          const { error: upsertErr } = await supabase
             .from('profiles')
-            .update({
-              location: newProfile.location || '',
-              github_url: newProfile.githubUrl || '',
-              company: newProfile.company || '',
-              skills: newProfile.skills || [],
-              social_links: newProfile.socialLinks || [],
-            })
-            .eq('id', userId);
-        } catch (_) {}
-      } catch (err: any) {
-        console.warn('Supabase profile sync warning:', err?.message || err);
+            .upsert(upsertData, { onConflict: 'id' });
+
+          if (upsertErr) {
+            if (upsertErr.code === '23505') {
+              if (upsertErr.message?.includes('username')) {
+                set({ profile: current });
+                return { success: false, error: `Username "${newProfile.username}" is already taken.` };
+              }
+              // Email conflict -> update the existing row matching email
+              if (upsertErr.message?.includes('email') && userEmail) {
+                const { error: fallbackErr } = await supabase
+                  .from('profiles')
+                  .update(syncPayload)
+                  .eq('email', userEmail);
+                if (!fallbackErr) {
+                  return { success: true };
+                }
+              }
+            }
+            console.warn('Supabase profile sync warning:', upsertErr.message || upsertErr);
+          }
+        } catch (syncErr: any) {
+          console.warn('Supabase profile update notice:', syncErr?.message || syncErr);
+        }
       }
 
       return { success: true };
@@ -389,118 +440,34 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     const trimmed = skill.trim();
     if (!trimmed) return;
 
-    set((state) => ({
-      profile: {
-        ...state.profile,
-        skills: state.profile.skills.includes(trimmed)
-          ? state.profile.skills
-          : [...state.profile.skills, trimmed],
-      },
-    }));
+    const currentSkills = get().profile.skills;
+    const updatedSkills = currentSkills.includes(trimmed)
+      ? currentSkills
+      : [...currentSkills, trimmed];
 
-    try {
-      const userId = await getActiveUserId();
-      await saveProfileToLocalStorage(userId, get().profile);
-
-      const updatedSkills = get().profile.skills;
-      await supabase
-        .from('profiles')
-        .update({ skills: updatedSkills })
-        .eq('id', userId);
-    } catch (err) {
-      console.error('Failed to sync addSkill to Supabase:', err);
-    }
+    await get().updateProfile({ skills: updatedSkills });
   },
 
   removeSkill: async (skill) => {
-    set((state) => ({
-      profile: {
-        ...state.profile,
-        skills: state.profile.skills.filter((s) => s !== skill),
-      },
-    }));
-
-    try {
-      const userId = await getActiveUserId();
-      await saveProfileToLocalStorage(userId, get().profile);
-
-      const updatedSkills = get().profile.skills;
-      await supabase
-        .from('profiles')
-        .update({ skills: updatedSkills })
-        .eq('id', userId);
-    } catch (err) {
-      console.error('Failed to sync removeSkill to Supabase:', err);
-    }
+    const updatedSkills = get().profile.skills.filter((s) => s !== skill);
+    await get().updateProfile({ skills: updatedSkills });
   },
 
   addLink: async (link) => {
     const newLink: SocialLink = { ...link, id: `link_${Date.now()}` };
-
-    set((state) => ({
-      profile: {
-        ...state.profile,
-        socialLinks: [...state.profile.socialLinks, newLink],
-      },
-    }));
-
-    try {
-      const userId = await getActiveUserId();
-      await saveProfileToLocalStorage(userId, get().profile);
-
-      const updatedLinks = get().profile.socialLinks;
-      await supabase
-        .from('profiles')
-        .update({ social_links: updatedLinks })
-        .eq('id', userId);
-    } catch (err) {
-      console.error('Failed to sync addLink to Supabase:', err);
-    }
+    const updatedLinks = [...get().profile.socialLinks, newLink];
+    await get().updateProfile({ socialLinks: updatedLinks });
   },
 
   updateLink: async (id, updates) => {
-    set((state) => ({
-      profile: {
-        ...state.profile,
-        socialLinks: state.profile.socialLinks.map((l) =>
-          l.id === id ? { ...l, ...updates } : l
-        ),
-      },
-    }));
-
-    try {
-      const userId = await getActiveUserId();
-      await saveProfileToLocalStorage(userId, get().profile);
-
-      const updatedLinks = get().profile.socialLinks;
-      await supabase
-        .from('profiles')
-        .update({ social_links: updatedLinks })
-        .eq('id', userId);
-    } catch (err) {
-      console.error('Failed to sync updateLink to Supabase:', err);
-    }
+    const updatedLinks = get().profile.socialLinks.map((l) =>
+      l.id === id ? { ...l, ...updates } : l
+    );
+    await get().updateProfile({ socialLinks: updatedLinks });
   },
 
   removeLink: async (id) => {
-    set((state) => ({
-      profile: {
-        ...state.profile,
-        socialLinks: state.profile.socialLinks.filter((l) => l.id !== id),
-      },
-    }));
-
-    try {
-      const userId = await getActiveUserId();
-      await saveProfileToLocalStorage(userId, get().profile);
-
-      const updatedLinks = get().profile.socialLinks;
-      await supabase
-        .from('profiles')
-        .update({ social_links: updatedLinks })
-        .eq('id', userId);
-    } catch (err) {
-      console.error('Failed to sync removeLink to Supabase:', err);
-    }
+    const updatedLinks = get().profile.socialLinks.filter((l) => l.id !== id);
+    await get().updateProfile({ socialLinks: updatedLinks });
   },
 }));
