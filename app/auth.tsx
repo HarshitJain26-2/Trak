@@ -24,7 +24,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import FuturisticLoadingScreen from '@/components/FuturisticLoadingScreen';
 
 import { setActiveUserId, emailToUUID } from '@/utils/deviceUser';
-import { getPendingInviteToken } from '@/services/inviteService';
+
 
 // Ensure in-app WebBrowser sessions complete properly on Android/iOS
 WebBrowser.maybeCompleteAuthSession();
@@ -99,11 +99,6 @@ export default function AuthScreen() {
   };
 
   const navigateAfterAuth = async () => {
-    const pendingInvite = await getPendingInviteToken();
-    if (pendingInvite) {
-      router.replace(`/invite/${pendingInvite}` as any);
-      return;
-    }
     const currentProfile = useProfileStore.getState().profile;
     const hasUsername =
       currentProfile.username &&

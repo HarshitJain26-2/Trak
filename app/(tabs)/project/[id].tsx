@@ -26,7 +26,7 @@ import { TechPill } from '@/components/common/TechPill';
 import { StatusDot } from '@/components/common/StatusDot';
 import { ConfirmDialog, useConfirmDialog } from '@/components/common/ConfirmDialog';
 import { MemberAvatar } from '@/components/common/MemberAvatar';
-import { InviteCodeModal } from '@/components/modals/InviteCodeModal';
+
 import { CalendarPickerModal } from '@/components/modals/CalendarPickerModal';
 import { AestheticCheckbox } from '@/components/common/AestheticCheckbox';
 import { IncompleteTasksWarningModal } from '@/components/modals/IncompleteTasksWarningModal';
@@ -263,7 +263,7 @@ export default function ProjectDetailsScreen() {
     markCompleted,
     deleteProject,
     updateProject,
-    generateInviteCode,
+
     leaveProject,
     fetchProjectMembers,
     removeMember,
@@ -340,9 +340,6 @@ export default function ProjectDetailsScreen() {
     setShowEditRepoModal(false);
   };
 
-  // Collaboration state
-  const [showInviteModal, setShowInviteModal] = useState(false);
-  const [isGeneratingCode, setIsGeneratingCode] = useState(false);
   const [showWarningModal, setShowWarningModal] = useState(false);
 
   // Team Members state
@@ -456,21 +453,13 @@ export default function ProjectDetailsScreen() {
     if (ok && project) deleteMilestone(project.id, milestone.id);
   };
 
-  const handleGenerateInviteCode = async () => {
-    if (!project) return;
-    setShowInviteModal(true);
-    if (!project.inviteCode) {
-      setIsGeneratingCode(true);
-      await generateInviteCode(project.id);
-      setIsGeneratingCode(false);
-    }
-  };
+
 
   const handleLeaveProject = async () => {
     if (!project) return;
     const ok = await ask({
       title: 'Leave Project',
-      message: `You will no longer have access to "${project.name}". You can rejoin later with an invite code.`,
+      message: `You will no longer have access to "${project.name}".`,
       confirmLabel: 'Leave',
       destructive: true,
       icon: 'log-out',
@@ -562,15 +551,7 @@ export default function ProjectDetailsScreen() {
         }}
       />
 
-      <InviteCodeModal
-        visible={showInviteModal}
-        projectId={project.id}
-        projectName={project.name}
-        inviteCode={project.inviteCode || null}
-        isGenerating={isGeneratingCode}
-        onClose={() => setShowInviteModal(false)}
-        onGenerate={handleGenerateInviteCode}
-      />
+
 
       <IncompleteTasksWarningModal
         visible={showWarningModal}
@@ -620,16 +601,7 @@ export default function ProjectDetailsScreen() {
             <Text style={[styles.appBarTitle, { color: colors.primaryFixed }]}>Trak</Text>
           </View>
           <View style={styles.appBarRight}>
-            {/* Invite button (owner only) */}
-            {!isSharedProject && (
-              <Pressable
-                hitSlop={8}
-                style={[styles.inviteBtn, { backgroundColor: `${colors.primaryFixed}1A`, borderColor: `${colors.primaryFixed}30` }]}
-                onPress={() => setShowInviteModal(true)}
-              >
-                <Feather name="user-plus" size={16} color={colors.primaryFixed} />
-              </Pressable>
-            )}
+
             {/* Leave button (member only) */}
             {isSharedProject && (
               <Pressable
@@ -778,20 +750,7 @@ export default function ProjectDetailsScreen() {
               </View>
             ))}
 
-            {/* Invite Member Chip for Leader */}
-            {!isSharedProject && (
-              <Pressable
-                onPress={handleGenerateInviteCode}
-                style={({ pressed }) => [
-                  styles.addMemberChip,
-                  { backgroundColor: `${colors.primaryFixed}0A`, borderColor: `${colors.primaryFixed}30` },
-                  pressed && { opacity: 0.7 },
-                ]}
-              >
-                <Feather name="user-plus" size={14} color={colors.primaryFixed} />
-                <Text style={[styles.addMemberText, { color: colors.primaryFixed }]}>Invite Member</Text>
-              </Pressable>
-            )}
+
           </View>
         </View>
 
@@ -1353,13 +1312,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-  },
-  inviteBtn: {
-    padding: 8,
-    borderRadius: 999,
-    backgroundColor: `${Colors.primaryFixed}1A`,
-    borderWidth: 1,
-    borderColor: `${Colors.primaryFixed}30`,
   },
   leaveBtn: {
     padding: 8,

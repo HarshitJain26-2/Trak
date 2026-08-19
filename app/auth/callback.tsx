@@ -7,7 +7,7 @@ import { useProfileStore } from '@/store/useProfileStore';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useThemeColors } from '@/constants/colors';
 import FuturisticLoadingScreen from '@/components/FuturisticLoadingScreen';
-import { getPendingInviteToken } from '@/services/inviteService';
+
 
 export default function AuthCallbackScreen() {
   const router = useRouter();
@@ -132,7 +132,6 @@ export default function AuthCallbackScreen() {
         await useProfileStore.getState().fetchProfile(true);
         void useProjectStore.getState().fetchProjects({ forceRefresh: true });
 
-        const pendingInvite = await getPendingInviteToken();
         const currentProfile = useProfileStore.getState().profile;
         const hasUsername =
           currentProfile.username &&
@@ -140,9 +139,7 @@ export default function AuthCallbackScreen() {
           currentProfile.username !== 'developer';
 
         if (isMounted) {
-          if (pendingInvite) {
-            router.replace(`/invite/${pendingInvite}` as any);
-          } else if (hasUsername) {
+          if (hasUsername) {
             router.replace('/(tabs)');
           } else {
             router.replace('/setup-profile');

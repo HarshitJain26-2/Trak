@@ -5,12 +5,7 @@ import { getActiveUserId, emailToUUID, getDeviceId } from '@/utils/deviceUser';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { notificationService } from '@/services/notifications';
 import { Alert } from 'react-native';
-import {
-  inviteService,
-  ProjectInvite,
-  InviteValidationResult,
-  JoinInviteResult,
-} from '@/services/inviteService';
+
 
 export type ProjectStatus = 'active' | 'blocked' | 'idle' | 'warning';
 export type Priority = 'low' | 'medium' | 'high';
@@ -52,7 +47,6 @@ export interface Project {
   isDeleted?: boolean;
   isPinned?: boolean;
   // Collaboration fields
-  inviteCode?: string;
   members?: ProjectMember[];
   isShared?: boolean;     // true if user is a member (not owner)
   ownerName?: string;     // owner's display name (for shared projects)
@@ -80,18 +74,9 @@ interface ProjectStore {
   getProject: (id: string) => Project | undefined;
   clearProjects: () => void;
   // Collaboration actions
-  generateInviteCode: (projectId: string) => Promise<string | null>;
-  joinProjectByCode: (code: string) => Promise<{ success: boolean; projectName?: string; error?: string }>;
   leaveProject: (projectId: string) => Promise<void>;
   fetchProjectMembers: (projectId: string) => Promise<ProjectMember[]>;
   removeMember: (projectId: string, targetUserId: string) => Promise<void>;
-  // Secure Invite Link actions
-  createProjectInvite: (projectId: string, options?: { expiresInHours?: number | null; expiresAt?: string | null; maxUses?: number | null }) => Promise<{ invite: ProjectInvite | null; rawToken: string | null; error?: string }>;
-  updateProjectInviteSettings: (projectId: string, inviteId: string, options: { expiresAt?: string | null; maxUses?: number | null }) => Promise<{ invite: ProjectInvite | null; error?: string }>;
-  revokeProjectInvite: (projectId: string, inviteId?: string) => Promise<{ success: boolean; error?: string }>;
-  getActiveProjectInvite: (projectId: string) => Promise<ProjectInvite | null>;
-  validateInviteToken: (token: string) => Promise<InviteValidationResult>;
-  joinProjectByInviteToken: (token: string) => Promise<JoinInviteResult>;
   subscribeToRealtime: () => void;
   unsubscribeFromRealtime: () => void;
 }
@@ -157,15 +142,6 @@ const saveToLocalStorage = async (userId: string, projects: Project[]) => {
   }
 };
 
-/** Generate a random short invite code like TRK-A4F9 */
-const generateShortCode = (): string => {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  for (let i = 0; i < 4; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return `TRK-${code}`;
-};
 
 /** Get current user's display name */
 const getCurrentUserName = async (): Promise<string> => {
@@ -276,7 +252,7 @@ const fetchProjectsBackground = async (
   const [ownedRes, membershipsRes] = await Promise.all([
     supabase
       .from('projects')
-      .select('id, name, version, description, status, tech_stack, deadline, progress, repo_url, priority, last_updated, notes, is_completed, is_deleted, user_id, invite_code')
+      .select('id, name, version, description, status, tech_stack, deadline, progress, repo_url, priority, last_updated, notes, is_completed, is_deleted, user_id')
       .in('user_id', userIdsToQuery),
     supabase
       .from('project_members')
@@ -304,7 +280,7 @@ const fetchProjectsBackground = async (
   if (sharedProjectIds.length > 0) {
     const { data, error: sharedErr } = await supabase
       .from('projects')
-      .select('id, name, version, description, status, tech_stack, deadline, progress, repo_url, priority, last_updated, notes, is_completed, is_deleted, user_id, invite_code')
+      .select('id, name, version, description, status, tech_stack, deadline, progress, repo_url, priority, last_updated, notes, is_completed, is_deleted, user_id')
       .in('id', sharedProjectIds);
     sharedProjects = data || [];
 
@@ -514,11 +490,6 @@ const fetchProjectsBackground = async (
 
     const isShared = !userIdsToQuery.includes(row.user_id);
     const isPinned = pinnedSet.has(row.id.toString());
-    const inviteCode = row.invite_code || generateShortCode();
-
-    if (!row.invite_code && !isShared) {
-      void Promise.resolve(supabase.from('projects').update({ invite_code: inviteCode }).eq('id', row.id)).catch(() => {});
-    }
 
     const resolvedOwnerName = isShared
       ? (profileMap.get(row.user_id?.toString()) || 'Team Leader')
@@ -541,7 +512,6 @@ const fetchProjectsBackground = async (
       isDeleted: row.is_deleted ?? false,
       isPinned,
       milestones: projectMilestones,
-      inviteCode,
       members: projectMembers,
       isShared,
       ownerName: resolvedOwnerName,
@@ -647,7 +617,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   addProject: async (data) => {
     const userId = await getActiveUserId();
-    const inviteCode = generateShortCode();
 
     // Ensure creator profile is synced to Supabase so other users see the leader's real name
     try {
@@ -669,7 +638,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       lastUpdated: 'just now',
       milestones: initialMilestones,
       notes: data.notes || '',
-      inviteCode,
     };
 
     set((state) => ({ projects: [newProject, ...state.projects] }));
@@ -692,7 +660,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         notes: newProject.notes,
         is_completed: false,
         is_deleted: false,
-        invite_code: inviteCode,
       };
 
       const { error } = await supabase.from('projects').upsert(insertData);
@@ -916,7 +883,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           notes: project.notes,
           is_completed: false,
           is_deleted: project.isDeleted ?? false,
-          invite_code: project.inviteCode,
         });
       }
 
@@ -1131,139 +1097,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   getProject: (id) => get().projects.find((p) => p.id === id),
 
-  // ─── Collaboration Actions ─────────────────────────────────────────────────
-
-  generateInviteCode: async (projectId) => {
-    try {
-      const code = generateShortCode();
-      const userId = await getActiveUserId();
-
-      // Ensure leader's name is saved in Supabase profiles so joined members see the leader's real name
-      try {
-        const myName = await getCurrentUserName();
-        if (userId && myName && myName !== 'Developer' && myName !== 'User') {
-          await supabase.from('profiles').update({ name: myName }).eq('id', userId);
-        }
-      } catch (_) {}
-
-      // 1. Update Supabase DB (with SELECT verification & RPC fallback)
-      const { data, error } = await supabase
-        .from('projects')
-        .update({ invite_code: code })
-        .eq('id', projectId)
-        .select('id, invite_code');
-
-      if (error || !data || data.length === 0) {
-        // Fallback update via SECURITY DEFINER RPC function
-        try {
-          await supabase.rpc('regenerate_invite_code', {
-            p_project_id: projectId,
-            p_code: code,
-          });
-        } catch (rpcErr) {
-          console.warn('RPC regenerate_invite_code error:', rpcErr);
-        }
-      }
-
-      // 2. Update local Zustand state
-      set((state) => ({
-        projects: state.projects.map((p) =>
-          p.id === projectId ? { ...p, inviteCode: code } : p
-        ),
-      }));
-
-      // 3. Save to local storage immediately so local cache stays in sync
-      await saveToLocalStorage(userId, get().projects);
-
-      return code;
-    } catch (err) {
-      console.error('Failed to generate invite code:', err);
-      return null;
-    }
-  },
-
-  joinProjectByCode: async (code: string) => {
-    try {
-      if (!code || !code.trim()) {
-        return { success: false, error: 'Please enter a valid invite code' };
-      }
-
-      const cleanInput = code.trim();
-      const userId = await getActiveUserId();
-
-      // Ensure active user's name is saved in Supabase profiles so other team members see the real name
-      try {
-        const myName = await getCurrentUserName();
-        if (userId && myName && myName !== 'Developer' && myName !== 'User') {
-          await supabase.from('profiles').update({ name: myName }).eq('id', userId);
-        }
-      } catch (_) {}
-
-      // Call secure RPC v2 first
-      let rpcResult: { data: any; error: any } = await supabase.rpc('join_project_by_invite_code_v2', {
-        p_code: cleanInput,
-      });
-
-      // Fallback to legacy RPC if v2 is not yet deployed on Supabase
-      if (rpcResult.error && (rpcResult.error.code === 'PGRST202' || rpcResult.error.message?.includes('join_project_by_invite_code_v2'))) {
-        rpcResult = await supabase.rpc('join_project_by_invite_code', {
-          code: cleanInput,
-          p_user_id: userId,
-        });
-      }
-
-      const { data: rpcData, error: rpcError } = rpcResult;
-
-      if (rpcError) {
-        const errMsg = rpcError.message || rpcError.details || '';
-        if (errMsg.includes('OWNER_CANNOT_JOIN') || errMsg.includes('owner of this project')) {
-          return { success: false, error: 'You are the owner of this project' };
-        }
-        if (errMsg.includes('ALREADY_MEMBER') || errMsg.includes('Already a member')) {
-          return { success: false, error: 'You are already a member of this project' };
-        }
-        if (errMsg.includes('UNAUTHENTICATED')) {
-          return { success: false, error: 'Please sign in first.' };
-        }
-        if (errMsg.includes('INVALID_CODE') || errMsg.includes('Invalid invite code')) {
-          return { success: false, error: 'Invalid invite code. Please check the code and try again.' };
-        }
-        return { success: false, error: 'Unable to join the project. Please try again.' };
-      }
-
-      const joinedProjectId = Array.isArray(rpcData) && rpcData[0]?.project_id ? rpcData[0].project_id : (typeof rpcData === 'string' ? rpcData : null);
-
-      if (joinedProjectId) {
-        const currentSharedIds = await getSharedIdsFromLocalStorage(userId);
-        if (!currentSharedIds.includes(joinedProjectId)) {
-          await saveSharedIdsToLocalStorage(userId, [...currentSharedIds, joinedProjectId]);
-        }
-      }
-
-      // Set the module-level flag so any subsequent fetchProjects() call
-      // (e.g. from useFocusEffect on the home page) also forces a full refresh
-      _forceNextRefresh = true;
-
-      // RPC succeeded and inserted membership. Now fetch the full project via authorized query
-      await get().fetchProjects({ forceRefresh: true });
-
-      const joinedProject = joinedProjectId ? get().projects.find((p) => p.id === joinedProjectId) : undefined;
-      const joinedName = (Array.isArray(rpcData) && rpcData[0]?.project_name) || joinedProject?.name || 'Project';
-
-      // Notify joining user of successful join via code
-      void notificationService.sendImmediateNotification(
-        '🎉 Project Joined',
-        `Successfully joined project "${joinedName}" via invite code.`
-      );
-
-      return {
-        success: true,
-        projectName: joinedName,
-      };
-    } catch (err: any) {
-      return { success: false, error: err?.message || 'Unable to join the project. Please try again.' };
-    }
-  },
 
   leaveProject: async (projectId) => {
     try {
@@ -1392,79 +1225,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }
   },
 
-  // Secure Invite Link actions
-  createProjectInvite: async (projectId, options) => {
-    return await inviteService.createInvite(projectId, options);
-  },
-
-  updateProjectInviteSettings: async (projectId, inviteId, options) => {
-    return await inviteService.updateInviteSettings(projectId, inviteId, options);
-  },
-
-  revokeProjectInvite: async (projectId, inviteId) => {
-    return await inviteService.revokeInvite(projectId, inviteId);
-  },
-
-  getActiveProjectInvite: async (projectId) => {
-    return await inviteService.getActiveInvite(projectId);
-  },
-
-  validateInviteToken: async (token) => {
-    return await inviteService.validateInvite(token);
-  },
-
-  joinProjectByInviteToken: async (token) => {
-    try {
-      const userId = await getActiveUserId();
-
-      // Ensure active user's name is saved in Supabase profiles
-      try {
-        const myName = await getCurrentUserName();
-        if (userId && myName && myName !== 'Developer' && myName !== 'User') {
-          await supabase.from('profiles').update({ name: myName }).eq('id', userId);
-        }
-      } catch (_) {}
-
-      const result = await inviteService.joinProjectWithInvite(token, userId);
-
-      if (!result.success) {
-        return result;
-      }
-
-      if (result.projectId) {
-        const currentSharedIds = await getSharedIdsFromLocalStorage(userId);
-        if (!currentSharedIds.includes(result.projectId)) {
-          await saveSharedIdsToLocalStorage(userId, [...currentSharedIds, result.projectId]);
-        }
-      }
-
-      _forceNextRefresh = true;
-      await get().fetchProjects({ forceRefresh: true });
-
-      const joinedProject = result.projectId ? get().projects.find((p) => p.id === result.projectId) : undefined;
-      const joinedName = result.projectName || joinedProject?.name || 'Project';
-
-      if (result.status === 'JOINED') {
-        void notificationService.sendImmediateNotification(
-          '🎉 Project Joined',
-          `Successfully joined "${joinedName}" via invite link.`
-        );
-      }
-
-      return {
-        ...result,
-        projectName: joinedName,
-      };
-    } catch (err: any) {
-      return {
-        success: false,
-        status: 'ERROR',
-        projectId: null,
-        projectName: null,
-        error: err?.message || 'Unable to join project. Please try again.',
-      };
-    }
-  },
 
   subscribeToRealtime: () => {
     if (realtimeChannel) {
@@ -1509,7 +1269,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
                   notes: updatedRow.notes ?? p.notes,
                   isCompleted: updatedRow.is_completed ?? p.isCompleted,
                   isDeleted: updatedRow.is_deleted ?? p.isDeleted,
-                  inviteCode: updatedRow.invite_code ?? p.inviteCode,
+
                 };
               }),
             }));
@@ -1590,15 +1350,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           void get().fetchProjects({ forceRefresh: true });
         }
       )
-      // 5. Project Invites Changes
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'project_invites' },
-        (payload: any) => {
-          void get().fetchProjects({ forceRefresh: true });
-        }
-      )
-      // 6. Profiles Changes (Collaborator updated their name/avatar)
+      // 5. Profiles Changes (Collaborator updated their name/avatar)
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'profiles' },
