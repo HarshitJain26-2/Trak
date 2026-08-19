@@ -109,22 +109,30 @@ export default function RootLayout() {
   useEffect(() => {
     if (Platform.OS === 'web') return;
 
-    const notificationSubscription = Notifications.addNotificationReceivedListener((notification) => {
-      console.log('[RootLayout] Local Notification Received:', notification.request.content.title);
-    });
+    try {
+      const notificationSubscription = Notifications.addNotificationReceivedListener((notification) => {
+        if (__DEV__) {
+          console.log('[RootLayout] Local Notification Received:', notification.request.content.title);
+        }
+      });
 
-    const responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      console.log('[RootLayout] Local Notification Response Tapped:', response.notification.request.content);
-      const data = response.notification.request.content.data;
-      if (data?.projectId) {
-        // Optionally handle deep link or navigation when user taps a notification
-      }
-    });
+      const responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
+        if (__DEV__) {
+          console.log('[RootLayout] Local Notification Response Tapped:', response.notification.request.content);
+        }
+        const data = response.notification.request.content.data;
+        if (data?.projectId) {
+          // Optionally handle deep link or navigation when user taps a notification
+        }
+      });
 
-    return () => {
-      notificationSubscription.remove();
-      responseSubscription.remove();
-    };
+      return () => {
+        notificationSubscription.remove();
+        responseSubscription.remove();
+      };
+    } catch (_) {
+      // Safe fallback for unsupported runtime environments
+    }
   }, []);
 
   // Listen to auth state changes to keep data in sync with the logged-in user
