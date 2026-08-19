@@ -14,9 +14,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import * as WebBrowser from 'expo-web-browser';
-import * as Linking from 'expo-linking';
-import Constants from 'expo-constants';
 import { Colors, useThemeColors } from '@/constants/colors';
 import { supabase } from '@/services/supabase';
 import { useProfileStore } from '@/store/useProfileStore';
@@ -25,9 +22,6 @@ import FuturisticLoadingScreen from '@/components/FuturisticLoadingScreen';
 
 import { setActiveUserId, emailToUUID } from '@/utils/deviceUser';
 
-
-// Ensure in-app WebBrowser sessions complete properly on Android/iOS
-WebBrowser.maybeCompleteAuthSession();
 
 type AuthMode = 'signin' | 'signup';
 
@@ -281,196 +275,6 @@ export default function AuthScreen() {
     }
   };
 
-  /**
-   * Shared helper: complete the native OAuth flow for Google provider.
-   * 1. Gets the OAuth URL with skipBrowserRedirect.
-   * 2. Opens it via expo-web-browser.
-   * 3. Extracts tokens from the redirect callback.
-   * 4. Calls supabase.auth.setSession() to complete login.
-   * The existing onAuthStateChange listener in _layout.tsx handles navigation.
-   */
-  const performOAuthFlow = async (provider: 'google' = 'google') => {
-    const redirectUrl = Linking.createURL('auth/callback');
-
-    if (Platform.OS === 'web') {
-      // On Web, standard browser redirect is used.
-      // signInWithOAuth will navigate window.location to Google -> Supabase -> /auth/callback.
-      // app/auth/callback.tsx will process the tokens on return.
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo: redirectUrl,
-          skipBrowserRedirect: false,
-        },
-      });
-
-      if (error) {
-        if (error.message?.includes('provider is not enabled') || error.message?.includes('Unsupported provider')) {
-          throw new Error(
-            'Google login is disabled in your Supabase Dashboard. ' +
-            'Please enable Google under Supabase -> Auth -> Providers.'
-          );
-        }
-        throw error;
-      }
-      return;
-    }
-
-    // Native (Android / iOS) Flow via in-app browser session
-    const isExpoGo = Constants.appOwnership === 'expo' || Constants.executionEnvironment === 'storeClient';
-    console.log('[OAuth] Platform:', Platform.OS);
-    console.log('[OAuth] Environment:', isExpoGo ? 'Expo Go' : 'Standalone / Dev Build');
-    console.log('[OAuth] Generated redirect URI:', redirectUrl);
-
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: redirectUrl,
-        skipBrowserRedirect: true,
-      },
-    });
-
-    if (error) {
-      if (error.message?.includes('provider is not enabled') || error.message?.includes('Unsupported provider')) {
-        throw new Error(
-          'Google login is disabled in your Supabase Dashboard. ' +
-          'Please enable Google under Supabase -> Auth -> Providers.'
-        );
-      }
-      throw error;
-    }
-
-    if (!data?.url) {
-      throw new Error('Unable to start sign-in. Please try again.');
-    }
-
-    try {
-      const parsedUrl = new URL(data.url);
-      const returnedRedirectTo = parsedUrl.searchParams.get('redirect_to');
-      console.log('[OAuth] OAuth URL host:', parsedUrl.hostname);
-      console.log('[OAuth] Supabase returned redirect_to:', returnedRedirectTo);
-
-      if (returnedRedirectTo && (returnedRedirectTo.includes('localhost:3000') || returnedRedirectTo.includes('localhost')) && !redirectUrl.includes('localhost')) {
-        console.warn(
-          `[OAuth Warning] Supabase Auth rejected requested redirect URI "${redirectUrl}" and fell back to "${returnedRedirectTo}". ` +
-          `Please ensure "${redirectUrl}" is added to Supabase Dashboard -> Auth -> URL Configuration -> Redirect URLs.`
-        );
-      }
-    } catch (_) {}
-
-    // Open the OAuth URL in an in-app browser session
-    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
-    console.log('[OAuth] WebBrowser result type:', result.type);
-
-    if (result.type !== 'success' || !result.url) {
-      throw new Error('CANCELLED');
-    }
-
-    console.log('[OAuth] Callback received: true');
-
-    // Extract query and hash parameters from callback URL
-    const callbackUrl = result.url;
-    let params = new URLSearchParams();
-
-    const hashIndex = callbackUrl.indexOf('#');
-    if (hashIndex !== -1) {
-      params = new URLSearchParams(callbackUrl.substring(hashIndex + 1));
-    }
-    const queryIndex = callbackUrl.indexOf('?');
-    if (queryIndex !== -1) {
-      const qParams = new URLSearchParams(callbackUrl.substring(queryIndex + 1, hashIndex !== -1 ? hashIndex : undefined));
-      qParams.forEach((v, k) => {
-        if (!params.has(k)) params.set(k, v);
-      });
-    }
-
-    // Check for OAuth error in callback
-    const errParam = params.get('error_description') || params.get('error');
-    if (errParam) {
-      throw new Error(decodeURIComponent(errParam.replace(/\+/g, ' ')));
-    }
-
-    // 1. Handle PKCE Code exchange flow
-    const code = params.get('code');
-    if (code) {
-      console.log('[OAuth Mobile] Callback contains code: true');
-      const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-      if (exchangeError) {
-        console.error('[OAuth Mobile] Code exchange error:', exchangeError.message);
-        throw new Error('Unable to complete sign-in. Please try again.');
-      }
-      console.log('[OAuth Mobile] Session established via PKCE: true');
-      return;
-    }
-
-    // 2. Handle Implicit Token flow
-    const accessToken = params.get('access_token');
-    const refreshToken = params.get('refresh_token');
-
-    if (accessToken && refreshToken) {
-      console.log('[OAuth Mobile] Callback contains tokens: true');
-      const { error: sessionError } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      });
-
-      if (sessionError) {
-        console.error('[OAuth Mobile] setSession error:', sessionError.message);
-        throw new Error('Unable to complete sign-in. Please try again.');
-      }
-
-      console.log('[OAuth Mobile] Session established via setSession: true');
-      return;
-    }
-
-    // 3. Fallback check for existing session
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      throw new Error('Authentication failed. No tokens or session found.');
-    }
-    console.log('[OAuth Mobile] Session verified: true');
-  };
-
-  const handleGoogleAuth = async () => {
-    if (loading) return; // prevent duplicate taps
-    setLoading(true);
-    setErrorMessage('');
-    try {
-      useProjectStore.getState().clearProjects();
-      useProfileStore.getState().clearProfile();
-      await performOAuthFlow('google');
-
-      // Mark login completed for the loading animation
-      setLoginCompleted(true);
-
-      // Fetch profile to decide navigation target
-      await useProfileStore.getState().fetchProfile(true);
-      void useProjectStore.getState().fetchProjects({ forceRefresh: true });
-
-      await navigateAfterAuth();
-    } catch (err: any) {
-      if (err?.message === 'CANCELLED') {
-        // User cancelled — no error shown
-      } else {
-        const msg = (err?.message || '').toLowerCase();
-        if (
-          msg.includes('identity_already_exists') ||
-          msg.includes('already exists') ||
-          msg.includes('already registered') ||
-          msg.includes('already been registered') ||
-          msg.includes('multiple accounts') ||
-          msg.includes('multiple_accounts')
-        ) {
-          setExistingAccountConflict(true);
-        } else {
-          setErrorMessage(err?.message || 'Google sign-in failed. Please try again.');
-        }
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const toggleMode = () => {
     setErrorMessage('');
     setMode((prev) => (prev === 'signin' ? 'signup' : 'signin'));
@@ -707,29 +511,6 @@ export default function AuthScreen() {
               )}
             </Pressable>
 
-            {/* Divider */}
-            <View style={styles.dividerRow}>
-              <View style={[styles.dividerLine, { backgroundColor: colors.glassBorder }]} />
-              <Text style={[styles.dividerText, { color: `${colors.onSurfaceVariant}70` }]}>
-                {mode === 'signin' ? 'OR CONTINUE WITH' : 'OR PROTOCOL'}
-              </Text>
-              <View style={[styles.dividerLine, { backgroundColor: colors.glassBorder }]} />
-            </View>
-
-            {/* OAuth Buttons */}
-            <Pressable
-              style={({ pressed }) => [
-                styles.githubBtn,
-                { width: '100%', backgroundColor: colors.surfaceContainerHigh, borderColor: colors.glassBorder },
-                pressed && styles.githubBtnPressed,
-              ]}
-              onPress={handleGoogleAuth}
-            >
-              <Feather name="chrome" size={18} color={colors.primaryFixed} style={{ marginRight: 10 }} />
-              <Text style={[styles.githubBtnText, { color: colors.onSurface }]}>
-                {mode === 'signin' ? 'Continue with Google' : 'Sign up with Google'}
-              </Text>
-            </Pressable>
           </View>
 
           {/* Toggle Footer Link */}
