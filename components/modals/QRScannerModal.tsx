@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { useThemeColors } from '@/constants/colors';
 import { triggerHaptic } from '@/utils/haptics';
 
@@ -26,7 +25,6 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({
   onScan,
 }) => {
   const colors = useThemeColors();
-  const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
 
   useEffect(() => {
@@ -35,7 +33,72 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({
     }
   }, [visible]);
 
-  const handleBarcodeScanned = ({ data }: BarcodeScanningResult) => {
+  // On Web, render clean fallback without evaluating native camera hooks
+  if (Platform.OS === 'web') {
+    return (
+      <Modal
+        visible={visible}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={onClose}
+      >
+        <View style={[styles.container, { backgroundColor: colors.surface }]}>
+          <View style={[styles.topBar, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
+            <Pressable onPress={onClose} hitSlop={12} style={styles.topCloseBtn}>
+              <Feather name="x" size={24} color="#FFFFFF" />
+            </Pressable>
+            <Text style={styles.topTitle}>Scan Project QR</Text>
+            <View style={{ width: 24 }} />
+          </View>
+          <View style={styles.centerBox}>
+            <Feather name="camera-off" size={48} color={colors.onSurfaceVariant} style={{ marginBottom: 16 }} />
+            <Text style={[styles.title, { color: colors.onSurface }]}>Camera Scanning Unavailable</Text>
+            <Text style={[styles.description, { color: colors.onSurfaceVariant }]}>
+              QR camera scanning is available on mobile devices. Please enter the project code manually on Web.
+            </Text>
+            <Pressable
+              onPress={onClose}
+              style={[styles.actionBtn, { backgroundColor: colors.primaryFixed }]}
+            >
+              <Text style={[styles.actionBtnText, { color: colors.onPrimaryFixed }]}>Enter Code Manually</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
+  return (
+    <NativeQRScanner
+      visible={visible}
+      onClose={onClose}
+      onScan={onScan}
+      colors={colors}
+      scanned={scanned}
+      setScanned={setScanned}
+    />
+  );
+};
+
+function NativeQRScanner({
+  visible,
+  onClose,
+  onScan,
+  colors,
+  scanned,
+  setScanned,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onScan: (code: string) => void;
+  colors: any;
+  scanned: boolean;
+  setScanned: (val: boolean) => void;
+}) {
+  const { CameraView, useCameraPermissions } = require('expo-camera');
+  const [permission, requestPermission] = useCameraPermissions();
+
+  const handleBarcodeScanned = ({ data }: any) => {
     if (scanned) return;
 
     const trimmed = (data || '').trim().toUpperCase();
@@ -48,24 +111,6 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({
   };
 
   const renderContent = () => {
-    if (Platform.OS === 'web') {
-      return (
-        <View style={styles.centerBox}>
-          <Feather name="camera-off" size={48} color={colors.onSurfaceVariant} style={{ marginBottom: 16 }} />
-          <Text style={[styles.title, { color: colors.onSurface }]}>Camera Scanning Unavailable</Text>
-          <Text style={[styles.description, { color: colors.onSurfaceVariant }]}>
-            QR camera scanning is available on mobile devices. Please enter the project code manually on Web.
-          </Text>
-          <Pressable
-            onPress={onClose}
-            style={[styles.actionBtn, { backgroundColor: colors.primaryFixed }]}
-          >
-            <Text style={[styles.actionBtnText, { color: colors.onPrimaryFixed }]}>Enter Code Manually</Text>
-          </Pressable>
-        </View>
-      );
-    }
-
     if (!permission) {
       return (
         <View style={styles.centerBox}>
@@ -153,7 +198,7 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({
       </View>
     </Modal>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
