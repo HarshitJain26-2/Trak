@@ -56,6 +56,7 @@ import { supabase } from '@/services/supabase';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useProfileStore } from '@/store/useProfileStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
+import { useNotificationStore } from '@/store/useNotificationStore';
 import { setActiveUserId } from '@/utils/deviceUser';
 import { notificationService } from '@/services/notifications';
 import FuturisticLoadingScreen from '@/components/FuturisticLoadingScreen';
@@ -71,6 +72,8 @@ export default function RootLayout() {
   const fetchProfile = useProfileStore((s) => s.fetchProfile);
   const clearProfile = useProfileStore((s) => s.clearProfile);
   const loadSettings = useSettingsStore((s) => s.loadSettings);
+  const clearNotifications = useNotificationStore((s) => s.clearStore);
+  const loadNotifications = useNotificationStore((s) => s.loadNotifications);
 
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -96,6 +99,7 @@ export default function RootLayout() {
       if (nextAppState === 'active') {
         subscribeToRealtime();
         void fetchProjects({ forceRefresh: true });
+        void loadNotifications();
       }
     });
 
@@ -143,9 +147,11 @@ export default function RootLayout() {
       if (isSignInEvent) {
         clearProjects();
         clearProfile();
+        clearNotifications();
       }
       void fetchProfile();
       void fetchProjects({ forceRefresh: isSignInEvent });
+      void loadNotifications();
       void notificationService.syncPushTokenWithSupabase(userId);
     };
 
@@ -159,6 +165,7 @@ export default function RootLayout() {
           void setActiveUserId(null);
           clearProjects();
           clearProfile();
+          clearNotifications();
           router.replace('/auth');
         }
       }

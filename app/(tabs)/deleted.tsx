@@ -396,7 +396,12 @@ export default function DeletedScreen() {
           )}
           contentContainerStyle={[
             styles.listContent,
-            { paddingTop: Math.max(insets.top, 24) + 68, paddingBottom: isSelectionMode && selectedIds.length > 0 ? 120 : 40 },
+            {
+              paddingTop: Math.max(insets.top, 24) + 68,
+              paddingBottom: isSelectionMode && selectedIds.length > 0
+                ? Math.max(insets.bottom, 16) + 140
+                : Math.max(insets.bottom, 16) + 80,
+            },
           ]}
           showsVerticalScrollIndicator={false}
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
@@ -431,7 +436,12 @@ export default function DeletedScreen() {
 
       {/* Floating Bulk Action Bar */}
       {isSelectionMode && selectedIds.length > 0 && (
-        <View style={[styles.bulkActionBarWrap, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+        <View
+          style={[
+            styles.bulkActionBarWrap,
+            { bottom: Math.max(insets.bottom, 16) + 64 },
+          ]}
+        >
           <BlurView
             intensity={80}
             tint={colors.isDark ? 'dark' : 'light'}
@@ -457,6 +467,7 @@ export default function DeletedScreen() {
                 style={[styles.bulkRestoreBtn, { backgroundColor: `${colors.primaryFixed}20`, borderColor: `${colors.primaryFixed}50` }]}
                 onPress={handleBulkRestore}
                 disabled={isProcessing}
+                hitSlop={6}
               >
                 {isProcessing ? (
                   <ActivityIndicator size="small" color={colors.primaryFixed} />
@@ -472,6 +483,7 @@ export default function DeletedScreen() {
                 style={[styles.bulkDeleteBtn, { backgroundColor: `${colors.error}20`, borderColor: `${colors.error}50` }]}
                 onPress={handleBulkDelete}
                 disabled={isProcessing}
+                hitSlop={6}
               >
                 {isProcessing ? (
                   <ActivityIndicator size="small" color={colors.error} />
@@ -716,11 +728,11 @@ const styles = StyleSheet.create({
   },
   bulkActionBarWrap: {
     position: 'absolute',
-    bottom: 0,
     left: 0,
     right: 0,
     paddingHorizontal: 16,
-    zIndex: 100,
+    zIndex: 999,
+    elevation: 20,
   },
   bulkActionBar: {
     flexDirection: 'row',

@@ -37,6 +37,7 @@ interface NotificationStoreState {
   markAllAsRead: () => Promise<void>;
   clearNotification: (id: string) => Promise<void>;
   clearAll: () => Promise<void>;
+  clearStore: () => void;
 }
 
 const getStorageKey = (userId: string) => `trak_notifications_${userId}`;
@@ -46,6 +47,10 @@ export const useNotificationStore = create<NotificationStoreState>((set, get) =>
   unreadCount: 0,
   isLoaded: false,
   activeToast: null,
+
+  clearStore: () => {
+    set({ notifications: [], unreadCount: 0, isLoaded: false, activeToast: null });
+  },
 
   showToast: (item) => {
     triggerHaptic([0, 30, 40, 30]);
@@ -59,9 +64,12 @@ export const useNotificationStore = create<NotificationStoreState>((set, get) =>
   loadNotifications: async () => {
     try {
       const activeUserId = await getActiveUserId();
-      if (!activeUserId) return;
+      if (!activeUserId) {
+        set({ notifications: [], unreadCount: 0, isLoaded: true });
+        return;
+      }
 
-      // 1. First check local storage for instant render
+      // 1. First check local storage for instant render for this specific user
       const localRaw = await safeStorage.getItem(getStorageKey(activeUserId));
       let localList: InAppNotification[] = [];
       if (localRaw) {
@@ -73,7 +81,7 @@ export const useNotificationStore = create<NotificationStoreState>((set, get) =>
       const unread = localList.filter((n) => !n.read).length;
       set({ notifications: localList, unreadCount: unread, isLoaded: true });
 
-      // 2. Fetch from Supabase
+      // 2. Fetch authoritative notifications from Supabase
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
@@ -94,19 +102,9 @@ export const useNotificationStore = create<NotificationStoreState>((set, get) =>
           actorUserId: row.actor_id || undefined,
         }));
 
-        const mergedMap = new Map<string, InAppNotification>();
-        mapped.forEach((n) => mergedMap.set(n.id, n));
-        localList.forEach((n) => {
-          if (!mergedMap.has(n.id)) {
-            mergedMap.set(n.id, n);
-          }
-        });
-
-        const finalList = Array.from(mergedMap.values()).sort((a, b) => b.timestamp - a.timestamp);
-        const finalUnread = finalList.filter((n) => !n.read).length;
-
-        set({ notifications: finalList, unreadCount: finalUnread });
-        await safeStorage.setItem(getStorageKey(activeUserId), JSON.stringify(finalList));
+        const finalUnread = mapped.filter((n) => !n.read).length;
+        set({ notifications: mapped, unreadCount: finalUnread, isLoaded: true });
+        await safeStorage.setItem(getStorageKey(activeUserId), JSON.stringify(mapped));
       }
     } catch (err) {
       console.error('[NotificationStore] Failed to load notifications:', err);
@@ -129,8 +127,8 @@ export const useNotificationStore = create<NotificationStoreState>((set, get) =>
       triggerHaptic([0, 40, 50, 40]);
 
       set((state) => {
-        // Prevent duplicates
-        if (state.notifications.some((n) => n.id === id || (n.desc === item.desc && Math.abs(n.timestamp - newNotif.timestamp) < 2000))) {
+        // Prevent duplicates by ID or identical content within a 4-second window
+        if (state.notifications.some((n) => n.id === id || (n.title === item.title && n.desc === item.desc && Math.abs(n.timestamp - newNotif.timestamp) < 4000))) {
           return { ...state, activeToast: newNotif };
         }
         const updated = [newNotif, ...state.notifications].slice(0, 30);
@@ -182,7 +180,7 @@ export const useNotificationStore = create<NotificationStoreState>((set, get) =>
       if (activeUserId) {
         await safeStorage.setItem(getStorageKey(activeUserId), JSON.stringify(get().notifications));
         try {
-          await supabase.from('notifications').delete().eq('id', id);
+          await supabase.from('notifications').delete().eq('id', id).eq('user_id', activeUserId);
         } catch (_) {}
       }
     } catch (_) {}

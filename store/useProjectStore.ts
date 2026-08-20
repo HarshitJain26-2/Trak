@@ -1544,25 +1544,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           // 3. If joining user is the current active user, fetch all accessible projects
           if (newMemberRow.user_id === activeUserId) {
             void get().fetchProjects({ forceRefresh: true });
-          } else {
-            // 4. Notify owner/collaborators
-            const targetProject = get().projects.find((p) => p.id === newMemberRow.project_id);
-            const projName = targetProject?.name || 'your project';
-
-            void notificationService.sendImmediateNotification(
-              '👥 New Member Joined',
-              `${memberName} joined "${projName}".`
-            );
-
-            void useNotificationStore.getState().addNotification({
-              type: 'project_member_joined',
-              projectId: newMemberRow.project_id,
-              projectName: projName,
-              title: 'New Member Joined',
-              desc: `${memberName} joined "${projName}".`,
-              actorName: memberName,
-              actorUserId: newMemberRow.user_id,
-            });
           }
         }
       )
@@ -1602,30 +1583,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
               await saveSharedIdsToLocalStorage(activeUserId, updatedSharedIds);
               await saveToLocalStorage(activeUserId, get().projects);
             }
-
-            void notificationService.sendImmediateNotification(
-              '⚠️ Removed from Project',
-              'You have been removed from the project.'
-            );
-
-            void useNotificationStore.getState().addNotification({
-              type: 'project_member_removed',
-              projectId: removedProjectId,
-              title: 'Removed from Project',
-              desc: 'You have been removed from the project.',
-              actorUserId: activeUserId,
-            });
             return;
           }
 
           // Otherwise remove member from project.members in Zustand
-          let removedMemberName = 'A member';
-          const targetProject = get().projects.find((p) => p.id === removedProjectId);
-          if (targetProject) {
-            const mem = (targetProject.members || []).find((m) => (removedUserId ? m.userId === removedUserId : false) || (oldRow.id ? m.id === oldRow.id : false));
-            if (mem) removedMemberName = mem.name;
-          }
-
           set((state) => ({
             projects: state.projects.map((p) => {
               if (p.id !== removedProjectId && (!oldRow.id || !p.members?.some((m) => m.id === oldRow.id))) return p;
@@ -1637,24 +1598,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
               };
             }),
           }));
-
-          if (targetProject) {
-            const projName = targetProject.name || 'your project';
-            void notificationService.sendImmediateNotification(
-              '👤 Member Left',
-              `${removedMemberName} left "${projName}".`
-            );
-
-            void useNotificationStore.getState().addNotification({
-              type: 'project_member_left',
-              projectId: removedProjectId,
-              projectName: projName,
-              title: 'Member Left',
-              desc: `${removedMemberName} left "${projName}".`,
-              actorName: removedMemberName,
-              actorUserId: removedUserId || '',
-            });
-          }
         }
       )
       // 5. Notifications Table Changes (Realtime in-app notification sync)
