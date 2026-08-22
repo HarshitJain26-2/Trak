@@ -411,7 +411,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* ── 🌐 LANGUAGE SELECTION ── */}
-        <SectionHeader title={t('language', language)} color={`${colors.onSurfaceVariant}90`} />
+        {/* <SectionHeader title={t('language', language)} color={`${colors.onSurfaceVariant}90`} />
         <View style={[styles.glassCard, { backgroundColor: colors.glassBg, borderColor: colors.glassBorder }]}>
           <Pressable style={styles.row} onPress={handleOpenLanguagePicker}>
             <View style={styles.rowLeft}>
@@ -432,7 +432,7 @@ export default function SettingsScreen() {
               <Feather name="chevron-right" size={16} color={`${colors.onSurfaceVariant}80`} />
             </View>
           </Pressable>
-        </View>
+        </View> */}
 
         {/* ── 🔔 NOTIFICATIONS & REMINDERS ── */}
         <SectionHeader title="NOTIFICATIONS & REMINDERS" color={`${colors.onSurfaceVariant}90`} />

@@ -350,14 +350,14 @@ export default function AuthScreen() {
       setForgotEmail(cleanEmail);
       setOtpCode('');
       setResendCooldown(60);
-      setInfoMessage("If an account exists for this email, we've sent a 6-digit recovery code.");
+      setInfoMessage("If an account exists for this email, we've sent a recovery code.");
       setMode('forgot_otp');
     } catch (err: any) {
       setLoading(false);
       setForgotEmail(cleanEmail);
       setOtpCode('');
       setResendCooldown(60);
-      setInfoMessage("If an account exists for this email, we've sent a 6-digit recovery code.");
+      setInfoMessage("If an account exists for this email, we've sent a recovery code.");
       setMode('forgot_otp');
     }
   };
@@ -399,8 +399,8 @@ export default function AuthScreen() {
     setInfoMessage('');
 
     const cleanCode = otpCode.replace(/\D/g, '').trim();
-    if (cleanCode.length !== 6) {
-      setErrorMessage('Please enter the complete 6-digit verification code.');
+    if (cleanCode.length !== 8) {
+      setErrorMessage('Please enter the complete 8-digit verification code.');
       return;
     }
 
@@ -879,17 +879,17 @@ export default function AuthScreen() {
       {mode === 'forgot_otp' && (
         <>
           <View style={styles.otpSection}>
-            <Text style={[styles.fieldLabel, { color: colors.onSurface, marginBottom: 8 }]}>6-Digit Verification Code</Text>
+            <Text style={[styles.fieldLabel, { color: colors.onSurface, marginBottom: 8 }]}>8-Digit Verification Code</Text>
 
-            {/* Visual 6-Digit Display Boxes */}
+            {/* Visual 8-Digit Display Boxes */}
             <Pressable
               style={styles.otpBoxesRow}
               onPress={() => otpInputRef.current?.focus()}
-              accessibilityLabel="Enter 6-digit code"
+              accessibilityLabel="Enter 8-digit code"
             >
-              {[0, 1, 2, 3, 4, 5].map((index) => {
+              {[0, 1, 2, 3, 4, 5, 6, 7].map((index) => {
                 const digit = otpCode[index] || '';
-                const isFocused = otpCode.length === index || (otpCode.length === 6 && index === 5);
+                const isFocused = otpCode.length === index || (otpCode.length === 8 && index === 7);
                 return (
                   <View
                     key={index}
@@ -916,11 +916,11 @@ export default function AuthScreen() {
               style={styles.hiddenOtpInput}
               value={otpCode}
               onChangeText={(text) => {
-                const numeric = text.replace(/\D/g, '').slice(0, 6);
+                const numeric = text.replace(/\D/g, '').slice(0, 8);
                 setOtpCode(numeric);
               }}
               keyboardType="number-pad"
-              maxLength={6}
+              maxLength={8}
               autoFocus
               accessibilityLabel="OTP input"
             />
@@ -930,11 +930,11 @@ export default function AuthScreen() {
             style={({ pressed }) => [
               styles.primaryBtn,
               { backgroundColor: colors.primaryFixed },
-              (pressed || otpCode.length !== 6) && styles.primaryBtnPressed,
-              (loading || otpCode.length !== 6) && styles.primaryBtnDisabled,
+              (pressed || otpCode.length !== 8) && styles.primaryBtnPressed,
+              (loading || otpCode.length !== 8) && styles.primaryBtnDisabled,
             ]}
             onPress={handleVerifyOtp}
-            disabled={loading || otpCode.length !== 6}
+            disabled={loading || otpCode.length !== 8}
             accessibilityLabel="Verify code"
             accessibilityRole="button"
           >
@@ -1599,7 +1599,7 @@ const styles = StyleSheet.create({
   otpBox: {
     flex: 1,
     aspectRatio: 1,
-    maxWidth: 50,
+    maxWidth: 42,
     borderRadius: 14,
     borderWidth: 1.5,
     alignItems: 'center',

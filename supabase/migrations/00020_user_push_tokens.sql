@@ -2,7 +2,7 @@
 -- Trak: User Push Tokens & Expo Push Notification Infrastructure
 -- Migration: 00020_user_push_tokens.sql
 -- Run this in Supabase SQL Editor (Dashboard → SQL Editor)
--- =============================================================================
+-- =============================================================================AC
 
 -- ─── 1. USER PUSH TOKENS TABLE ───────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.user_push_tokens (
