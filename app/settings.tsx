@@ -33,6 +33,7 @@ import { ActionSheet, useActionSheet, ActionOption } from '@/components/common/A
 import { triggerHaptic } from '@/utils/haptics';
 import { t, SUPPORTED_LANGUAGES, SupportedLanguage } from '@/utils/i18n';
 import { notificationService, PermissionStatus } from '@/services/notifications';
+import { WidgetPreviewCard } from '@/components/project/WidgetPreviewCard';
 
 function SectionHeader({ title, color }: { title: string; color: string }) {
   return (
@@ -561,6 +562,24 @@ export default function SettingsScreen() {
               thumbColor={hapticsEnabled ? colors.primaryFixed : `${colors.onSurfaceVariant}80`}
             />
           </View>
+        </View>
+
+        {/* ── 📱 HOME SCREEN WIDGET ── */}
+        <SectionHeader title="HOME SCREEN WIDGET" color={`${colors.onSurfaceVariant}90`} />
+        <View style={[styles.glassCard, { backgroundColor: colors.glassBg, borderColor: colors.glassBorder }]}>
+          <View style={styles.cardHeader}>
+            <View style={[styles.iconWrap, { backgroundColor: `${colors.primaryFixed}15` }]}>
+              <Feather name="layers" size={16} color={colors.primaryFixed} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rowTitle, { color: colors.onSurface }]}>Android Home Widget</Text>
+              <Text style={[styles.rowSubtitle, { color: `${colors.onSurfaceVariant}90` }]}>
+                Pin projects to your home screen for quick access
+              </Text>
+            </View>
+          </View>
+
+          <WidgetPreviewCard colors={colors} />
         </View>
 
         {/* ── ABOUT ── */}

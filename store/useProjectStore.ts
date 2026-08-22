@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { supabase } from '@/services/supabase';
 import { safeStorage } from '@/services/storage';
 import { getActiveUserId, emailToUUID, getDeviceId } from '@/utils/deviceUser';
+import { syncWidget, clearWidgetData } from '@/services/widget';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { notificationService } from '@/services/notifications';
 import { useNotificationStore } from './useNotificationStore';
@@ -585,6 +586,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   clearProjects: () => {
     set({ projects: [], isLoaded: false, isInitialLoading: false, currentUserId: null });
+    void clearWidgetData();
   },
 
   fetchProjects: async (opts?: { forceRefresh?: boolean }) => {
@@ -648,6 +650,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         } finally {
           inFlightFetchProjects = null;
         }
+        void syncWidget(get().projects);
         return;
       }
 
@@ -657,6 +660,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       } finally {
         inFlightFetchProjects = null;
       }
+      void syncWidget(get().projects);
     } catch (err) {
       console.error('Error fetching projects:', err);
       set({ isLoading: false, isInitialLoading: false });
@@ -690,6 +694,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
     set((state) => ({ projects: [newProject, ...state.projects] }));
     await saveToLocalStorage(userId, get().projects);
+    void syncWidget(get().projects);
 
     try {
       const insertData: any = {
@@ -748,6 +753,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }));
 
     await saveToLocalStorage(userId, get().projects);
+    void syncWidget(get().projects);
 
     try {
       const dbUpdates: any = {};
@@ -780,6 +786,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }));
     const userId = await getActiveUserId();
     await saveToLocalStorage(userId, get().projects);
+    void syncWidget(get().projects);
 
     try {
       await supabase
@@ -799,6 +806,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }));
     const userId = await getActiveUserId();
     await saveToLocalStorage(userId, get().projects);
+    void syncWidget(get().projects);
 
     try {
       await supabase
@@ -816,6 +824,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }));
     const userId = await getActiveUserId();
     await saveToLocalStorage(userId, get().projects);
+    void syncWidget(get().projects);
 
     try {
       await supabase.from('projects').delete().eq('id', projectId);
@@ -832,6 +841,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }));
     const userId = await getActiveUserId();
     await saveToLocalStorage(userId, get().projects);
+    void syncWidget(get().projects);
 
     try {
       await supabase.from('projects').delete().in('id', projectIds);
@@ -850,6 +860,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }));
     const userId = await getActiveUserId();
     await saveToLocalStorage(userId, get().projects);
+    void syncWidget(get().projects);
 
     try {
       await supabase
@@ -897,6 +908,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
     const userId = await getActiveUserId();
     await saveToLocalStorage(userId, get().projects);
+    void syncWidget(get().projects);
 
     try {
       const { error } = await supabase
@@ -948,6 +960,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
     const userId = await getActiveUserId();
     await saveToLocalStorage(userId, get().projects);
+    void syncWidget(get().projects);
 
     try {
       const project = get().projects.find((p) => p.id === projectId);
@@ -1087,6 +1100,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
     const userId = await getActiveUserId();
     await saveToLocalStorage(userId, get().projects);
+    void syncWidget(get().projects);
 
     try {
       const { error } = await supabase.from('milestones').delete().eq('id', milestoneId);
@@ -1119,6 +1133,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
     const userId = await getActiveUserId();
     await saveToLocalStorage(userId, get().projects);
+    void syncWidget(get().projects);
 
     try {
       await supabase
@@ -1147,6 +1162,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
     const userId = await getActiveUserId();
     await saveToLocalStorage(userId, get().projects);
+    void syncWidget(get().projects);
 
     try {
       await supabase
@@ -1177,6 +1193,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       await savePinnedIdsToLocalStorage(userId, pinnedIds);
       await saveToLocalStorage(userId, updated);
     }
+    void syncWidget(updated);
 
     // Pin state is managed locally (is_pinned column does not exist in DB)
   },
@@ -1197,6 +1214,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       // Update local storage cache & local shared IDs
       const currentProjects = get().projects;
       await saveToLocalStorage(userId, currentProjects);
+      void syncWidget(get().projects);
 
       const currentSharedIds = await getSharedIdsFromLocalStorage(userId);
       const updatedSharedIds = currentSharedIds.filter((id) => id !== projectId);
@@ -1467,6 +1485,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
               }),
             }));
           }
+          void syncWidget(get().projects);
           // Reconcile complete relations in background
           void get().fetchProjects({ forceRefresh: true });
         }
@@ -1481,6 +1500,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             set((state) => ({
               projects: state.projects.filter((p) => p.id !== deletedId),
             }));
+            void syncWidget(get().projects);
             void getActiveUserId().then((userId) => {
               void saveToLocalStorage(userId, get().projects);
             });
@@ -1576,6 +1596,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             set((state) => ({
               projects: state.projects.filter((p) => p.id !== removedProjectId),
             }));
+            void syncWidget(get().projects);
 
             if (activeUserId && removedProjectId) {
               const currentSharedIds = await getSharedIdsFromLocalStorage(activeUserId);
@@ -1615,6 +1636,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
               set((state) => ({
                 projects: state.projects.filter((p) => p.id !== row.project_id),
               }));
+              void syncWidget(get().projects);
 
               if (activeUserId) {
                 void getSharedIdsFromLocalStorage(activeUserId).then(async (currentSharedIds) => {

@@ -61,6 +61,7 @@ import { setActiveUserId } from '@/utils/deviceUser';
 import { notificationService } from '@/services/notifications';
 import FuturisticLoadingScreen from '@/components/FuturisticLoadingScreen';
 import { InAppNotificationBanner } from '@/components/common/InAppNotificationBanner';
+import { registerTrakWidgetHandler } from '@/widgets/widgetTaskHandler';
 
 export default function RootLayout() {
   const router = useRouter();
@@ -86,6 +87,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     loadSettings();
+    registerTrakWidgetHandler();
     if (Platform.OS !== 'web') {
       notificationService.ensureAndroidChannels();
     }

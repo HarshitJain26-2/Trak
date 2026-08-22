@@ -264,10 +264,10 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
                     </View>
                     <View style={styles.optionContent}>
                       <Text style={[styles.optionTitle, { color: colors.onSurface }]}>
-                        {isPinned ? 'Unpin Project' : 'Pin Project'}
+                        {isPinned ? 'Unpin from Widget' : 'Pin to Home Widget'}
                       </Text>
                       <Text style={[styles.optionSub, { color: colors.onSurfaceVariant }]}>
-                        {isPinned ? 'Remove from top of active deployments' : 'Keep at top of active deployments'}
+                        {isPinned ? 'Remove from home screen widget' : 'Show on home screen widget'}
                       </Text>
                     </View>
                   </Pressable>
