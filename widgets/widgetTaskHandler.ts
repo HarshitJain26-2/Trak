@@ -1,9 +1,11 @@
 import { Platform } from 'react-native';
 import type { WidgetTaskHandlerProps } from 'react-native-android-widget';
-import { getWidgetProjectData } from '@/services/widget';
-import { renderTrakWidgetContent, DARK_THEME, LIGHT_THEME } from './TrakWidget';
+import { getWidgetStateData } from '@/services/widget';
+import { renderTrakWidgetContent, renderWidgetError, renderWidgetSignedOut, DARK_THEME, LIGHT_THEME } from './TrakWidget';
 
 // ─── Widget Task Handler ──────────────────────────────────────────────────────
+
+const WIDGET_TIMEOUT_MS = 5000;
 
 /**
  * Handles all widget lifecycle events:
@@ -14,6 +16,7 @@ import { renderTrakWidgetContent, DARK_THEME, LIGHT_THEME } from './TrakWidget';
  * - WIDGET_CLICK: User tapped a clickable area
  *
  * Reads pinned project data from AsyncStorage and renders the widget UI.
+ * ALWAYS transitions to DATA, EMPTY, or ERROR — never stays in loading.
  */
 const widgetTaskHandler = async (props: WidgetTaskHandlerProps): Promise<void> => {
   const { widgetInfo, widgetAction, renderWidget } = props;
@@ -32,16 +35,45 @@ const widgetTaskHandler = async (props: WidgetTaskHandlerProps): Promise<void> =
     case 'WIDGET_UPDATE':
     case 'WIDGET_RESIZED':
     default: {
-      const projects = await getWidgetProjectData();
-      const { width, height } = widgetInfo;
+      try {
+        // Read cached data with timeout — widget must never hang
+        const stateData = await Promise.race([
+          getWidgetStateData(),
+          new Promise<{ version: number; projects: never[]; updatedAt: number }>((resolve) =>
+            setTimeout(() => resolve({ version: 1, projects: [], updatedAt: 0 }), WIDGET_TIMEOUT_MS)
+          ),
+        ]);
 
-      const lightWidget = renderTrakWidgetContent(projects, width, height, LIGHT_THEME);
-      const darkWidget = renderTrakWidgetContent(projects, width, height, DARK_THEME);
+        const { width, height } = widgetInfo;
 
-      renderWidget({
-        light: lightWidget,
-        dark: darkWidget,
-      });
+        // No user signed in (no userId means no data)
+        if (!stateData.updatedAt && stateData.projects.length === 0) {
+          const lightWidget = renderTrakWidgetContent([], width, height, LIGHT_THEME, 0);
+          const darkWidget = renderTrakWidgetContent([], width, height, DARK_THEME, 0);
+          renderWidget({ light: lightWidget, dark: darkWidget });
+          break;
+        }
+
+        const lightWidget = renderTrakWidgetContent(
+          stateData.projects,
+          width,
+          height,
+          LIGHT_THEME,
+          stateData.updatedAt
+        );
+        const darkWidget = renderTrakWidgetContent(
+          stateData.projects,
+          width,
+          height,
+          DARK_THEME,
+          stateData.updatedAt
+        );
+
+        renderWidget({ light: lightWidget, dark: darkWidget });
+      } catch {
+        // If anything goes wrong, render error state — never leave loading
+        renderWidget(renderWidgetError());
+      }
       break;
     }
   }

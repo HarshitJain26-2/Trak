@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 1,
     paddingHorizontal: 10,
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 14,
   },
   unitPill: {

@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   codeText: {
-    fontFamily: 'JetBrainsMono_700Bold',
+    fontFamily: 'Inter_700Bold',
     fontSize: 24,
     letterSpacing: 2,
     marginBottom: 12,

@@ -316,7 +316,7 @@ const sectionStyles = StyleSheet.create({
     marginBottom: 12,
   },
   text: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: 10,
     letterSpacing: 2,
   },
@@ -377,7 +377,7 @@ function InputField({
           style={[
             inputStyles.input,
             { color: colors.onSurface },
-            mono && { color: colors.isDark ? colors.secondary : colors.secondaryFixedDim, fontFamily: 'JetBrainsMono_400Regular', fontSize: 14 },
+            mono && { color: colors.isDark ? colors.secondary : colors.secondaryFixedDim, fontFamily: 'Inter_400Regular', fontSize: 14 },
             multiline && inputStyles.inputMulti,
           ]}
           placeholder={placeholder}

@@ -501,7 +501,7 @@ const notifStyles = StyleSheet.create({
     marginTop: 2,
   },
   itemTime: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 11,
   },
 });
@@ -601,7 +601,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   sharedCount: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 12,
     marginTop: 2,
   },
@@ -616,7 +616,7 @@ const styles = StyleSheet.create({
     paddingLeft: 4,
   },
   ownerTagText: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 11,
   },
   // ── FAB & Menu ──

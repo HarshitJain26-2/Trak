@@ -551,7 +551,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   countBadgeText: {
-    fontFamily: 'JetBrainsMono_700Bold',
+    fontFamily: 'Inter_700Bold',
     fontSize: 12,
   },
   listContent: {
@@ -637,7 +637,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   daysLeftText: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: 10,
   },
   deletedBadge: {
@@ -647,7 +647,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   deletedBadgeText: {
-    fontFamily: 'JetBrainsMono_700Bold',
+    fontFamily: 'Inter_700Bold',
     fontSize: 10,
     letterSpacing: 0.5,
   },

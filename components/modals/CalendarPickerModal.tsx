@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
   weekdayText: {
     width: 38,
     textAlign: 'center',
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: 12,
   },
   grid: {

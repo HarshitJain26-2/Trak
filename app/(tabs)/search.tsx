@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 14,
     color: Colors.onSurface,
   },
@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   filterGroupLabel: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: 12,
     color: `${Colors.onSurfaceVariant}80`,
     letterSpacing: 2,
@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.primaryFixed,
   },
   filterChipText: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: 12,
     color: Colors.onSurfaceVariant,
   },
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.primaryFixed,
   },
   techChipText: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: 12,
     color: Colors.onSurfaceVariant,
   },
@@ -429,7 +429,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   resultCount: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: 12,
     color: `${Colors.onSurfaceVariant}80`,
     letterSpacing: 1,
@@ -440,7 +440,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   sortButtonText: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: 12,
     color: Colors.primaryFixed,
   },
@@ -461,7 +461,7 @@ const styles = StyleSheet.create({
     backgroundColor: `${Colors.primaryFixed}1A`,
   },
   sortOptionText: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 13,
     color: Colors.onSurfaceVariant,
   },
@@ -511,7 +511,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   resultBadgeText: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 10,
     color: Colors.onSurfaceVariant,
   },
@@ -527,7 +527,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   resultStatusText: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: 12,
     color: `${Colors.onSurfaceVariant}99`,
   },

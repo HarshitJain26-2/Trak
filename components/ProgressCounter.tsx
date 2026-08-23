@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   percentText: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: 16,
     letterSpacing: 1,
     color: '#39FF88',

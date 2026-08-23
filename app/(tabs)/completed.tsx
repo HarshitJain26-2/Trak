@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
     borderColor: `${Colors.primaryFixed}33`,
   },
   countBadgeText: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: 13,
     color: Colors.primaryFixed,
   },
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   listHeaderSub: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 12,
     color: Colors.onSurfaceVariant,
     opacity: 0.6,
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
     borderColor: `${Colors.primaryFixed}33`,
   },
   completedBadgeText: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: 10,
     color: Colors.primaryFixed,
     letterSpacing: 1,
@@ -382,14 +382,14 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   footerLabel: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: 9,
     color: Colors.onSurfaceVariant,
     opacity: 0.4,
     letterSpacing: 1.5,
   },
   footerValue: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 12,
     color: Colors.onSurface,
   },

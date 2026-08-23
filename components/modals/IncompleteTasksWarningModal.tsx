@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   listLabel: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: 10,
     letterSpacing: 1.5,
     marginBottom: 8,

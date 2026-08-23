@@ -308,7 +308,7 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
                         </Text>
                         {isShared && (
                           <View style={{ backgroundColor: `${colors.onSurfaceVariant}1A`, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 }}>
-                            <Text style={{ fontFamily: 'JetBrainsMono_500Medium', fontSize: 10, color: colors.onSurfaceVariant }}>LEADER ONLY</Text>
+                            <Text style={{ fontFamily: 'Inter_500Medium', fontSize: 10, color: colors.onSurfaceVariant }}>LEADER ONLY</Text>
                           </View>
                         )}
                       </View>
@@ -465,7 +465,7 @@ const styles = StyleSheet.create({
   },
   projectName: { fontFamily: 'Inter_700Bold', fontSize: 20, color: '#FFFFFF', flex: 1 },
   versionTag: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: 12,
     color: Colors.primaryFixed,
     backgroundColor: 'rgba(0,230,118,0.1)',

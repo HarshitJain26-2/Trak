@@ -1453,7 +1453,7 @@ const styles = StyleSheet.create({
   },
   orText: {
     fontSize: 12,
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     letterSpacing: 1,
     marginHorizontal: 14,
   },
@@ -1547,7 +1547,7 @@ const styles = StyleSheet.create({
   },
   constraintsTitle: {
     fontSize: 10,
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     letterSpacing: 0.5,
   },
   statusBadge: {
@@ -1557,7 +1557,7 @@ const styles = StyleSheet.create({
   },
   statusBadgeText: {
     fontSize: 10,
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
   },
   constraintsGrid: {
     flexDirection: 'row',
@@ -1572,7 +1572,7 @@ const styles = StyleSheet.create({
   constraintText: {
     fontSize: 11,
     marginLeft: 6,
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
   },
 
   // ─── Secondary Links ───
@@ -1607,7 +1607,7 @@ const styles = StyleSheet.create({
   },
   otpDigit: {
     fontSize: 20,
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontWeight: '700',
   },
   hiddenOtpInput: {
@@ -1628,7 +1628,7 @@ const styles = StyleSheet.create({
   },
   resendCountdownText: {
     fontSize: 13,
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
   },
   resendActiveText: {
     fontSize: 13,

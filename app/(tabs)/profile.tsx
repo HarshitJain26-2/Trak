@@ -61,7 +61,7 @@ const statStyles = StyleSheet.create({
     borderWidth: 1,
   },
   value: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: 22,
     marginBottom: 4,
   },
@@ -373,7 +373,7 @@ const linkStyles = StyleSheet.create({
     marginBottom: 16,
   },
   fieldLabel: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 10,
     letterSpacing: 1.5,
     marginBottom: 8,
@@ -447,7 +447,7 @@ const infoRowStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   label: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 10,
     letterSpacing: 1,
     textTransform: 'uppercase',
@@ -470,7 +470,7 @@ function SectionHeader({ title }: { title: string }) {
   const colors = useThemeColors();
   return (
     <Text style={{
-      fontFamily: 'JetBrainsMono_500Medium',
+      fontFamily: 'Inter_500Medium',
       fontSize: 11,
       color: colors.onSurfaceVariant,
       letterSpacing: 2,
@@ -834,7 +834,7 @@ export default function ProfileScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[infoRowStyles.label, { color: colors.onSurfaceVariant }]}>{link.label}</Text>
-                  <Text style={[infoRowStyles.value, { color: colors.secondary, fontFamily: 'JetBrainsMono_400Regular' }]} numberOfLines={1}>{link.url}</Text>
+                  <Text style={[infoRowStyles.value, { color: colors.secondary, fontFamily: 'Inter_400Regular' }]} numberOfLines={1}>{link.url}</Text>
                 </View>
                 {/* Edit button */}
                 <Pressable
@@ -995,7 +995,7 @@ const styles = StyleSheet.create({
   },
   roleRow: { marginBottom: 10 },
   heroRole: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 13,
     color: Colors.secondaryFixed,
   },
@@ -1067,7 +1067,7 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   skillChipText: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 12,
     color: Colors.primaryFixed,
   },
@@ -1098,7 +1098,7 @@ const styles = StyleSheet.create({
     width: 10, height: 10, borderRadius: 2,
   },
   heatmapLabel: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 10,
     color: `${Colors.onSurfaceVariant}50`,
     textAlign: 'center',

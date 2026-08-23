@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   versionText: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 12,
     color: `${Colors.primaryFixed}99`,
   },
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   featurePillText: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: 13,
     color: Colors.onSurfaceVariant,
   },

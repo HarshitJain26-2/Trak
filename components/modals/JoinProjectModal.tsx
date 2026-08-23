@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontFamily: 'JetBrainsMono_700Bold',
+    fontFamily: 'Inter_700Bold',
     fontSize: 18,
     letterSpacing: 1.5,
   },

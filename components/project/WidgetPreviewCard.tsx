@@ -185,7 +185,7 @@ const previewStyles = StyleSheet.create({
     borderRadius: 3,
   },
   headerText: {
-    fontFamily: 'JetBrainsMono_700Bold',
+    fontFamily: 'Inter_700Bold',
     fontSize: 10,
     letterSpacing: 1,
   },
@@ -229,7 +229,7 @@ const previewStyles = StyleSheet.create({
     flex: 1,
   },
   statusText: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: 9,
     letterSpacing: 0.3,
   },
@@ -240,7 +240,7 @@ const previewStyles = StyleSheet.create({
     width: 70,
   },
   progressText: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: 9,
   },
   moreText: {

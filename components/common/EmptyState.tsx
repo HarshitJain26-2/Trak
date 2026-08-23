@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   terminalText: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 12,
     color: `${Colors.primaryFixed}CC`,
     opacity: 0.6,
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   secondaryBtnText: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: 11,
     color: `${Colors.onSurfaceVariant}66`,
     textTransform: 'uppercase',

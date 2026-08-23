@@ -1374,7 +1374,7 @@ const styles = StyleSheet.create({
     borderColor: `${Colors.outlineVariant}4D`,
   },
   statusChipText: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: 12,
     color: Colors.onSurfaceVariant,
   },
@@ -1390,7 +1390,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   priorityText: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: 10,
     color: Colors.error,
     letterSpacing: 1,
@@ -1457,12 +1457,12 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   sharedBadgeText: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 11,
     color: Colors.secondaryContainer,
   },
   progressPct: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 12,
     color: Colors.primaryFixed,
   },
@@ -1494,7 +1494,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   metaPillText: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 12,
     color: Colors.onSurface,
   },
@@ -1519,7 +1519,7 @@ const styles = StyleSheet.create({
     borderColor: `${Colors.outlineVariant}4D`,
   },
   teamCountText: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: 11,
     color: Colors.onSurfaceVariant,
   },
@@ -1575,12 +1575,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   repoLabel: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 12,
     color: Colors.onSurfaceVariant,
   },
   repoUrl: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 14,
     color: Colors.secondary,
     marginTop: 2,
@@ -1602,7 +1602,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   sectionLabel: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: 12,
     color: `${Colors.onSurfaceVariant}80`,
     letterSpacing: 2,
@@ -1642,7 +1642,7 @@ const styles = StyleSheet.create({
     borderColor: `${Colors.outlineVariant}4D`,
   },
   milestonesCountText: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: 12,
     color: Colors.onSurfaceVariant,
   },
@@ -1654,7 +1654,7 @@ const styles = StyleSheet.create({
     borderBottomColor: `${Colors.outlineVariant}1A`,
   },
   subSectionTitle: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: 11,
     color: `${Colors.onSurfaceVariant}80`,
     letterSpacing: 1,
@@ -1724,7 +1724,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   addedByText: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 11,
     color: `${Colors.onSurfaceVariant}60`,
     marginTop: 3,
@@ -1741,7 +1741,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   doneByText: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 11,
     color: `${Colors.primaryFixed}B0`,
   },
@@ -1777,13 +1777,13 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   notesText: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 12,
     color: Colors.onSurfaceVariant,
     lineHeight: 18,
   },
   notesHeading: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     color: Colors.onSurface,
     fontSize: 13,
     marginTop: 8,
@@ -1989,7 +1989,7 @@ const inputStyles = StyleSheet.create({
     marginBottom: 16,
   },
   fieldLabel: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: 10,
     color: Colors.onSurfaceVariant,
     letterSpacing: 1.2,
@@ -2084,7 +2084,7 @@ const editRepoStyles = StyleSheet.create({
     marginTop: 2,
   },
   fieldLabel: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 10,
     letterSpacing: 1.5,
     marginBottom: 8,
@@ -2176,7 +2176,7 @@ const editNotesStyles = StyleSheet.create({
     borderWidth: 1,
   },
   shortcutChipText: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 11,
   },
   inputWrapper: {
@@ -2187,7 +2187,7 @@ const editNotesStyles = StyleSheet.create({
     minHeight: 160,
   },
   input: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 13,
     lineHeight: 20,
     minHeight: 140,

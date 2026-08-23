@@ -815,7 +815,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   versionBadge: {
-    fontFamily: 'JetBrainsMono_700Bold',
+    fontFamily: 'Inter_700Bold',
     fontSize: 12,
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -829,7 +829,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   statusBadgeText: {
-    fontFamily: 'JetBrainsMono_700Bold',
+    fontFamily: 'Inter_700Bold',
     fontSize: 11,
     letterSpacing: 0.5,
   },

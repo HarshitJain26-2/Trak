@@ -382,7 +382,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   version: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 12,
     lineHeight: 18,
   },
@@ -405,14 +405,14 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   deadlineLabel: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: 10,
     opacity: 0.5,
     letterSpacing: 2,
     marginBottom: 2,
   },
   deadlineValue: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 12,
     lineHeight: 18,
   },
@@ -421,7 +421,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   lastUpdated: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 12,
     opacity: 0.5,
   },
@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   pinnedTagText: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: 9,
     letterSpacing: 0.5,
   },

@@ -32,12 +32,12 @@ const styles = StyleSheet.create({
   },
   buildVersion: {
     fontSize: 10,
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     letterSpacing: 1.2,
   },
   metadata: {
     fontSize: 9,
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     letterSpacing: 1.5,
   },
 });

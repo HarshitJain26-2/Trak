@@ -9,10 +9,6 @@ import {
   Inter_600SemiBold,
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
-import {
-  JetBrainsMono_400Regular,
-  JetBrainsMono_500Medium,
-} from '@expo-google-fonts/jetbrains-mono';
 import { View, ActivityIndicator, Platform, LogBox, AppState, AppStateStatus } from 'react-native';
 import { useThemeColors } from '@/constants/colors';
 import { useEffect } from 'react';
@@ -81,8 +77,6 @@ export default function RootLayout() {
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
-    JetBrainsMono_400Regular,
-    JetBrainsMono_500Medium,
   });
 
   useEffect(() => {

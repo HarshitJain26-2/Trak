@@ -556,7 +556,7 @@ const styles = StyleSheet.create({
   formContent: { padding: 20, gap: 16 },
   field: { gap: 6 },
   fieldLabel: {
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: 10,
     color: Colors.onSurfaceVariant,
     opacity: 0.5,

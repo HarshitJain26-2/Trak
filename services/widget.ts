@@ -18,9 +18,13 @@ export interface WidgetProjectData {
 }
 
 interface WidgetStateData {
+  version: number;
   projects: WidgetProjectData[];
   updatedAt: number;
 }
+
+const WIDGET_CACHE_VERSION = 1;
+const STORAGE_READ_TIMEOUT_MS = 3000;
 
 // ─── Storage helpers ──────────────────────────────────────────────────────────
 
@@ -31,14 +35,14 @@ const readWidgetData = async (userId: string): Promise<WidgetStateData> => {
     const raw = await safeStorage.getItem(getWidgetDataKey(userId));
     if (raw) {
       const parsed = JSON.parse(raw) as WidgetStateData;
-      if (parsed && Array.isArray(parsed.projects)) {
+      if (parsed && Array.isArray(parsed.projects) && parsed.version === WIDGET_CACHE_VERSION) {
         return parsed;
       }
     }
   } catch {
-    // Ignore read errors
+    // JSON parse error or storage read error — fall through to empty
   }
-  return { projects: [], updatedAt: 0 };
+  return { version: WIDGET_CACHE_VERSION, projects: [], updatedAt: 0 };
 };
 
 const writeWidgetData = async (userId: string, data: WidgetStateData): Promise<void> => {
@@ -48,6 +52,25 @@ const writeWidgetData = async (userId: string, data: WidgetStateData): Promise<v
     // Ignore write errors
   }
 };
+
+/**
+ * Race an async operation against a timeout.
+ * Returns the default value if the operation exceeds the timeout.
+ */
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, defaultValue: T): Promise<T> {
+  return new Promise<T>((resolve) => {
+    const timer = setTimeout(() => resolve(defaultValue), timeoutMs);
+    promise
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch(() => {
+        clearTimeout(timer);
+        resolve(defaultValue);
+      });
+  });
+}
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
@@ -82,6 +105,7 @@ export const updateWidgetData = async (
     }));
 
   await writeWidgetData(userId, {
+    version: WIDGET_CACHE_VERSION,
     projects: pinnedProjects,
     updatedAt: Date.now(),
   });
@@ -90,42 +114,87 @@ export const updateWidgetData = async (
 /**
  * Read the cached widget project data for the current user.
  * Used by the widget task handler when rendering the widget.
+ * Includes timeout protection — returns empty array if storage read hangs.
  */
 export const getWidgetProjectData = async (): Promise<WidgetProjectData[]> => {
-  const userId = await getActiveUserId();
-  if (!userId) return [];
-  const data = await readWidgetData(userId);
-  return data.projects;
+  try {
+    const userId = await withTimeout(getActiveUserId(), STORAGE_READ_TIMEOUT_MS, '');
+    if (!userId) return [];
+
+    const data = await withTimeout(
+      readWidgetData(userId),
+      STORAGE_READ_TIMEOUT_MS,
+      { version: WIDGET_CACHE_VERSION, projects: [], updatedAt: 0 }
+    );
+    return data.projects;
+  } catch {
+    return [];
+  }
+};
+
+/**
+ * Read the full widget state data (including updatedAt timestamp).
+ * Includes timeout protection.
+ */
+export const getWidgetStateData = async (): Promise<WidgetStateData> => {
+  try {
+    const userId = await withTimeout(getActiveUserId(), STORAGE_READ_TIMEOUT_MS, '');
+    if (!userId) return { version: WIDGET_CACHE_VERSION, projects: [], updatedAt: 0 };
+
+    const data = await withTimeout(
+      readWidgetData(userId),
+      STORAGE_READ_TIMEOUT_MS,
+      { version: WIDGET_CACHE_VERSION, projects: [], updatedAt: 0 }
+    );
+    return data;
+  } catch {
+    return { version: WIDGET_CACHE_VERSION, projects: [], updatedAt: 0 };
+  }
 };
 
 /**
  * Get the last update timestamp of the widget data.
  */
 export const getWidgetDataTimestamp = async (): Promise<number> => {
-  const userId = await getActiveUserId();
-  if (!userId) return 0;
-  const data = await readWidgetData(userId);
+  const data = await getWidgetStateData();
   return data.updatedAt;
 };
 
 /**
- * Request a widget refresh by calling the native widget update API.
- * On non-Android platforms or when no widget is added, this is a no-op.
+ * Request a widget refresh by reading cached data first, then rendering.
+ * 
+ * THIS IS THE FIX FOR THE INFINITE LOADING BUG:
+ * Previously, renderTrakWidget() always returned a "Loading..." placeholder.
+ * Now we read the actual cached widget data BEFORE requesting the refresh,
+ * then pass the real data to the render function.
  */
 export const refreshWidget = async (): Promise<void> => {
   if (Platform.OS !== 'android') return;
 
   try {
+    // Read actual cached data with timeout protection
+    const stateData = await withTimeout(
+      getWidgetStateData(),
+      STORAGE_READ_TIMEOUT_MS,
+      { version: WIDGET_CACHE_VERSION, projects: [], updatedAt: 0 }
+    );
+
     const { requestWidgetUpdate } = require('react-native-android-widget');
+    const { renderWidgetWithData, renderWidgetError } = require('../widgets/TrakWidget');
+
+    // Render with actual data — never a loading placeholder
+    const renderFn = () => renderWidgetWithData(stateData.projects, stateData.updatedAt);
+
     await requestWidgetUpdate({
       widgetName: 'TrakWidget',
-      renderWidget: () => require('../widgets/TrakWidget').renderTrakWidget(),
+      renderWidget: renderFn,
       widgetNotFound: () => {
         // No widget on home screen — nothing to do
       },
     });
   } catch {
-    // Package not available or widget not registered — silently ignore
+    // Package not available, widget not registered, or render error — silently ignore
+    // The widget task handler will handle rendering on next WIDGET_UPDATE event
   }
 };
 
@@ -148,9 +217,13 @@ export const requestAddWidget = async (): Promise<boolean> => {
  * Clear all widget data for the current user (e.g., on sign-out).
  */
 export const clearWidgetData = async (): Promise<void> => {
-  const userId = await getActiveUserId();
-  if (!userId) return;
-  await safeStorage.removeItem(getWidgetDataKey(userId));
+  try {
+    const userId = await getActiveUserId();
+    if (!userId) return;
+    await safeStorage.removeItem(getWidgetDataKey(userId));
+  } catch {
+    // Ignore errors during cleanup
+  }
 };
 
 /**
@@ -169,6 +242,10 @@ export const syncWidget = async (
     isCompleted?: boolean;
   }>
 ): Promise<void> => {
-  await updateWidgetData(projects);
-  await refreshWidget();
+  try {
+    await updateWidgetData(projects);
+    await refreshWidget();
+  } catch {
+    // Fire-and-forget — widget sync should never block the app
+  }
 };

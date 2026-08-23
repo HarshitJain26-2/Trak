@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
   },
   securityLabel: {
     fontSize: 10,
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     letterSpacing: 2,
     marginBottom: 10,
   },

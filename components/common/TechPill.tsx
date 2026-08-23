@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   label: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 12,
     lineHeight: 18,
     letterSpacing: 0.24,

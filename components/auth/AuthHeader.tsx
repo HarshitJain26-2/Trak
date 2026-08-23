@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
   },
   brandAccent: {
     fontSize: 20,
-    fontFamily: 'JetBrainsMono_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontWeight: '700',
     letterSpacing: 1,
   },
