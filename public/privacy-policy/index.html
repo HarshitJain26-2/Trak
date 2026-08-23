@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Trak Privacy Policy - How Trak handles your information">
+  <title>Privacy Policy | Trak</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0b0e14;
+      --surface: #1d2026;
+      --surface-high: #272a31;
+      --text-primary: #e1e2eb;
+      --text-secondary: #b9ccb2;
+      --accent: #72ff70;
+      --accent-dim: #00e639;
+      --border: rgba(255,255,255,0.06);
+      --radius: 16px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .page {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    /* ─── Header ─── */
+    header {
+      padding: 48px 0 32px;
+      text-align: center;
+    }
+
+    .brand {
+      display: inline-block;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      font-size: clamp(28px, 5vw, 40px);
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+    }
+
+    .last-updated {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    /* ─── Card ─── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px 28px;
+      margin-bottom: 24px;
+    }
+
+    /* ─── Sections ─── */
+    .section {
+      margin-bottom: 28px;
+    }
+
+    .section:last-child {
+      margin-bottom: 0;
+    }
+
+    .section h2 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+
+    .section p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+    }
+
+    .section ul {
+      list-style: none;
+      padding: 0;
+      margin-top: 8px;
+    }
+
+    .section ul li {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      padding-left: 20px;
+      position: relative;
+      margin-bottom: 4px;
+    }
+
+    .section ul li::before {
+      content: '›';
+      position: absolute;
+      left: 0;
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    /* ─── Divider ─── */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 28px 0;
+    }
+
+    /* ─── Notice ─── */
+    .notice {
+      font-size: 13px;
+      color: var(--text-secondary);
+      font-style: italic;
+      line-height: 1.6;
+      padding: 16px;
+      background: var(--surface-high);
+      border-radius: 10px;
+      border-left: 3px solid var(--accent);
+    }
+
+    /* ─── Footer ─── */
+    footer {
+      text-align: center;
+      padding: 32px 0 48px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* ─── Responsive ─── */
+    @media (max-width: 480px) {
+      .card { padding: 24px 18px; }
+      header { padding: 32px 0 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <span class="brand">TRAK</span>
+      <h1>Privacy Policy</h1>
+      <p class="last-updated">Last Updated: August 23, 2026</p>
+    </header>
+
+    <main class="card">
+
+      <div class="section">
+        <h2>1. Introduction</h2>
+        <p>
+          This Privacy Policy explains how Trak handles your information. By using Trak, you acknowledge the practices described in this policy. Trak is a developer-first project tracking and collaboration platform.
+        </p>
+      </div>
+
+      <div class="section">
+        <h2>2. Information We Collect</h2>
+        <p>
+          Trak collects information you provide directly when creating an account and using the service. This includes:
+        </p>
+        <ul>
+          <li>Your name and email address (for account creation and authentication)</li>
+          <li>Project data, milestones, and task information you create</li>
+          <li>Team member and collaboration data</li>
+          <li>Device information for push notification delivery</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h2>3. How We Use Information</h2>
+        <p>
+          Your information is used to:
+        </p>
+        <ul>
+          <li>Operate the application and authenticate your account</li>
+          <li>Sync your projects, milestones, and team data in real-time</li>
+          <li>Deliver push notifications about project updates</li>
+          <li>Communicate important service updates</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h2>4. Data Storage</h2>
+        <p>
+          Project and account data is stored securely using Supabase, our backend infrastructure provider. Some data may also be cached locally on your device for offline access. We take reasonable measures to protect your data.
+        </p>
+      </div>
+
+      <div class="section">
+        <h2>5. Third-Party Services</h2>
+        <p>
+          Trak relies on the following third-party services:
+        </p>
+        <ul>
+          <li><strong>Supabase</strong> — for authentication, database storage, and real-time data synchronization</li>
+          <li><strong>Google OAuth</strong> — for optional Google sign-in authentication</li>
+          <li><strong>Expo Notifications</strong> — for delivering push notifications to your device</li>
+          <li><strong>Firebase Hosting</strong> — for hosting this privacy policy page</li>
+        </ul>
+        <p>
+          These services have their own privacy policies. We encourage you to review them.
+        </p>
+      </div>
+
+      <div class="section">
+        <h2>6. Your Choices</h2>
+        <p>
+          You can:
+        </p>
+        <ul>
+          <li>Update your account information through the application settings</li>
+          <li>Manage notification preferences in the app settings</li>
+          <li>Delete your projects and associated data through the application</li>
+          <li>Contact us to request account deletion</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h2>7. Security</h2>
+        <p>
+          We implement reasonable security measures to protect your information, including encrypted connections and secure authentication. However, no method of transmission or storage is completely secure, and we cannot guarantee absolute security.
+        </p>
+      </div>
+
+      <div class="section">
+        <h2>8. Changes to This Policy</h2>
+        <p>
+          This Privacy Policy may be updated from time to time. Continued use of Trak after changes constitutes acceptance of the revised policy. We will update the "Last Updated" date at the top of this page when changes are made.
+        </p>
+      </div>
+
+      <div class="section">
+        <h2>9. Contact</h2>
+        <p>
+          For questions about this Privacy Policy, please contact the project owner through the channels provided in the application.
+        </p>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="notice">
+        This is a placeholder legal document. Final legally reviewed content must be supplied by the project owner before publication. The information above reflects the current technical implementation of Trak.
+      </div>
+
+    </main>
+
+    <footer>
+      <p>© 2026 Trak. All rights reserved.</p>
+    </footer>
+  </div>
+</body>
+</html>
