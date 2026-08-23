@@ -42,3 +42,7 @@ Trak.apk
 # generated native folders
 /ios
 /android
+
+.firebase/
+
+.firebase/
