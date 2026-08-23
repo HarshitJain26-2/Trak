@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Trak Privacy Policy - How Trak handles your information">
+  <meta name="description" content="Trak Privacy Policy - How Trak collects, uses, and protects your information">
   <title>Privacy Policy | Trak</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -30,7 +30,7 @@
     }
 
     .page {
-      max-width: 720px;
+      max-width: 760px;
       margin: 0 auto;
       padding: 0 20px;
     }
@@ -58,10 +58,12 @@
       margin-bottom: 8px;
     }
 
-    .last-updated {
+    .dates {
       font-size: 14px;
       color: var(--text-secondary);
     }
+
+    .dates span { white-space: nowrap; }
 
     /* ─── Card ─── */
     .card {
@@ -72,35 +74,68 @@
       margin-bottom: 24px;
     }
 
+    /* ─── Summary callout ─── */
+    .summary {
+      background: var(--surface-high);
+      border-left: 3px solid var(--accent);
+      border-radius: 10px;
+      padding: 18px 20px;
+      margin-bottom: 30px;
+    }
+
+    .summary h2 {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 10px;
+    }
+
+    .summary ul { list-style: none; }
+
+    .summary li {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      padding-left: 20px;
+      position: relative;
+      margin-bottom: 4px;
+    }
+
+    .summary li::before {
+      content: '›';
+      position: absolute;
+      left: 0;
+      color: var(--accent);
+      font-weight: 700;
+    }
+
     /* ─── Sections ─── */
-    .section {
-      margin-bottom: 28px;
-    }
+    section { margin-bottom: 30px; }
+    section:last-of-type { margin-bottom: 0; }
 
-    .section:last-child {
-      margin-bottom: 0;
-    }
-
-    .section h2 {
+    section h2 {
       font-size: 16px;
       font-weight: 700;
       color: var(--text-primary);
       margin-bottom: 8px;
     }
 
-    .section p {
+    section p {
       font-size: 14px;
       color: var(--text-secondary);
       line-height: 1.7;
+      margin-bottom: 8px;
     }
 
-    .section ul {
-      list-style: none;
+    section p:last-child { margin-bottom: 0; }
+
+    section ul, section ol {
       padding: 0;
-      margin-top: 8px;
+      margin: 8px 0;
+      list-style: none;
     }
 
-    .section ul li {
+    section ul li, section ol li {
       font-size: 14px;
       color: var(--text-secondary);
       line-height: 1.7;
@@ -109,7 +144,7 @@
       margin-bottom: 4px;
     }
 
-    .section ul li::before {
+    section ul li::before {
       content: '›';
       position: absolute;
       left: 0;
@@ -117,23 +152,56 @@
       font-weight: 700;
     }
 
+    section ol { counter-reset: item; }
+
+    section ol li { counter-increment: item; }
+
+    section ol li::before {
+      content: counter(item) '.';
+      position: absolute;
+      left: 0;
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    strong { color: var(--text-primary); }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ─── Table (purposes & legal bases) ─── */
+    .table-wrap { overflow-x: auto; margin: 12px 0; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      min-width: 480px;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--text-primary);
+      font-weight: 700;
+      background: var(--surface-high);
+    }
+
+    th:first-child { border-top-left-radius: 8px; }
+    th:last-child { border-top-right-radius: 8px; }
+
+    td { color: var(--text-secondary); }
+
     /* ─── Divider ─── */
     .divider {
       height: 1px;
       background: var(--border);
-      margin: 28px 0;
-    }
-
-    /* ─── Notice ─── */
-    .notice {
-      font-size: 13px;
-      color: var(--text-secondary);
-      font-style: italic;
-      line-height: 1.6;
-      padding: 16px;
-      background: var(--surface-high);
-      border-radius: 10px;
-      border-left: 3px solid var(--accent);
+      margin: 30px 0;
     }
 
     /* ─── Footer ─── */
@@ -142,15 +210,6 @@
       padding: 32px 0 48px;
       font-size: 13px;
       color: var(--text-secondary);
-    }
-
-    footer a {
-      color: var(--accent);
-      text-decoration: none;
-    }
-
-    footer a:hover {
-      text-decoration: underline;
     }
 
     /* ─── Responsive ─── */
@@ -165,106 +224,247 @@
     <header>
       <span class="brand">TRAK</span>
       <h1>Privacy Policy</h1>
-      <p class="last-updated">Last Updated: August 23, 2026</p>
+      <p class="dates">
+        <span>Effective Date: August 23, 2026</span>
+        &nbsp;·&nbsp;
+        <span>Last Updated: August 23, 2026</span>
+        &nbsp;·&nbsp;
+        <span>Version 1.0</span>
+      </p>
     </header>
 
     <main class="card">
 
-      <div class="section">
-        <h2>1. Introduction</h2>
-        <p>
-          This Privacy Policy explains how Trak handles your information. By using Trak, you acknowledge the practices described in this policy. Trak is a developer-first project tracking and collaboration platform.
-        </p>
-      </div>
-
-      <div class="section">
-        <h2>2. Information We Collect</h2>
-        <p>
-          Trak collects information you provide directly when creating an account and using the service. This includes:
-        </p>
+      <!-- Quick summary -->
+      <div class="summary" role="note" aria-label="Policy summary">
+        <h2>At a Glance</h2>
         <ul>
-          <li>Your name and email address (for account creation and authentication)</li>
-          <li>Project data, milestones, and task information you create</li>
-          <li>Team member and collaboration data</li>
-          <li>Device information for push notification delivery</li>
+          <li>We collect only what the service needs: your account details and the project data you create.</li>
+          <li>We do <strong>not</strong> sell, rent, or share your personal information with advertisers.</li>
+          <li>We do <strong>not</strong> use advertising or cross-site tracking, and this web page sets no tracking cookies.</li>
+          <li>We currently use <strong>no analytics or crash-reporting tools</strong>.</li>
+          <li>You can request access to, correction of, or deletion of your data at any time.</li>
         </ul>
       </div>
 
-      <div class="section">
-        <h2>3. How We Use Information</h2>
+      <section aria-labelledby="h-intro">
+        <h2 id="h-intro">1. Introduction</h2>
         <p>
-          Your information is used to:
+          This Privacy Policy explains how <strong>Trak</strong> ("Trak", "we", "us", or "our") collects, uses, stores, shares, and protects your personal information when you use the Trak mobile application, its web resources, and related services (collectively, the "Service"). Trak is a developer-first project tracking and collaboration platform.
         </p>
-        <ul>
-          <li>Operate the application and authenticate your account</li>
-          <li>Sync your projects, milestones, and team data in real-time</li>
-          <li>Deliver push notifications about project updates</li>
-          <li>Communicate important service updates</li>
-        </ul>
-      </div>
+        <p>
+          By creating an account or using the Service, you acknowledge the practices described in this policy. If you do not agree with this policy, please do not use the Service.
+        </p>
+      </section>
 
-      <div class="section">
-        <h2>4. Data Storage</h2>
-        <p>
-          Project and account data is stored securely using Supabase, our backend infrastructure provider. Some data may also be cached locally on your device for offline access. We take reasonable measures to protect your data.
-        </p>
-      </div>
-
-      <div class="section">
-        <h2>5. Third-Party Services</h2>
-        <p>
-          Trak relies on the following third-party services:
-        </p>
+      <section aria-labelledby="h-controller">
+        <h2 id="h-controller">2. Data Controller &amp; Contact</h2>
+        <p>The data controller responsible for your personal information is:</p>
         <ul>
-          <li><strong>Supabase</strong> — for authentication, database storage, and real-time data synchronization</li>
-          <li><strong>Google OAuth</strong> — for optional Google sign-in authentication</li>
-          <li><strong>Expo Notifications</strong> — for delivering push notifications to your device</li>
-          <li><strong>Firebase Hosting</strong> — for hosting this privacy policy page</li>
+          <li><strong>Harshit Jain</strong> (operating Trak as an individual developer)</li>
+          <li>Email: <a href="mailto:traksupportforyou@gmail.com">traksupportforyou@gmail.com</a></li>
         </ul>
         <p>
-          These services have their own privacy policies. We encourage you to review them.
+          If Trak later operates through a registered company, the registered entity name will be updated in this section. Please direct all privacy requests, including data access and deletion requests, to the email above.
         </p>
-      </div>
+      </section>
 
-      <div class="section">
-        <h2>6. Your Choices</h2>
+      <section aria-labelledby="h-collect">
+        <h2 id="h-collect">3. Information We Collect</h2>
+        <p>We collect only the categories of information listed below. We do not collect advertising identifiers, precise location, or browsing history.</p>
+        <ul>
+          <li><strong>Account information:</strong> your full name, username, and email address provided at sign-up.</li>
+          <li><strong>Authentication data:</strong> your password is verified by our authentication provider and is never stored in plain text by Trak. If you sign in with Google, we receive your name and email address from Google in accordance with your Google account settings.</li>
+          <li><strong>Project and workspace data:</strong> projects, milestones, tasks, deadlines, statuses, and descriptions you create, as well as team memberships, project invitations, and join codes you generate or use.</li>
+          <li><strong>Notification data:</strong> a device push token and basic device information required to deliver push notifications, only after you grant notification permission.</li>
+          <li><strong>Session data stored on your device:</strong> your authentication session is cached locally on your device so you remain signed in.</li>
+        </ul>
+        <p>We do <strong>not</strong> currently collect payment information, because the Service has no paid features.</p>
+      </section>
+
+      <section aria-labelledby="h-use">
+        <h2 id="h-use">4. How We Use Information &amp; Legal Bases</h2>
         <p>
-          You can:
+          Where the EU GDPR or UK GDPR applies, we process personal information under the legal bases shown below ("contract" means processing necessary to perform our agreement with you; "legitimate interests" means our legitimate business interests that are not overridden by your rights; "consent" means permission you have given, which you can withdraw at any time).
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Purpose</th>
+                <th scope="col">Data Used</th>
+                <th scope="col">Legal Basis</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Provide your account and authenticate you</td>
+                <td>Account &amp; authentication data</td>
+                <td>Contract</td>
+              </tr>
+              <tr>
+                <td>Store, sync, and display your projects and team data in real time</td>
+                <td>Project &amp; workspace data</td>
+                <td>Contract</td>
+              </tr>
+              <tr>
+                <td>Deliver push notifications you have opted into</td>
+                <td>Notification data</td>
+                <td>Consent</td>
+              </tr>
+              <tr>
+                <td>Secure the Service, prevent abuse, and fix defects</td>
+                <td>Account &amp; technical data</td>
+                <td>Legitimate interests</td>
+              </tr>
+              <tr>
+                <td>Comply with applicable legal obligations</td>
+                <td>As required</td>
+                <td>Legal obligation</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>We do not use your personal information for advertising, profiling, or automated decision-making with legal effects.</p>
+      </section>
+
+      <section aria-labelledby="h-sharing">
+        <h2 id="h-sharing">5. Sharing Your Information</h2>
+        <p>
+          <strong>We do not sell or rent your personal information, and we never have.</strong> We share information only with the service providers listed below, strictly to operate the Service, and only with other Trak users as described:
         </p>
         <ul>
-          <li>Update your account information through the application settings</li>
-          <li>Manage notification preferences in the app settings</li>
-          <li>Delete your projects and associated data through the application</li>
-          <li>Contact us to request account deletion</li>
+          <li><strong>Supabase</strong> — provides authentication, our primary database, and real-time synchronization. Account and project data is stored in our Supabase project.</li>
+          <li><strong>Google</strong> — only if you choose "Continue with Google"; Google authenticates you and shares your name and email with us. See Google's privacy policy for how Google handles its own data.</li>
+          <li><strong>Expo / device push services (FCM, APNs)</strong> — relay the push notifications you opted into. They receive your device push token.</li>
+          <li><strong>Firebase Hosting</strong> — hosts this static policy page only; no Trak user data is stored there.</li>
+          <li><strong>Other Trak users</strong> — your name, username, and project contributions are visible to members of projects you join.</li>
         </ul>
-      </div>
-
-      <div class="section">
-        <h2>7. Security</h2>
         <p>
-          We implement reasonable security measures to protect your information, including encrypted connections and secure authentication. However, no method of transmission or storage is completely secure, and we cannot guarantee absolute security.
+          We may also disclose information where required by law, regulation, or valid legal process, or where necessary to protect the safety of users or the integrity of the Service.
         </p>
-      </div>
+      </section>
 
-      <div class="section">
-        <h2>8. Changes to This Policy</h2>
+      <section aria-labelledby="h-transfers">
+        <h2 id="h-transfers">6. International Data Transfers</h2>
         <p>
-          This Privacy Policy may be updated from time to time. Continued use of Trak after changes constitutes acceptance of the revised policy. We will update the "Last Updated" date at the top of this page when changes are made.
+          Trak's infrastructure providers (including Supabase, Google, and the push notification services) operate globally. Your information may therefore be transferred to, stored in, and processed in countries other than your country of residence, which may have data protection laws that are different from those in your country.
         </p>
-      </div>
-
-      <div class="section">
-        <h2>9. Contact</h2>
         <p>
-          For questions about this Privacy Policy, please contact the project owner through the channels provided in the application.
+          Where such transfers occur, we rely on the safeguards implemented by these providers under applicable law, including standard contractual clauses (SCCs), adequacy decisions, and equivalent transfer mechanisms. You can request further details about these safeguards by contacting us at the address in Section 2.
         </p>
-      </div>
+      </section>
 
-      <div class="divider"></div>
+      <section aria-labelledby="h-retention">
+        <h2 id="h-retention">7. Data Retention &amp; Deletion</h2>
+        <p>We retain your personal information only for as long as necessary for the purposes described in this policy:</p>
+        <ul>
+          <li><strong>Active accounts:</strong> your account and project data are retained while your account is active.</li>
+          <li><strong>Deleted projects:</strong> projects you delete are moved to a trash state and are permanently purged automatically after <strong>15 days</strong>.</li>
+          <li><strong>Account deletion:</strong> when you request account deletion via the contact email above, we delete your personal account data and your solely owned project data within <strong>30 days</strong> of verifying your request.</li>
+          <li><strong>Backups:</strong> residual copies may persist temporarily in encrypted backups but will be overwritten within the provider's backup cycle and are not used for any other purpose.</li>
+        </ul>
+        <p>
+          We may retain limited information for longer where required for legal compliance, dispute resolution, or security (for example, records of a deletion request itself).
+        </p>
+      </section>
 
-      <div class="notice">
-        This is a placeholder legal document. Final legally reviewed content must be supplied by the project owner before publication. The information above reflects the current technical implementation of Trak.
-      </div>
+      <section aria-labelledby="h-rights">
+        <h2 id="h-rights">8. Your Data Protection Rights</h2>
+        <p>Depending on where you live, including under the GDPR and UK GDPR, you may have the right to:</p>
+        <ul>
+          <li><strong>Access</strong> — obtain a copy of the personal information we hold about you.</li>
+          <li><strong>Rectification</strong> — correct inaccurate or incomplete information (much of this is available in-app via your profile settings).</li>
+          <li><strong>Erasure</strong> — request deletion of your personal information ("right to be forgotten").</li>
+          <li><strong>Data portability</strong> — receive your data in a structured, commonly used, machine-readable format.</li>
+          <li><strong>Restriction</strong> — ask us to limit how we use your information in certain circumstances.</li>
+          <li><strong>Objection</strong> — object to processing based on legitimate interests.</li>
+          <li><strong>Withdraw consent</strong> — where processing is based on consent (for example, push notifications), you may withdraw it at any time via your device or app settings without affecting prior processing.</li>
+        </ul>
+        <p>
+          To exercise any of these rights, email us at the address in Section 2. We will respond within <strong>30 days</strong> (or sooner where applicable law requires). We may ask you to verify your identity before fulfilling a request. If you are in the EEA or UK and believe we have not adequately addressed your concerns, you have the right to lodge a complaint with your local data protection supervisory authority.
+        </p>
+      </section>
+
+      <section aria-labelledby="h-ccpa">
+        <h2 id="h-ccpa">9. California Privacy Rights (CCPA/CPRA)</h2>
+        <p>If you are a California resident, the following applies:</p>
+        <ul>
+          <li><strong>We do not sell your personal information.</strong> We also do not "share" personal information for cross-context behavioral advertising, so there is no opt-out for selling or sharing to exercise.</li>
+          <li>You have the right to <strong>know</strong> what personal information we collect, the <strong>right to delete</strong> it, the <strong>right to correct</strong> it, and the right not to receive discriminatory treatment for exercising your rights.</li>
+          <li>In the past 12 months we have collected the following categories of personal information: identifiers (name, email, username), internet or electronic network activity information limited to Service usage data (projects, tasks, notification tokens), and no other CCPA categories.</li>
+          <li>To submit a request to know or delete, contact us at the address in Section 2. We will verify and respond within the timeframes required by California law.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="h-children">
+        <h2 id="h-children">10. Children's Privacy</h2>
+        <p>
+          The Service is <strong>not directed to children under 13</strong> (or under 16 in jurisdictions where that is the minimum age, including parts of the EU/UK), and we do not knowingly collect personal information from children. The Service uses third-party sign-in providers, including Google, whose own terms and age requirements apply.
+        </p>
+        <p>
+          If we become aware that we have collected personal information from a child without verifiable parental consent, we will delete it promptly. If you believe a child has provided us personal information, please contact us at the address in Section 2.
+        </p>
+      </section>
+
+      <section aria-labelledby="h-security">
+        <h2 id="h-security">11. Security</h2>
+        <p>We protect your information with concrete technical measures, including:</p>
+        <ul>
+          <li><strong>Encryption in transit:</strong> all communication between the app and our backend uses HTTPS/TLS.</li>
+          <li><strong>Encryption at rest:</strong> data stored with our infrastructure providers is protected by their encryption-at-rest controls.</li>
+          <li><strong>Access control:</strong> database access is enforced through Supabase Row Level Security (RLS) policies, so each user can access only the projects they are authorized to see.</li>
+          <li><strong>Secure account recovery:</strong> password resets use time-limited one-time codes, and passwords are never stored in plain text by Trak.</li>
+        </ul>
+        <p>
+          No method of transmission over the internet or electronic storage is 100% secure. While we strive to protect your information, we cannot guarantee absolute security.
+        </p>
+      </section>
+
+      <section aria-labelledby="h-breach">
+        <h2 id="h-breach">12. Data Breach Notification</h2>
+        <p>
+          In the event of a personal data breach, we will assess the risk promptly. Where a breach is likely to result in a risk to your rights and freedoms, we will notify the relevant supervisory authority within the timeframes required by applicable law (including, where applicable, within 72 hours under the GDPR). Where a breach is likely to result in a <strong>high risk</strong> to you, we will also notify affected users without undue delay, describing in plain language the nature of the breach and the steps we are taking.
+        </p>
+      </section>
+
+      <section aria-labelledby="h-analytics">
+        <h2 id="h-analytics">13. Analytics &amp; Crash Reporting</h2>
+        <p>
+          Trak currently uses <strong>no analytics, telemetry, or crash-reporting services</strong>. If we introduce any in the future, we will update this policy before or at the time of introduction, disclose the provider and the data it receives, and obtain consent where required by applicable law.
+        </p>
+      </section>
+
+      <section aria-labelledby="h-cookies">
+        <h2 id="h-cookies">14. Cookies &amp; Tracking Technologies</h2>
+        <p>
+          The Trak web resources (including this page) do <strong>not</strong> use advertising, analytics, or third-party tracking cookies. The mobile app stores a session token locally on your device, which is strictly necessary to keep you signed in and is not a tracking mechanism. If optional or non-essential cookies are ever introduced, we will present a cookie notice and obtain consent where required before they are set.
+        </p>
+      </section>
+
+      <section aria-labelledby="h-push">
+        <h2 id="h-push">15. Push Notifications</h2>
+        <p>
+          We send push notifications about project activity only after you grant notification permission on your device. You can opt out at any time by disabling notifications for Trak in your device settings; your push token will no longer be used for delivery.
+        </p>
+      </section>
+
+      <section aria-labelledby="h-changes">
+        <h2 id="h-changes">16. Changes to This Policy</h2>
+        <p>
+          We may update this Privacy Policy from time to time. The "Effective Date" reflects when the current version took effect, and the "Last Updated" date reflects the most recent revision. For material changes, we will provide notice within the app or by other prominent means before the changes take effect. Your continued use of the Service after the effective date of a revised policy constitutes acceptance of that policy.
+        </p>
+      </section>
+
+      <div class="divider" role="separator"></div>
+
+      <section aria-labelledby="h-contact">
+        <h2 id="h-contact">17. Contact Us</h2>
+        <p>
+          For questions about this Privacy Policy, or to exercise any privacy right, contact us at
+          <a href="mailto:traksupportforyou@gmail.com">traksupportforyou@gmail.com</a>.
+        </p>
+      </section>
 
     </main>
 
