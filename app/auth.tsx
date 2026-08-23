@@ -53,6 +53,9 @@ export default function AuthScreen() {
   const [infoMessage, setInfoMessage] = useState('');
   const [existingAccountConflict, setExistingAccountConflict] = useState(false);
 
+  // Legal consent state for signup
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+
   // Forgot Password State
   const [forgotEmail, setForgotEmail] = useState('');
   const [otpCode, setOtpCode] = useState('');
@@ -176,6 +179,11 @@ export default function AuthScreen() {
 
     if (mode === 'signup' && !fullName.trim()) {
       setErrorMessage('Please enter your full name.');
+      return;
+    }
+
+    if (mode === 'signup' && !acceptedTerms) {
+      setErrorMessage('Please agree to the Terms of Service and Privacy Policy to continue.');
       return;
     }
 
@@ -767,16 +775,58 @@ export default function AuthScreen() {
             </View>
           )}
 
+          {/* Terms of Service consent (Sign Up only) */}
+          {mode === 'signup' && (
+            <View style={styles.termsRow}>
+              <Pressable
+                onPress={() => setAcceptedTerms((prev) => !prev)}
+                style={[
+                  styles.checkbox,
+                  {
+                    borderColor: acceptedTerms ? colors.primaryFixed : colors.outlineVariant,
+                    backgroundColor: acceptedTerms ? colors.primaryFixed : 'transparent',
+                  },
+                ]}
+                accessibilityLabel="Agree to Terms of Service and Privacy Policy"
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: acceptedTerms }}
+                hitSlop={8}
+              >
+                {acceptedTerms && <Feather name="check" size={12} color={colors.onPrimaryFixed} />}
+              </Pressable>
+              <Text style={[styles.termsText, { color: colors.onSurfaceVariant }]}>
+                I agree to the{' '}
+                <Text
+                  style={[styles.termsLink, { color: colors.primaryFixed }]}
+                  onPress={() => router.push('/terms')}
+                  accessibilityLabel="View Terms of Service"
+                  accessibilityRole="link"
+                >
+                  Terms of Service
+                </Text>{' '}
+                and{' '}
+                <Text
+                  style={[styles.termsLink, { color: colors.primaryFixed }]}
+                  onPress={() => router.push('/privacy')}
+                  accessibilityLabel="View Privacy Policy"
+                  accessibilityRole="link"
+                >
+                  Privacy Policy
+                </Text>
+              </Text>
+            </View>
+          )}
+
           {/* Primary Action Button (Sign In / Create Account) */}
           <Pressable
             style={({ pressed }) => [
               styles.primaryBtn,
               { backgroundColor: colors.primaryFixed },
               pressed && styles.primaryBtnPressed,
-              loading && styles.primaryBtnDisabled,
+              (loading || (mode === 'signup' && !acceptedTerms)) && styles.primaryBtnDisabled,
             ]}
             onPress={handleAuthSubmit}
-            disabled={loading}
+            disabled={loading || (mode === 'signup' && !acceptedTerms)}
             accessibilityLabel={mode === 'signin' ? 'Sign in' : 'Create account'}
             accessibilityRole="button"
           >
@@ -806,6 +856,7 @@ export default function AuthScreen() {
             onPress={() => {
               setErrorMessage('');
               setInfoMessage('');
+              setAcceptedTerms(false);
               setMode((prev) => (prev === 'signin' ? 'signup' : 'signin'));
             }}
             accessibilityLabel={mode === 'signin' ? 'Register' : 'Sign in'}
@@ -815,6 +866,21 @@ export default function AuthScreen() {
               {mode === 'signin' ? 'Register' : 'Sign In'}
             </Text>
           </Pressable>
+
+          {/* Privacy Policy link on Sign In */}
+          {mode === 'signin' && (
+            <Pressable
+              style={styles.signinPrivacyRow}
+              onPress={() => router.push('/privacy')}
+              accessibilityLabel="View Privacy Policy"
+              accessibilityRole="link"
+            >
+              <Text style={[styles.signinPrivacyText, { color: colors.onSurfaceVariant }]}>
+                By continuing, you can review our{' '}
+                <Text style={[styles.termsLink, { color: colors.primaryFixed }]}>Privacy Policy</Text>.
+              </Text>
+            </Pressable>
+          )}
         </>
       )}
 
@@ -1572,6 +1638,46 @@ const styles = StyleSheet.create({
   constraintText: {
     fontSize: 11,
     marginLeft: 6,
+    fontFamily: 'Inter_400Regular',
+  },
+
+  // ─── Terms Consent Checkbox ───
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginBottom: 18,
+    marginTop: 2,
+  },
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  termsText: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+    lineHeight: 18,
+  },
+  termsLink: {
+    fontFamily: 'Inter_600SemiBold',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+
+  // ─── Sign-In Privacy Link ───
+  signinPrivacyRow: {
+    alignItems: 'center',
+    marginTop: 14,
+    paddingVertical: 4,
+  },
+  signinPrivacyText: {
+    fontSize: 12,
     fontFamily: 'Inter_400Regular',
   },
 
