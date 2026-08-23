@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Trak — Project collaboration, simplified. Manage projects, milestones, members and collaboration in one place.">
+  <title>Trak — Project collaboration, simplified.</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0b0e14;
+      --bg-glow: rgba(114, 255, 112, 0.08);
+      --surface: #1d2026;
+      --surface-high: #272a31;
+      --text-primary: #e1e2eb;
+      --text-secondary: #b9ccb2;
+      --accent: #72ff70;
+      --accent-dim: #00e639;
+      --on-accent: #002203;
+      --border: rgba(255,255,255,0.06);
+      --radius: 16px;
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f6f8fa;
+        --bg-glow: rgba(0, 135, 46, 0.06);
+        --surface: #ffffff;
+        --surface-high: #eaeef2;
+        --text-primary: #1f2328;
+        --text-secondary: #57606a;
+        --accent: #00872e;
+        --accent-dim: #006e23;
+        --on-accent: #ffffff;
+        --border: rgba(0,0,0,0.08);
+      }
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      background:
+        radial-gradient(600px 400px at 50% -10%, var(--bg-glow), transparent 70%),
+        var(--bg);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .page {
+      width: 100%;
+      max-width: 640px;
+      text-align: center;
+    }
+
+    /* ─── Logo mark ─── */
+    .logo {
+      width: 72px;
+      height: 72px;
+      margin: 0 auto 20px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-dim));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 30px var(--bg-glow);
+    }
+
+    .logo svg { width: 40px; height: 40px; }
+
+    .brand {
+      display: inline-block;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 5px;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      font-size: clamp(30px, 6vw, 46px);
+      font-weight: 800;
+      letter-spacing: -1px;
+      line-height: 1.1;
+      margin-bottom: 16px;
+    }
+
+    .tagline {
+      color: var(--accent);
+    }
+
+    .desc {
+      font-size: clamp(15px, 2.4vw, 17px);
+      color: var(--text-secondary);
+      max-width: 520px;
+      margin: 0 auto 32px;
+    }
+
+    /* ─── Feature row ─── */
+    .features {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 36px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 7px 14px;
+    }
+
+    .chip .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    /* ─── CTA ─── */
+    .cta {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: var(--accent);
+      color: var(--on-accent);
+      font-size: 15px;
+      font-weight: 700;
+      text-decoration: none;
+      padding: 14px 28px;
+      border-radius: 12px;
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+
+    .cta:hover { transform: translateY(-2px); opacity: 0.94; }
+    .cta:active { transform: translateY(0); }
+
+    /* ─── Card footer ─── */
+    .card {
+      margin-top: 40px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .card a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .card a:hover { text-decoration: underline; }
+
+    @media (max-width: 480px) {
+      .logo { width: 60px; height: 60px; border-radius: 16px; }
+      .logo svg { width: 34px; height: 34px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="logo" aria-hidden="true">
+      <!-- Simple check/track glyph -->
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4 12.5L9.5 18L20 6.5" stroke="#002203" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+
+    <span class="brand">TRAK</span>
+    <h1>Project collaboration, <span class="tagline">simplified.</span></h1>
+
+    <p class="desc">
+      Trak helps teams manage projects, milestones, members and collaboration in one
+      fast, focused workspace — so everyone stays aligned from kickoff to launch.
+    </p>
+
+    <div class="features" aria-label="Key features">
+      <span class="chip"><span class="dot"></span>Projects</span>
+      <span class="chip"><span class="dot"></span>Milestones</span>
+      <span class="chip"><span class="dot"></span>Members</span>
+      <span class="chip"><span class="dot"></span>Real-time collaboration</span>
+    </div>
+
+    <a class="cta" href="/privacy-policy/">
+      Privacy Policy
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+
+    <div class="card">
+      Available on mobile &amp; web. Read our
+      <a href="/privacy-policy/">Privacy Policy</a>.
+      <br>© 2026 Trak. All rights reserved.
+    </div>
+  </main>
+</body>
+</html>

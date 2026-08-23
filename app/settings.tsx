@@ -21,7 +21,7 @@ import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { getThemeColors } from '@/constants/colors';
-import { TRAK_ANDROID_APK_URL } from '@/constants/config';
+import { TRAK_ANDROID_APK_URL, TRAK_PRIVACY_POLICY_URL } from '@/constants/config';
 import { useSettingsStore, ThemeMode } from '@/store/useSettingsStore';
 import { useProfileStore } from '@/store/useProfileStore';
 import { useProjectStore } from '@/store/useProjectStore';
@@ -292,6 +292,28 @@ export default function SettingsScreen() {
       message: t('languageSubtitle', language),
       options,
     });
+  };
+
+  const handleDeleteAccountRequest = async () => {
+    triggerHaptic(30);
+    const confirmed = await ask({
+      title: 'Delete Account',
+      message: 'To delete your account and all associated data, send a verified deletion request to our support email. We will respond within 30 days. Open your email app now?',
+      confirmLabel: 'Request Deletion',
+      destructive: true,
+      icon: 'trash-2',
+    });
+    if (!confirmed) return;
+    Linking.openURL(
+      'mailto:traksupportforyou@gmail.com?subject=' +
+        encodeURIComponent('Trak Account Deletion Request') +
+        '&body=' +
+        encodeURIComponent(
+          'Hello Trak Team,\n\nI would like to request permanent deletion of my Trak account and all associated data.\n\nAccount email: ' +
+            (profile.email || '') +
+            '\n\nPlease confirm once the deletion is complete.\n\nThanks',
+        ),
+    );
   };
 
   const handleLogOut = async () => {
@@ -565,7 +587,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* ── 📱 HOME SCREEN WIDGET ── */}
-        <SectionHeader title="HOME SCREEN WIDGET" color={`${colors.onSurfaceVariant}90`} />
+        {/* <SectionHeader title="HOME SCREEN WIDGET" color={`${colors.onSurfaceVariant}90`} />
         <View style={[styles.glassCard, { backgroundColor: colors.glassBg, borderColor: colors.glassBorder }]}>
           <View style={styles.cardHeader}>
             <View style={[styles.iconWrap, { backgroundColor: `${colors.primaryFixed}15` }]}>
@@ -580,7 +602,7 @@ export default function SettingsScreen() {
           </View>
 
           <WidgetPreviewCard colors={colors} />
-        </View>
+        </View> */}
 
         {/* ── ABOUT ── */}
         <SectionHeader title={t('about', language)} color={`${colors.onSurfaceVariant}90`} />
@@ -600,7 +622,12 @@ export default function SettingsScreen() {
 
           <View style={[styles.divider, { backgroundColor: `${colors.outlineVariant}20` }]} />
 
-          <View style={styles.row}>
+          <Pressable
+            style={styles.row}
+            onPress={() => { triggerHaptic(10); Linking.openURL(TRAK_PRIVACY_POLICY_URL); }}
+            accessibilityLabel="Security and Privacy — view Privacy Policy"
+            accessibilityRole="link"
+          >
             <View style={styles.rowLeft}>
               <View style={[styles.iconWrap, { backgroundColor: colors.surfaceContainerHigh }]}>
                 <Feather name="shield" size={16} color={colors.onSurfaceVariant} />
@@ -610,8 +637,8 @@ export default function SettingsScreen() {
                 <Text style={[styles.rowSubtitle, { color: `${colors.onSurfaceVariant}90` }]}>Encrypted Local-First Storage</Text>
               </View>
             </View>
-            <Feather name="lock" size={14} color={`${colors.primaryFixed}90`} />
-          </View>
+            <Feather name="external-link" size={14} color={`${colors.primaryFixed}90`} />
+          </Pressable>
 
           <View style={[styles.divider, { backgroundColor: `${colors.outlineVariant}20` }]} />
 
@@ -625,7 +652,7 @@ export default function SettingsScreen() {
               </View>
               <View style={styles.rowLabelWrap}>
                 <Text style={[styles.rowTitle, { color: colors.onSurface }]}>Download Android App</Text>
-                <Text style={[styles.rowSubtitle, { color: `${colors.onSurfaceVariant}90` }]}>Latest standalone production APK</Text>
+                <Text style={[styles.rowSubtitle, { color: `${colors.onSurfaceVariant}90` }]}>Latest standalone production APP</Text>
               </View>
             </View>
             <Feather name="external-link" size={14} color={colors.primaryFixed} />
@@ -665,6 +692,24 @@ export default function SettingsScreen() {
                 <Text style={[styles.rowTitle, { color: colors.onSurface }]}>Change Password</Text>
                 <Text style={[styles.rowSubtitle, { color: `${colors.onSurfaceVariant}90` }]}>
                   ••••••••••••
+                </Text>
+              </View>
+            </View>
+            <Feather name="chevron-right" size={18} color={`${colors.onSurfaceVariant}60`} />
+          </Pressable>
+
+          <View style={[styles.divider, { backgroundColor: `${colors.outlineVariant}20` }]} />
+
+          {/* Delete Account (Play Store policy: in-app account deletion entry point) */}
+          <Pressable style={styles.row} onPress={handleDeleteAccountRequest}>
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconWrap, { backgroundColor: '#FF525215' }]}>
+                <Feather name="trash-2" size={16} color="#FF5252" />
+              </View>
+              <View style={styles.rowLabelWrap}>
+                <Text style={[styles.rowTitle, { color: colors.onSurface }]}>Delete Account</Text>
+                <Text style={[styles.rowSubtitle, { color: `${colors.onSurfaceVariant}90` }]}>
+                  Permanently delete your account and data
                 </Text>
               </View>
             </View>

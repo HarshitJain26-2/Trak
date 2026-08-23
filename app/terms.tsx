@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, StyleSheet, View } from 'react-native';
 import { useThemeColors } from '@/constants/colors';
-import { LegalDocument, LEGAL_VERSION } from '@/components/legal/LegalDocument';
+import { LegalDocument, LEGAL_VERSION, LEGAL_EFFECTIVE_DATE } from '@/components/legal/LegalDocument';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   const colors = useThemeColors();
@@ -15,7 +15,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function TermsOfServiceScreen() {
   return (
-    <LegalDocument title="Terms of Service" lastUpdated={LEGAL_VERSION}>
+    <LegalDocument title="Terms of Service" lastUpdated={LEGAL_VERSION} effectiveDate={LEGAL_EFFECTIVE_DATE}>
       <Section title="1. Acceptance of Terms">
         By creating an account or using Trak, you agree to be bound by these Terms of Service. If you do not agree, please do not use the application.
       </Section>

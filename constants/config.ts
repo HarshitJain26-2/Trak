@@ -40,3 +40,4 @@ export const getApiUrl = (): string => {
 
 export const API_URL = getApiUrl();
 export const TRAK_ANDROID_APK_URL = 'https://expo.dev/artifacts/eas/C9uJa4BuYlJFgAzauw9eLb2Iyc4iCHk_6F3ext-9C04.apk';
+export const TRAK_PRIVACY_POLICY_URL = 'https://trakbyharshit.web.app/privacy-policy/';

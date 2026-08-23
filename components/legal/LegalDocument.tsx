@@ -17,14 +17,16 @@ import { useColorScheme } from 'react-native';
 import { triggerHaptic } from '@/utils/haptics';
 
 export const LEGAL_VERSION = '2026-08-23';
+export const LEGAL_EFFECTIVE_DATE = '2026-08-23';
 
 interface LegalDocumentProps {
   title: string;
   lastUpdated: string;
+  effectiveDate?: string;
   children: React.ReactNode;
 }
 
-export function LegalDocument({ title, lastUpdated, children }: LegalDocumentProps) {
+export function LegalDocument({ title, lastUpdated, effectiveDate, children }: LegalDocumentProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const themeMode = useSettingsStore((s) => s.themeMode);
@@ -71,18 +73,12 @@ export function LegalDocument({ title, lastUpdated, children }: LegalDocumentPro
           <Text style={[styles.brand, { color: colors.primaryFixed }]}>TRAK</Text>
           <Text style={[styles.heading, { color: colors.onSurface }]}>{title}</Text>
           <Text style={[styles.lastUpdated, { color: colors.onSurfaceVariant }]}>
-            Last Updated: {lastUpdated}
+            {effectiveDate ? `Effective Date: ${effectiveDate}  ·  ` : ''}Last Updated: {lastUpdated}
           </Text>
 
           <View style={[styles.divider, { backgroundColor: `${colors.outlineVariant}33` }]} />
 
           {children}
-
-          <View style={[styles.divider, { backgroundColor: `${colors.outlineVariant}33` }]} />
-
-          <Text style={[styles.notice, { color: colors.onSurfaceVariant }]}>
-            This is a placeholder legal document. Final legally reviewed content must be supplied by the project owner before publication.
-          </Text>
         </View>
       </ScrollView>
     </View>
@@ -146,11 +142,5 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     marginVertical: 16,
-  },
-  notice: {
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-    lineHeight: 18,
-    fontStyle: 'italic',
   },
 });
