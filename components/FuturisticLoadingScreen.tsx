@@ -1,23 +1,26 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { StyleSheet, View, AccessibilityInfo, Dimensions, Platform } from 'react-native';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import {
+  StyleSheet,
+  View,
+  Text,
+  AccessibilityInfo,
+  Dimensions,
+  Platform,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
   withSequence,
-  withSpring,
+  withDelay,
+  withRepeat,
   Easing,
   runOnJS,
 } from 'react-native-reanimated';
-import { AnimatedLogo } from './AnimatedLogo';
-import { FloatingParticles } from './FloatingParticles';
-import { GlowRings } from './GlowRings';
-import { OrbitParticles } from './OrbitParticles';
-import { LoadingDots } from './LoadingDots';
-import { ProgressCounter } from './ProgressCounter';
+import { FONT } from '@/constants/typography';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export interface FuturisticLoadingScreenProps {
   onFinish?: () => void;
@@ -27,166 +30,355 @@ export interface FuturisticLoadingScreenProps {
   completed?: boolean;
 }
 
+const LETTERS = ['T', 'R', 'A', 'K'];
+
 export const FuturisticLoadingScreen: React.FC<FuturisticLoadingScreenProps> = ({
   onFinish,
-  durationMs = 3000,
-  usePngLogo = true,
+  durationMs = 1400,
   themeMode = 'dark',
-  completed,
+  completed = true,
 }) => {
   const [reduceMotion, setReduceMotion] = useState(false);
-  const [isFinished, setIsFinished] = useState(false);
+  const [isExiting, setIsExiting] = useState(false);
+  const animationFinishedRef = useRef(false);
+  const isMountedRef = useRef(true);
 
-  // Shared Animation Values
+  // Shared Animation Values for Screen and Center Stage
   const containerOpacity = useSharedValue(1);
-  const bgFlashOpacity = useSharedValue(0);
-  const shockwaveScale = useSharedValue(0.5);
-  const shockwaveOpacity = useSharedValue(0);
-  const progress = useSharedValue(0);
+  const wordGlow = useSharedValue(0.2);
+  const shineTranslateX = useSharedValue(-SCREEN_WIDTH * 0.6);
+  const shineOpacity = useSharedValue(0);
+  const underlineScaleX = useSharedValue(0);
+  const underlineOpacity = useSharedValue(0);
 
-  // Detect Device Accessibility Reduce Motion Setting
+  // Per-letter Shared Animation Values (T, R, A, K)
+  const letter0Opacity = useSharedValue(0);
+  const letter0TranslateY = useSharedValue(14);
+  const letter0Scale = useSharedValue(0.85);
+
+  const letter1Opacity = useSharedValue(0);
+  const letter1TranslateY = useSharedValue(14);
+  const letter1Scale = useSharedValue(0.85);
+
+  const letter2Opacity = useSharedValue(0);
+  const letter2TranslateY = useSharedValue(14);
+  const letter2Scale = useSharedValue(0.85);
+
+  const letter3Opacity = useSharedValue(0);
+  const letter3TranslateY = useSharedValue(14);
+  const letter3Scale = useSharedValue(0.85);
+
+  const letterValues = [
+    { opacity: letter0Opacity, translateY: letter0TranslateY, scale: letter0Scale },
+    { opacity: letter1Opacity, translateY: letter1TranslateY, scale: letter1Scale },
+    { opacity: letter2Opacity, translateY: letter2TranslateY, scale: letter2Scale },
+    { opacity: letter3Opacity, translateY: letter3TranslateY, scale: letter3Scale },
+  ];
+
+  // Exit trigger
+  const triggerExit = useCallback(() => {
+    if (isExiting || !isMountedRef.current) return;
+    setIsExiting(true);
+
+    containerOpacity.value = withTiming(
+      0,
+      { duration: 200, easing: Easing.out(Easing.quad) },
+      (finished) => {
+        if (finished && onFinish) {
+          runOnJS(onFinish)();
+        }
+      }
+    );
+  }, [isExiting, onFinish]);
+
+  // Detect Reduce Motion
   useEffect(() => {
+    isMountedRef.current = true;
+
     AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
-      setReduceMotion(enabled);
+      if (isMountedRef.current) setReduceMotion(enabled);
     });
 
     const subscription = AccessibilityInfo.addEventListener(
       'reduceMotionChanged',
-      (enabled) => setReduceMotion(enabled)
+      (enabled) => {
+        if (isMountedRef.current) setReduceMotion(enabled);
+      }
     );
 
     return () => {
+      isMountedRef.current = false;
       subscription?.remove();
     };
   }, []);
 
-  // Completion sequence trigger
-  const triggerCompletion = useCallback(() => {
-    if (isFinished) return;
-    setIsFinished(true);
-
+  // Main Animation Sequence
+  useEffect(() => {
     if (reduceMotion) {
-      containerOpacity.value = withTiming(0, { duration: 200 }, (finished) => {
-        if (finished && onFinish) {
-          runOnJS(onFinish)();
-        }
+      // Instant static display for reduced motion
+      letterValues.forEach(({ opacity, translateY, scale }) => {
+        opacity.value = 1;
+        translateY.value = 0;
+        scale.value = 1;
       });
-      return;
+      underlineScaleX.value = 1;
+      underlineOpacity.value = 0.8;
+      wordGlow.value = 0.5;
+
+      const timer = setTimeout(() => {
+        if (completed) {
+          triggerExit();
+        } else {
+          animationFinishedRef.current = true;
+        }
+      }, 600);
+
+      return () => clearTimeout(timer);
     }
 
-    // Stage 8 Completion FX (rapid transition)
-    // 1. Background flash
-    bgFlashOpacity.value = withSequence(
-      withTiming(0.4, { duration: 100 }),
-      withTiming(0, { duration: 200 })
+    // Sequence timing:
+    // 0ms:   T appears (~150ms)
+    // 150ms: R appears (~300ms)
+    // 300ms: A appears (~450ms)
+    // 450ms: K appears (~600ms)
+    // 600ms-750ms: completed word hold
+    // 750ms-1200ms: horizontal light sweep + glow expansion
+    // 1250ms-1400ms: transition out
+
+    letterValues.forEach(({ opacity, translateY, scale }, i) => {
+      const delayMs = i * 150;
+
+      opacity.value = withDelay(
+        delayMs,
+        withTiming(1, { duration: 200, easing: Easing.out(Easing.quad) })
+      );
+
+      translateY.value = withDelay(
+        delayMs,
+        withTiming(0, { duration: 260, easing: Easing.out(Easing.cubic) })
+      );
+
+      scale.value = withDelay(
+        delayMs,
+        withTiming(1, { duration: 260, easing: Easing.out(Easing.quad) })
+      );
+    });
+
+    // Subtle underline expansion after all letters appear (~600ms)
+    underlineOpacity.value = withDelay(
+      600,
+      withTiming(0.8, { duration: 250, easing: Easing.out(Easing.quad) })
+    );
+    underlineScaleX.value = withDelay(
+      600,
+      withTiming(1, { duration: 350, easing: Easing.out(Easing.cubic) })
     );
 
-    // 2. Shockwave pulse expansion (scale 0.5 -> 3.5)
-    shockwaveOpacity.value = withSequence(
-      withTiming(0.8, { duration: 100 }),
-      withTiming(0, { duration: 300 })
+    // Horizontal light sweep across the word (~750ms - 1200ms)
+    shineOpacity.value = withDelay(
+      700,
+      withSequence(
+        withTiming(0.9, { duration: 150 }),
+        withDelay(300, withTiming(0, { duration: 200 }))
+      )
     );
 
-    shockwaveScale.value = withTiming(
-      3.5,
-      { duration: 350, easing: Easing.out(Easing.quad) }
-    );
-
-    // 3. Final screen fade out into home
-    containerOpacity.value = withSequence(
-      withTiming(1, { duration: 150 }),
-      withTiming(0, { duration: 200 }, (finished) => {
-        if (finished && onFinish) {
-          runOnJS(onFinish)();
-        }
+    shineTranslateX.value = withDelay(
+      700,
+      withTiming(SCREEN_WIDTH * 0.6, {
+        duration: 450,
+        easing: Easing.inOut(Easing.cubic),
       })
     );
-  }, [reduceMotion, onFinish, isFinished]);
 
-  // Smooth linear progress counter 0% -> 100%
+    // Subtle final brand glow reveal
+    wordGlow.value = withDelay(
+      700,
+      withSequence(
+        withTiming(0.9, { duration: 250, easing: Easing.out(Easing.quad) }),
+        withTiming(0.6, { duration: 300, easing: Easing.inOut(Easing.quad) })
+      )
+    );
+
+    // Check completion when full sequence ends (~1300ms)
+    const animTimer = setTimeout(() => {
+      animationFinishedRef.current = true;
+      if (completed) {
+        triggerExit();
+      } else {
+        // Idle breathing state if background data is still pending
+        wordGlow.value = withRepeat(
+          withSequence(
+            withTiming(0.8, { duration: 900, easing: Easing.inOut(Easing.quad) }),
+            withTiming(0.4, { duration: 900, easing: Easing.inOut(Easing.quad) })
+          ),
+          -1,
+          true
+        );
+      }
+    }, Math.max(durationMs, 1250));
+
+    return () => clearTimeout(animTimer);
+  }, [reduceMotion, durationMs]);
+
+  // Respond immediately when app finishes loading while in idle state
   useEffect(() => {
-    if (completed) {
-      progress.value = withTiming(
-        100,
-        { duration: 150, easing: Easing.out(Easing.quad) },
-        (finished) => {
-          if (finished) {
-            runOnJS(triggerCompletion)();
-          }
-        }
-      );
-    } else {
-      progress.value = withTiming(
-        100,
-        { duration: durationMs, easing: Easing.linear },
-        (finished) => {
-          if (finished) {
-            runOnJS(triggerCompletion)();
-          }
-        }
-      );
+    if (completed && animationFinishedRef.current) {
+      triggerExit();
     }
-  }, [durationMs, triggerCompletion, completed]);
+  }, [completed, triggerExit]);
 
-  // Animated styles
-  const screenAnimatedStyle = useAnimatedStyle(() => ({
+  // Animated Styles
+  const containerStyle = useAnimatedStyle(() => ({
     opacity: containerOpacity.value,
   }));
 
-  const bgFlashStyle = useAnimatedStyle(() => ({
-    opacity: bgFlashOpacity.value,
+  const letter0Style = useAnimatedStyle(() => ({
+    opacity: letter0Opacity.value,
+    transform: [{ translateY: letter0TranslateY.value }, { scale: letter0Scale.value }],
   }));
 
-  const shockwaveStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: shockwaveScale.value }],
-    opacity: shockwaveOpacity.value,
+  const letter1Style = useAnimatedStyle(() => ({
+    opacity: letter1Opacity.value,
+    transform: [{ translateY: letter1TranslateY.value }, { scale: letter1Scale.value }],
+  }));
+
+  const letter2Style = useAnimatedStyle(() => ({
+    opacity: letter2Opacity.value,
+    transform: [{ translateY: letter2TranslateY.value }, { scale: letter2Scale.value }],
+  }));
+
+  const letter3Style = useAnimatedStyle(() => ({
+    opacity: letter3Opacity.value,
+    transform: [{ translateY: letter3TranslateY.value }, { scale: letter3Scale.value }],
+  }));
+
+  const shineStyle = useAnimatedStyle(() => ({
+    opacity: shineOpacity.value,
+    transform: [{ translateX: shineTranslateX.value }],
+  }));
+
+  const underlineStyle = useAnimatedStyle(() => ({
+    opacity: underlineOpacity.value,
+    transform: [{ scaleX: underlineScaleX.value }],
+  }));
+
+  const glowPodStyle = useAnimatedStyle(() => ({
+    opacity: wordGlow.value,
   }));
 
   const isDark = themeMode === 'dark';
   const bgGradientColors = isDark
-    ? (['#071B2B', '#0E283C', '#102F45'] as const)
-    : (['#F0F4F8', '#E2E8F0', '#CBD5E1'] as const);
+    ? (['#051522', '#071B2B', '#092336'] as const)
+    : (['#F8FAFC', '#F1F5F9', '#E2E8F0'] as const);
+
+  const brandColor = isDark ? '#39FF88' : '#0B253A';
+  const glowColor = isDark ? 'rgba(57, 255, 136, 0.35)' : 'rgba(0, 230, 57, 0.25)';
 
   return (
-    <Animated.View style={[styles.container, screenAnimatedStyle]}>
-      {/* Dark Ambient Gradient Background */}
+    <Animated.View
+      style={[styles.container, containerStyle]}
+      accessible={true}
+      accessibilityRole="header"
+      accessibilityLabel="Trak"
+    >
+      {/* Ambient Premium Gradient Background */}
       <LinearGradient
         colors={bgGradientColors}
-        start={{ x: 0.2, y: 0 }}
-        end={{ x: 0.8, y: 1 }}
+        start={{ x: 0.3, y: 0 }}
+        end={{ x: 0.7, y: 1 }}
         style={StyleSheet.absoluteFillObject}
       />
 
-      {/* Floating Ambient Glow Particles */}
-      <FloatingParticles reduceMotion={reduceMotion} />
+      {/* Subtle Radial Glow Pod behind the wordmark */}
+      <Animated.View
+        style={[
+          styles.ambientGlow,
+          { backgroundColor: glowColor },
+          glowPodStyle,
+        ]}
+        pointerEvents="none"
+      />
 
-      {/* Stage 8 Completion Background Flash */}
-      <Animated.View style={[styles.bgFlash, bgFlashStyle, { pointerEvents: 'none' }]} />
+      {/* Center Wordmark Stage */}
+      <View style={styles.centerStage} accessible={false}>
+        <View style={styles.wordmarkContainer}>
+          {/* Letter T */}
+          <Animated.View style={[styles.letterBox, letter0Style]}>
+            <Text
+              style={[
+                styles.letterText,
+                { color: brandColor },
+                isDark && styles.neonGlowText,
+              ]}
+              accessible={false}
+            >
+              T
+            </Text>
+          </Animated.View>
 
-      {/* Center Stage: Radial Pulse Rings, Orbit Particles, and Logo */}
-      <View style={styles.centerStage}>
-        {/* Stage 4 Pulse Glow Rings */}
-        <GlowRings reduceMotion={reduceMotion} />
+          {/* Letter R */}
+          <Animated.View style={[styles.letterBox, letter1Style]}>
+            <Text
+              style={[
+                styles.letterText,
+                { color: brandColor },
+                isDark && styles.neonGlowText,
+              ]}
+              accessible={false}
+            >
+              R
+            </Text>
+          </Animated.View>
 
-        {/* Stage 5 Orbit Particles */}
-        <OrbitParticles reduceMotion={reduceMotion} />
+          {/* Letter A */}
+          <Animated.View style={[styles.letterBox, letter2Style]}>
+            <Text
+              style={[
+                styles.letterText,
+                { color: brandColor },
+                isDark && styles.neonGlowText,
+              ]}
+              accessible={false}
+            >
+              A
+            </Text>
+          </Animated.View>
 
-        {/* Stage 8 Completion Shockwave Ring */}
-        <Animated.View style={[styles.shockwaveRing, shockwaveStyle, { pointerEvents: 'none' }]} />
+          {/* Letter K */}
+          <Animated.View style={[styles.letterBox, letter3Style]}>
+            <Text
+              style={[
+                styles.letterText,
+                { color: brandColor },
+                isDark && styles.neonGlowText,
+              ]}
+              accessible={false}
+            >
+              K
+            </Text>
+          </Animated.View>
 
-        {/* Centerpiece Animated Logo */}
-        <AnimatedLogo
-          width={180}
-          height={180}
-          usePngImage={usePngLogo}
-          reduceMotion={reduceMotion}
+          {/* Subtle Horizontal Light Sweep Sheen */}
+          <Animated.View style={[styles.shineBar, shineStyle]} pointerEvents="none">
+            <LinearGradient
+              colors={['transparent', 'rgba(255, 255, 255, 0.75)', 'transparent']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={StyleSheet.absoluteFillObject}
+            />
+          </Animated.View>
+        </View>
+
+        {/* Minimal Futuristic Accent Line */}
+        <Animated.View
+          style={[
+            styles.accentUnderline,
+            { backgroundColor: brandColor },
+            underlineStyle,
+          ]}
+          pointerEvents="none"
         />
-      </View>
-
-      {/* Bottom Stage: Status Label, Pulsing Dots, and Progress Counter */}
-      <View style={styles.bottomStage}>
-        <LoadingDots reduceMotion={reduceMotion} />
-        <ProgressCounter progress={progress} />
       </View>
     </Animated.View>
   );
@@ -196,43 +388,74 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 60,
+    justifyContent: 'center',
     backgroundColor: '#071B2B',
   },
-  bgFlash: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#39FF88',
+  ambientGlow: {
+    position: 'absolute',
+    width: 220,
+    height: 100,
+    borderRadius: 50,
+    filter: 'blur(35px)' as any,
   },
   centerStage: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    width: '100%',
   },
-  bottomStage: {
+  wordmarkContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 40,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    overflow: 'hidden',
   },
-  shockwaveRing: {
-    position: 'absolute',
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    borderWidth: 3,
-    borderColor: '#39FF88',
-    backgroundColor: 'rgba(57, 255, 136, 0.25)',
+  letterBox: {
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  letterText: {
+    fontFamily: FONT.brand,
+    fontSize: Math.min(52, SCREEN_WIDTH * 0.13),
+    letterSpacing: 8,
+    fontWeight: '700',
+    textAlign: 'center',
+    includeFontPadding: false,
+  },
+  neonGlowText: {
     ...Platform.select({
       web: {
-        boxShadow: '0px 0px 20px rgba(57, 255, 136, 1)',
+        textShadow: '0px 0px 18px rgba(57, 255, 136, 0.65), 0px 0px 4px rgba(57, 255, 136, 0.9)',
+      },
+      default: {
+        textShadowColor: '#39FF88',
+        textShadowOffset: { width: 0, height: 0 },
+        textShadowRadius: 14,
+      },
+    }),
+  },
+  shineBar: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 50,
+  },
+  accentUnderline: {
+    width: 80,
+    height: 2,
+    borderRadius: 1,
+    marginTop: 8,
+    ...Platform.select({
+      web: {
+        boxShadow: '0px 0px 10px rgba(57, 255, 136, 0.8)',
       },
       default: {
         shadowColor: '#39FF88',
         shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 1,
-        shadowRadius: 20,
+        shadowOpacity: 0.8,
+        shadowRadius: 8,
       },
     }),
   },

@@ -10,6 +10,7 @@ export const FONT = {
   medium: 'Inter_500Medium',
   semibold: 'Inter_600SemiBold',
   bold: 'Inter_700Bold',
+  brand: 'Catiliya',
 } as const;
 
 // ─── Web Font Name ──────────────────────────────────────────────────────────

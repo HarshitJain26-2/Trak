@@ -74,6 +74,7 @@ export default function RootLayout() {
   const loadNotifications = useNotificationStore((s) => s.loadNotifications);
 
   const [fontsLoaded] = useFonts({
+    Catiliya: Inter_700Bold,
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
