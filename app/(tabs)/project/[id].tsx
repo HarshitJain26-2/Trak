@@ -21,6 +21,7 @@ import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Colors, useThemeColors } from '@/constants/colors';
 import { useProjectStore, Milestone, ProjectMember } from '@/store/useProjectStore';
+import { useUndoStore } from '@/store/useUndoStore';
 import { useProfileStore } from '@/store/useProfileStore';
 import { TechPill } from '@/components/common/TechPill';
 import { StatusDot } from '@/components/common/StatusDot';
@@ -262,7 +263,10 @@ export default function ProjectDetailsScreen() {
     editMilestone,
     renameMilestone,
     deleteMilestone,
+    restoreMilestone,
+    restoreProject,
     markCompleted,
+    unmarkCompleted,
     deleteProject,
     updateProject,
 
@@ -272,6 +276,7 @@ export default function ProjectDetailsScreen() {
     isLoaded,
     isInitialLoading,
   } = useProjectStore();
+  const showUndoToast = useUndoStore((s) => s.showUndoToast);
   const profile = useProfileStore((state) => state.profile);
   const project = getProject(id);
   const insets = useSafeAreaInsets();
@@ -282,8 +287,15 @@ export default function ProjectDetailsScreen() {
 
   const handleToggleMilestone = async (milestoneId: string) => {
     if (!project) return;
+    const targetM = project.milestones?.find((m) => m.id === milestoneId);
     try {
       await toggleMilestone(project.id, milestoneId);
+      if (targetM) {
+        showUndoToast({
+          message: targetM.completed ? `"${targetM.title}" marked active` : `"${targetM.title}" completed`,
+          onUndo: () => void toggleMilestone(project.id, milestoneId),
+        });
+      }
     } catch (err: any) {
       if (err?.message === 'ONLY_OWNER_CAN_UNDO') {
         notify({
@@ -455,7 +467,13 @@ export default function ProjectDetailsScreen() {
       destructive: true,
       icon: 'trash-2',
     });
-    if (ok && project) deleteMilestone(project.id, milestone.id);
+    if (ok && project) {
+      deleteMilestone(project.id, milestone.id);
+      showUndoToast({
+        message: `"${milestone.title}" deleted`,
+        onUndo: () => void restoreMilestone(project.id, milestone),
+      });
+    }
   };
 
 
@@ -588,6 +606,10 @@ export default function ProjectDetailsScreen() {
           }
           const res = await markCompleted(project.id);
           if (res?.success) {
+            showUndoToast({
+              message: `"${project.name}" marked as complete`,
+              onUndo: () => void unmarkCompleted(project.id),
+            });
             router.back();
           } else if (res?.error) {
             notify({
@@ -642,7 +664,14 @@ export default function ProjectDetailsScreen() {
                     destructive: true,
                     icon: 'trash-2',
                   });
-                  if (ok) { deleteProject(project.id); router.back(); }
+                  if (ok) {
+                    deleteProject(project.id);
+                    showUndoToast({
+                      message: `"${project.name}" moved to Trash`,
+                      onUndo: () => void restoreProject(project.id),
+                    });
+                    router.back();
+                  }
                 }}
               >
                 <Feather name="trash-2" size={18} color={colors.error} />

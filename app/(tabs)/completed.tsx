@@ -147,11 +147,14 @@ function CompletedEmptyState() {
   );
 }
 
+import { useUndoStore } from '@/store/useUndoStore';
+
 export default function CompletedScreen() {
   const router = useRouter();
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
-  const { projects, isLoaded, isInitialLoading, unmarkCompleted } = useProjectStore();
+  const { projects, isLoaded, isInitialLoading, markCompleted, unmarkCompleted } = useProjectStore();
+  const showUndoToast = useUndoStore((s) => s.showUndoToast);
   const completedProjects = projects.filter((p) => p.isCompleted && !p.isDeleted);
   const { dialogProps, ask, notify } = useConfirmDialog();
 
@@ -172,7 +175,15 @@ export default function CompletedScreen() {
       destructive: false,
       icon: 'rotate-ccw',
     });
-    if (ok) unmarkCompleted(project.id);
+    if (ok) {
+      const res = await unmarkCompleted(project.id);
+      if (!res?.error) {
+        showUndoToast({
+          message: `"${project.name}" moved to Active`,
+          onUndo: () => void markCompleted(project.id),
+        });
+      }
+    }
   };
 
   return (

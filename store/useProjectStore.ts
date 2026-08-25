@@ -76,6 +76,7 @@ interface ProjectStore {
   editMilestone: (projectId: string, milestoneId: string, updates: { title?: string; description?: string; deadline?: string }) => Promise<void>;
   renameMilestone: (projectId: string, milestoneId: string, newTitle: string) => Promise<void>;
   deleteMilestone: (projectId: string, milestoneId: string) => Promise<void>;
+  restoreMilestone: (projectId: string, milestone: Milestone) => Promise<void>;
   markCompleted: (projectId: string) => Promise<{ success: boolean; error?: string }>;
   unmarkCompleted: (projectId: string) => Promise<{ success: boolean; error?: string }>;
   togglePinProject: (projectId: string) => Promise<void>;
@@ -1115,6 +1116,46 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         .eq('id', projectId);
     } catch (err) {
       console.error('Failed to sync deleteMilestone to Supabase:', err);
+    }
+  },
+
+  restoreMilestone: async (projectId, milestone) => {
+    let updatedProgress = 0;
+
+    set((state) => ({
+      projects: state.projects.map((p) => {
+        if (p.id !== projectId) return p;
+        if (p.milestones.some((m) => m.id === milestone.id)) return p;
+        const updatedMilestones = [...p.milestones, milestone];
+        updatedProgress = Math.round(
+          (updatedMilestones.filter((m) => m.completed).length / updatedMilestones.length) * 100
+        );
+        return { ...p, milestones: updatedMilestones, progress: updatedProgress };
+      }),
+    }));
+
+    const userId = await getActiveUserId();
+    await saveToLocalStorage(userId, get().projects);
+    void syncWidget(get().projects);
+
+    try {
+      await supabase.from('milestones').upsert({
+        id: milestone.id,
+        project_id: projectId,
+        title: milestone.title,
+        description: milestone.description || null,
+        deadline: milestone.deadline || null,
+        completed: milestone.completed ?? false,
+        added_by: milestone.addedBy || null,
+        completed_by: milestone.completedBy || null,
+      });
+
+      await supabase
+        .from('projects')
+        .update({ progress: updatedProgress })
+        .eq('id', projectId);
+    } catch (err) {
+      console.error('Failed to sync restoreMilestone to Supabase:', err);
     }
   },
 

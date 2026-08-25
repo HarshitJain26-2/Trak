@@ -57,6 +57,7 @@ import { setActiveUserId } from '@/utils/deviceUser';
 import { notificationService } from '@/services/notifications';
 import FuturisticLoadingScreen from '@/components/FuturisticLoadingScreen';
 import { InAppNotificationBanner } from '@/components/common/InAppNotificationBanner';
+import { UndoToast } from '@/components/common/UndoToast';
 import { registerTrakWidgetHandler } from '@/widgets/widgetTaskHandler';
 
 export default function RootLayout() {
@@ -222,6 +223,7 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         </Stack>
         <InAppNotificationBanner />
+        <UndoToast />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

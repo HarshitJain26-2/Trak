@@ -11,6 +11,7 @@ import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors, useThemeColors } from '@/constants/colors';
 import { useProjectStore, Project } from '@/store/useProjectStore';
+import { useUndoStore } from '@/store/useUndoStore';
 import { ConfirmDialog, useConfirmDialog } from '@/components/common/ConfirmDialog';
 import { IncompleteTasksWarningModal } from '@/components/modals/IncompleteTasksWarningModal';
 
@@ -31,6 +32,7 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
   const router = useRouter();
   const { deleteProject, restoreProject, permanentlyDeleteProject, markCompleted, unmarkCompleted, togglePinProject, leaveProject } =
     useProjectStore();
+  const showUndoToast = useUndoStore((s) => s.showUndoToast);
   const { dialogProps, ask, notify } = useConfirmDialog();
   const [warningModalVisible, setWarningModalVisible] = React.useState(false);
 
@@ -92,7 +94,14 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
         destructive: false,
         icon: 'rotate-ccw',
       });
-      if (ok) { onClose(); unmarkCompleted(project.id); }
+      if (ok) {
+        onClose();
+        unmarkCompleted(project.id);
+        showUndoToast({
+          message: `"${project.name}" moved to Active`,
+          onUndo: () => void markCompleted(project.id),
+        });
+      }
     } else {
       const incomplete = project.milestones?.filter((m) => !m.completed) || [];
       if (incomplete.length > 0) {
@@ -106,7 +115,16 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
           destructive: false,
           icon: 'check-circle',
         });
-        if (ok) { onClose(); markCompleted(project.id); }
+        if (ok) {
+          onClose();
+          const res = await markCompleted(project.id);
+          if (!res?.error) {
+            showUndoToast({
+              message: `"${project.name}" marked as completed`,
+              onUndo: () => void unmarkCompleted(project.id),
+            });
+          }
+        }
       }
     }
   };
@@ -121,7 +139,14 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
         destructive: false,
         icon: 'rotate-ccw',
       });
-      if (ok) { onClose(); restoreProject(project.id); }
+      if (ok) {
+        onClose();
+        restoreProject(project.id);
+        showUndoToast({
+          message: `"${project.name}" restored`,
+          onUndo: () => void deleteProject(project.id),
+        });
+      }
     } else {
       const ok = await ask({
         title: 'Move to Trash',
@@ -130,7 +155,14 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
         destructive: true,
         icon: 'trash-2',
       });
-      if (ok) { onClose(); deleteProject(project.id); }
+      if (ok) {
+        onClose();
+        deleteProject(project.id);
+        showUndoToast({
+          message: `"${project.name}" moved to Trash`,
+          onUndo: () => void restoreProject(project.id),
+        });
+      }
     }
   };
 
@@ -186,6 +218,11 @@ export const ProjectActionModal: React.FC<ProjectActionModalProps> = ({
                 message: res.error,
                 icon: 'alert-triangle',
                 confirmLabel: 'Got It',
+              });
+            } else {
+              showUndoToast({
+                message: `"${project.name}" marked as completed`,
+                onUndo: () => void unmarkCompleted(project.id),
               });
             }
           }}

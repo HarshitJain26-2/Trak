@@ -6,6 +6,7 @@ import { getThemeColors } from '@/constants/colors';
 import { StatusDot } from '@/components/common/StatusDot';
 import { TechPill } from '@/components/common/TechPill';
 import { useProjectStore, Project } from '@/store/useProjectStore';
+import { useUndoStore } from '@/store/useUndoStore';
 import { ProjectActionModal } from '@/components/modals/ProjectActionModal';
 import { IncompleteTasksWarningModal } from '@/components/modals/IncompleteTasksWarningModal';
 import { ConfirmDialog, useConfirmDialog } from '@/components/common/ConfirmDialog';
@@ -25,9 +26,12 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
   const { compactCards, themeMode } = useSettingsStore();
   const colors = getThemeColors(themeMode, systemColorScheme);
   const deleteProject = useProjectStore((s) => s.deleteProject);
+  const restoreProject = useProjectStore((s) => s.restoreProject);
   const leaveProject = useProjectStore((s) => s.leaveProject);
   const markCompleted = useProjectStore((s) => s.markCompleted);
+  const unmarkCompleted = useProjectStore((s) => s.unmarkCompleted);
   const togglePinProject = useProjectStore((s) => s.togglePinProject);
+  const showUndoToast = useUndoStore((s) => s.showUndoToast);
   const [modalVisible, setModalVisible] = useState(false);
   const [warningModalVisible, setWarningModalVisible] = useState(false);
   const { dialogProps: alertDialogProps, notify } = useConfirmDialog();
@@ -112,8 +116,14 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
               toValue: SCREEN_WIDTH,
               duration: 250,
               useNativeDriver: Platform.OS !== 'web',
-            }).start(() => {
-              markCompleted(project.id);
+            }).start(async () => {
+              const res = await markCompleted(project.id);
+              if (!res?.error) {
+                showUndoToast({
+                  message: `"${project.name}" marked as complete`,
+                  onUndo: () => void unmarkCompleted(project.id),
+                });
+              }
             });
           }
         } else if (gestureState.dx < -threshold) {
@@ -128,6 +138,10 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
               leaveProject(project.id);
             } else {
               deleteProject(project.id);
+              showUndoToast({
+                message: `"${project.name}" moved to Trash`,
+                onUndo: () => void restoreProject(project.id),
+              });
             }
           });
         } else {
@@ -244,6 +258,11 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onLongPress }
               message: res.error,
               icon: 'alert-triangle',
               confirmLabel: 'Got It',
+            });
+          } else {
+            showUndoToast({
+              message: `"${project.name}" marked as complete`,
+              onUndo: () => void unmarkCompleted(project.id),
             });
           }
         }}

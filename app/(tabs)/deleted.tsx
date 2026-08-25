@@ -205,6 +205,8 @@ function DeletedEmptyState() {
 }
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
+import { useUndoStore } from '@/store/useUndoStore';
+
 export default function DeletedScreen() {
   const router = useRouter();
   const colors = useThemeColors();
@@ -213,11 +215,13 @@ export default function DeletedScreen() {
     projects,
     isLoaded,
     isInitialLoading,
+    deleteProject,
     restoreProject,
     permanentlyDeleteProject,
     bulkPermanentlyDeleteProjects,
     bulkRestoreProjects,
   } = useProjectStore();
+  const showUndoToast = useUndoStore((s) => s.showUndoToast);
 
   const deletedProjects = projects.filter((p) => p.isDeleted);
   const { dialogProps, ask } = useConfirmDialog();
@@ -263,6 +267,10 @@ export default function DeletedScreen() {
     if (ok) {
       triggerHaptic(15);
       void restoreProject(project.id);
+      showUndoToast({
+        message: `"${project.name}" restored`,
+        onUndo: () => void deleteProject(project.id),
+      });
     }
   };
 
@@ -283,6 +291,7 @@ export default function DeletedScreen() {
   const handleBulkRestore = async () => {
     if (selectedIds.length === 0) return;
     const count = selectedIds.length;
+    const idsToUndo = [...selectedIds];
     const ok = await ask({
       title: `Restore ${count} Project${count > 1 ? 's' : ''}`,
       message: `Restore ${count} selected project${count > 1 ? 's' : ''} back to Active Deployments?`,
@@ -295,6 +304,12 @@ export default function DeletedScreen() {
       setIsProcessing(true);
       try {
         await bulkRestoreProjects(selectedIds);
+        showUndoToast({
+          message: `${count} project${count > 1 ? 's' : ''} restored`,
+          onUndo: () => {
+            idsToUndo.forEach((id) => void deleteProject(id));
+          },
+        });
         exitSelectionMode();
       } finally {
         setIsProcessing(false);
