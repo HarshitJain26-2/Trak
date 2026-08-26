@@ -9,23 +9,41 @@ export default function Index() {
   const [sessionChecked, setSessionChecked] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setIsAuthenticated(!!session);
-      setSessionChecked(true);
+      if (isMounted) {
+        setIsAuthenticated(!!session);
+        setSessionChecked(true);
+      }
+    }).catch(() => {
+      if (isMounted) {
+        setSessionChecked(true);
+      }
     });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  // Wait for both session check and loading animation completion
-  if (!sessionChecked || !isAnimationFinished) {
+  // Show loading animation strictly for the set time (900ms)
+  if (!isAnimationFinished) {
     return (
       <FuturisticLoadingScreen
-        completed={sessionChecked}
-        durationMs={1200}
+        durationMs={900}
         onFinish={() => setIsAnimationFinished(true)}
       />
     );
   }
 
-  return <Redirect href={isAuthenticated ? '/(tabs)' : '/auth'} />;
+  // Once the set time expires:
+  // If session check completed and user is logged out -> redirect to /auth
+  // Otherwise (authenticated or still loading in background) -> jump to /(tabs) to display skeleton animation!
+  if (sessionChecked && !isAuthenticated) {
+    return <Redirect href="/auth" />;
+  }
+
+  return <Redirect href="/(tabs)" />;
 }
+
 

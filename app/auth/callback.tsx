@@ -219,7 +219,7 @@ export default function AuthCallbackScreen() {
     );
   }
 
-  return <FuturisticLoadingScreen durationMs={1200} themeMode={colors.isDark ? 'dark' : 'light'} />;
+  return <FuturisticLoadingScreen durationMs={800} themeMode={colors.isDark ? 'dark' : 'light'} />;
 }
 
 const styles = StyleSheet.create({

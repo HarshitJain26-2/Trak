@@ -201,7 +201,7 @@ export default function RootLayout() {
   }, []);
 
   if (!fontsLoaded) {
-    return <FuturisticLoadingScreen durationMs={1500} themeMode={colors.isDark ? 'dark' : 'light'} />;
+    return <FuturisticLoadingScreen durationMs={800} themeMode={colors.isDark ? 'dark' : 'light'} />;
   }
 
   return (
