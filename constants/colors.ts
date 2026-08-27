@@ -181,13 +181,13 @@ export const LightColors: ColorTheme = {
   isDark: false,
 };
 
-export const Colors = DarkColors;
+export const Colors = LightColors;
 export type ColorKey = keyof ColorTheme;
 
 export function getThemeColors(mode: 'light' | 'dark' | 'system', systemScheme?: 'light' | 'dark' | null): ColorTheme {
-  if (mode === 'light') return LightColors;
   if (mode === 'dark') return DarkColors;
-  return systemScheme === 'light' ? LightColors : DarkColors;
+  if (mode === 'light') return LightColors;
+  return systemScheme === 'dark' ? DarkColors : LightColors;
 }
 
 export function useThemeColors(): ColorTheme {

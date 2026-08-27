@@ -1,9 +1,11 @@
 import { Redirect } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/services/supabase';
+import { useThemeColors } from '@/constants/colors';
 import FuturisticLoadingScreen from '@/components/FuturisticLoadingScreen';
 
 export default function Index() {
+  const colors = useThemeColors();
   const [isAnimationFinished, setIsAnimationFinished] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [sessionChecked, setSessionChecked] = useState(false);
@@ -31,6 +33,7 @@ export default function Index() {
     return (
       <FuturisticLoadingScreen
         durationMs={900}
+        themeMode={colors.isDark ? 'dark' : 'light'}
         onFinish={() => setIsAnimationFinished(true)}
       />
     );

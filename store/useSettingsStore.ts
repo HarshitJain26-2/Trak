@@ -23,7 +23,7 @@ export interface SettingsState {
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
-  themeMode: 'system',
+  themeMode: 'light',
   language: getDeviceLanguage(),
   notificationsEnabled: true,
   autoSync: true,
@@ -41,7 +41,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       } else {
         // First visit default
         const deviceLang = getDeviceLanguage();
-        set({ language: deviceLang });
+        set({ language: deviceLang, themeMode: 'light' });
       }
     } catch (err) {
       console.error('Failed to load settings:', err);

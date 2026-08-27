@@ -33,7 +33,7 @@ export interface FuturisticLoadingScreenProps {
 export const FuturisticLoadingScreen: React.FC<FuturisticLoadingScreenProps> = ({
   onFinish,
   durationMs = 900,
-  themeMode = 'dark',
+  themeMode = 'light',
   completed = true,
   maxTimeoutMs,
 }) => {
@@ -259,14 +259,22 @@ export const FuturisticLoadingScreen: React.FC<FuturisticLoadingScreenProps> = (
   const isDark = themeMode === 'dark';
   const bgGradientColors = isDark
     ? (['#051522', '#071B2B', '#092336'] as const)
-    : (['#F8FAFC', '#F1F5F9', '#E2E8F0'] as const);
+    : (['#FFFFFF', '#F8FAFC', '#EEF2F6'] as const);
 
-  const brandColor = isDark ? '#39FF88' : '#0B253A';
-  const glowBg = isDark ? 'rgba(57, 255, 136, 0.18)' : 'rgba(0, 230, 57, 0.12)';
+  const textBrandColor = isDark ? '#39FF88' : '#0B253A';
+  const underlineColor = isDark ? '#39FF88' : '#00872E';
+  const glowBg = isDark ? 'rgba(57, 255, 136, 0.18)' : 'rgba(0, 135, 46, 0.08)';
+  const shineColors = isDark
+    ? (['transparent', 'rgba(255, 255, 255, 0.6)', 'transparent'] as const)
+    : (['transparent', 'rgba(255, 255, 255, 0.95)', 'rgba(0, 135, 46, 0.12)', 'transparent'] as const);
 
   return (
     <Animated.View
-      style={[styles.container, containerStyle]}
+      style={[
+        styles.container,
+        { backgroundColor: isDark ? '#071B2B' : '#F8FAFC' },
+        containerStyle,
+      ]}
       accessible={true}
       accessibilityRole="header"
       accessibilityLabel="Trak"
@@ -279,7 +287,7 @@ export const FuturisticLoadingScreen: React.FC<FuturisticLoadingScreenProps> = (
         style={StyleSheet.absoluteFillObject}
       />
 
-      {/* Subtle Glow Pod behind the wordmark (optimized without heavy CSS filter blur) */}
+      {/* Subtle Glow Pod behind the wordmark */}
       <Animated.View
         style={[
           styles.ambientGlow,
@@ -297,8 +305,8 @@ export const FuturisticLoadingScreen: React.FC<FuturisticLoadingScreenProps> = (
             <Text
               style={[
                 styles.letterText,
-                { color: brandColor },
-                isDark && styles.neonGlowText,
+                { color: textBrandColor },
+                isDark ? styles.neonGlowTextDark : styles.glowTextLight,
               ]}
               accessible={false}
             >
@@ -311,8 +319,8 @@ export const FuturisticLoadingScreen: React.FC<FuturisticLoadingScreenProps> = (
             <Text
               style={[
                 styles.letterText,
-                { color: brandColor },
-                isDark && styles.neonGlowText,
+                { color: textBrandColor },
+                isDark ? styles.neonGlowTextDark : styles.glowTextLight,
               ]}
               accessible={false}
             >
@@ -325,8 +333,8 @@ export const FuturisticLoadingScreen: React.FC<FuturisticLoadingScreenProps> = (
             <Text
               style={[
                 styles.letterText,
-                { color: brandColor },
-                isDark && styles.neonGlowText,
+                { color: textBrandColor },
+                isDark ? styles.neonGlowTextDark : styles.glowTextLight,
               ]}
               accessible={false}
             >
@@ -339,8 +347,8 @@ export const FuturisticLoadingScreen: React.FC<FuturisticLoadingScreenProps> = (
             <Text
               style={[
                 styles.letterText,
-                { color: brandColor },
-                isDark && styles.neonGlowText,
+                { color: textBrandColor },
+                isDark ? styles.neonGlowTextDark : styles.glowTextLight,
               ]}
               accessible={false}
             >
@@ -351,7 +359,7 @@ export const FuturisticLoadingScreen: React.FC<FuturisticLoadingScreenProps> = (
           {/* Subtle Horizontal Light Sweep Sheen */}
           <Animated.View style={[styles.shineBar, shineStyle]} pointerEvents="none">
             <LinearGradient
-              colors={['transparent', 'rgba(255, 255, 255, 0.6)', 'transparent']}
+              colors={shineColors}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={StyleSheet.absoluteFillObject}
@@ -363,7 +371,11 @@ export const FuturisticLoadingScreen: React.FC<FuturisticLoadingScreenProps> = (
         <Animated.View
           style={[
             styles.accentUnderline,
-            { backgroundColor: brandColor },
+            {
+              backgroundColor: underlineColor,
+              shadowColor: underlineColor,
+            },
+            isDark ? styles.underlineDark : styles.underlineLight,
             underlineStyle,
           ]}
           pointerEvents="none"
@@ -378,13 +390,12 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#071B2B',
   },
   ambientGlow: {
     position: 'absolute',
-    width: 220,
-    height: 90,
-    borderRadius: 45,
+    width: 240,
+    height: 100,
+    borderRadius: 50,
   },
   centerStage: {
     alignItems: 'center',
@@ -412,7 +423,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     includeFontPadding: false,
   },
-  neonGlowText: {
+  neonGlowTextDark: {
     ...Platform.select({
       web: {
         textShadow: '0px 0px 12px rgba(57, 255, 136, 0.5)',
@@ -424,26 +435,51 @@ const styles = StyleSheet.create({
       },
     }),
   },
+  glowTextLight: {
+    ...Platform.select({
+      web: {
+        textShadow: '0px 2px 8px rgba(11, 37, 58, 0.1)',
+      },
+      default: {
+        textShadowColor: 'rgba(11, 37, 58, 0.1)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 3,
+      },
+    }),
+  },
   shineBar: {
     position: 'absolute',
     top: 0,
     bottom: 0,
-    width: 44,
+    width: 48,
   },
   accentUnderline: {
     width: 72,
-    height: 2,
-    borderRadius: 1,
+    height: 2.5,
+    borderRadius: 1.5,
     marginTop: 6,
+  },
+  underlineDark: {
     ...Platform.select({
       web: {
         boxShadow: '0px 0px 8px rgba(57, 255, 136, 0.7)',
       },
       default: {
-        shadowColor: '#39FF88',
         shadowOffset: { width: 0, height: 0 },
         shadowOpacity: 0.7,
         shadowRadius: 6,
+      },
+    }),
+  },
+  underlineLight: {
+    ...Platform.select({
+      web: {
+        boxShadow: '0px 2px 6px rgba(0, 135, 46, 0.35)',
+      },
+      default: {
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.35,
+        shadowRadius: 4,
       },
     }),
   },

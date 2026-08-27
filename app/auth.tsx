@@ -1268,7 +1268,7 @@ export default function AuthScreen() {
               setLoginCompleted(false);
             }}
             durationMs={800}
-            themeMode="dark"
+            themeMode={colors.isDark ? 'dark' : 'light'}
           />
         </Modal>
       )}
